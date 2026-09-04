@@ -1,3 +1,4 @@
 pandas
 plotly
 streamlit>=1.57
+scipy
