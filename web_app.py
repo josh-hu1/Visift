@@ -155,6 +155,12 @@ def line_insight(candidate):
     """
     Generate a plain-English explanation for
     a line-chart recommendation.
+
+    Supports:
+        - trend
+        - seasonality
+        - level shift
+        - volatility shift
     """
 
     x = humanize_column_name(
@@ -169,46 +175,213 @@ def line_insight(candidate):
         "statistics"
     ]
 
+    signal = candidate[
+        "components"
+    ]["signal"]
+
+    dominant_pattern = (
+        statistics.get(
+            "dominant_pattern",
+            "trend"
+        )
+    )
+
+    # -----------------------------------
+    # General strength wording
+    # -----------------------------------
+
+    if signal >= 80:
+        strength = "strong"
+
+    elif signal >= 60:
+        strength = "moderate"
+
+    elif signal >= 40:
+        strength = "noticeable"
+
+    else:
+        strength = "weak"
+
+    # ==================================================
+    # SEASONALITY
+    # ==================================================
+
+    if (
+        dominant_pattern
+        == "seasonality"
+    ):
+
+        period_observations = (
+            statistics.get(
+                "seasonal_period_observations",
+                0
+            )
+        )
+
+        autocorrelation = (
+            statistics.get(
+                "seasonal_autocorrelation",
+                0
+            )
+        )
+
+        if (
+            period_observations
+            and period_observations > 0
+        ):
+
+            period_display = (
+                f"{period_observations:.0f}"
+            )
+
+            return (
+                f"{y} shows a {strength} repeating pattern "
+                f"over {x}, recurring approximately every "
+                f"{period_display} observations "
+                f"(autocorrelation {autocorrelation:.2f})."
+            )
+
+        return (
+            f"{y} shows a {strength} repeating seasonal "
+            f"pattern over {x}."
+        )
+
+    # ==================================================
+    # VOLATILITY SHIFT
+    # ==================================================
+
+    if (
+        dominant_pattern
+        == "volatility_shift"
+    ):
+
+        dispersion_ratio = (
+            statistics.get(
+                "volatility_dispersion_ratio",
+                1
+            )
+        )
+
+        split_fraction = (
+            statistics.get(
+                "volatility_split_fraction",
+                0
+            )
+        )
+
+        if (
+            split_fraction
+            and split_fraction > 0
+        ):
+
+            split_percent = (
+                split_fraction
+                * 100
+            )
+
+            return (
+                f"{y} shows a {strength} change in variability "
+                f"over {x}. Dispersion differs by about "
+                f"{dispersion_ratio:.1f}× across temporal regimes, "
+                f"with the strongest shift near "
+                f"{split_percent:.0f}% of the way through the series."
+            )
+
+        return (
+            f"{y} shows a {strength} change in variability "
+            f"over {x}, with dispersion differing by about "
+            f"{dispersion_ratio:.1f}× across temporal regimes."
+        )
+
+    # ==================================================
+    # LEVEL SHIFT
+    # ==================================================
+
+    if (
+        dominant_pattern
+        == "level_shift"
+    ):
+
+        effect_size = (
+            statistics.get(
+                "level_shift_effect_size",
+                0
+            )
+        )
+
+        split_fraction = (
+            statistics.get(
+                "level_shift_split_fraction",
+                0
+            )
+        )
+
+        if (
+            split_fraction
+            and split_fraction > 0
+        ):
+
+            split_percent = (
+                split_fraction
+                * 100
+            )
+
+            return (
+                f"{y} shows a {strength} persistent change in level "
+                f"over {x}, with the strongest shift occurring near "
+                f"{split_percent:.0f}% of the way through the series "
+                f"(standardized effect {effect_size:.2f})."
+            )
+
+        return (
+            f"{y} shows a {strength} persistent level shift "
+            f"over {x}."
+        )
+
+    # ==================================================
+    # TREND
+    # ==================================================
+
     direction = statistics.get(
         "direction",
         "flat"
     )
 
-    signal = candidate[
-        "components"
-    ]["signal"]
+    pearson = statistics.get(
+        "pearson",
+        0
+    )
 
-    if signal >= 50:
-        strength = "clear"
+    spearman = statistics.get(
+        "spearman",
+        0
+    )
 
-    elif signal >= 20:
-        strength = "noticeable"
-
-    elif signal >= 10:
-        strength = "mild"
-
-    else:
-        strength = "very limited"
+    strongest_correlation = max(
+        abs(pearson),
+        abs(spearman)
+    )
 
     if direction == "upward":
 
         return (
-            f"{y} shows a {strength} upward trend "
-            f"over {x}."
+            f"{y} shows a {strength} upward trend over {x}, "
+            f"with a temporal correlation of approximately "
+            f"{strongest_correlation:.2f}."
         )
 
     if direction == "downward":
 
         return (
-            f"{y} shows a {strength} downward trend "
-            f"over {x}."
+            f"{y} shows a {strength} downward trend over {x}, "
+            f"with a temporal correlation of approximately "
+            f"{strongest_correlation:.2f}."
         )
 
     return (
-        f"{y} remains relatively stable over {x}, "
-        f"with little evidence of a consistent trend."
+        f"{y} shows little evidence of a consistent "
+        f"directional trend over {x}."
     )
-
 
 def format_group_label(value):
     """
