@@ -1,6 +1,6 @@
 # Dataviz Engine
 
-An explainable visualization recommendation engine that automatically profiles a dataset, generates valid chart candidates, and ranks the visualizations most likely to reveal useful patterns.
+An explainable visualization recommendation engine that automatically profiles a dataset, generates valid visualization candidates, and ranks the charts most likely to reveal useful patterns.
 
 **Live Demo:**  
 https://dataviz-engine-hvlp2ydhtkitr6kpmpczzw.streamlit.app/
@@ -24,25 +24,30 @@ Given a CSV dataset, the engine:
 3. Generates semantically valid visualization candidates
 4. Evaluates each candidate for chart suitability
 5. Measures chart-specific statistical patterns
-6. Produces an explainable recommendation score
-7. Removes redundant visualizations
-8. Renders the highest-ranked recommendations interactively
+6. Calibrates relationship strength for reliability
+7. Produces an explainable recommendation score
+8. Removes redundant visualizations
+9. Renders the highest-ranked recommendations interactively
 
-The result is a ranked set of visualizations with both statistical evidence and a plain-English explanation of why each chart may be useful.
+The result is a ranked set of visualizations with statistical evidence, plain-English insights, and detailed score explanations.
 
 ---
 
-## Features
+## Key Features
 
 - Automatic CSV analysis
 - Semantic column type inference
 - Visualization candidate generation
 - Explainable 0–100 recommendation scoring
-- Cross-chart ranking
+- Cross-chart global ranking
 - Redundant-chart detection
+- Nonlinear relationship detection
+- Temporal pattern detection
+- Statistical reliability calibration
 - Plain-English insight summaries
 - Interactive Plotly visualizations
 - Streamlit web interface
+- Dark neon analytics dashboard theme
 - Dataset preview and profiling
 - User-controlled chart type and score filters
 
@@ -84,7 +89,7 @@ The engine then assigns a semantic type such as:
 - `identifier`
 - `text`
 
-Semantic inference helps distinguish columns that may share the same underlying pandas dtype but have very different meanings.
+Semantic inference helps distinguish columns that may share the same pandas dtype but represent very different concepts.
 
 For example:
 
@@ -156,7 +161,7 @@ Factors include:
 
 How much potentially useful structure does the visualization reveal?
 
-This is calculated differently depending on the visualization type.
+Pattern strength is calculated differently depending on the chart type.
 
 The final recommendation score combines chart suitability with pattern strength so that a chart cannot rank highly simply because it is technically valid.
 
@@ -174,35 +179,63 @@ This prevents clean but uninformative charts from dominating the recommendation 
 
 ---
 
-## Chart-Specific Signals
+## Chart-Specific Pattern Detection
 
 Different visualization types require different definitions of an informative pattern.
 
 ### Scatterplots
 
-Scatterplots currently consider:
+Scatterplots currently evaluate:
 
 - Pearson correlation
 - Spearman correlation
+- p-value-based correlation reliability
+- mutual information
+- permutation-calibrated nonlinear dependence
 - paired sample size
 - missing data
-- variable suitability
+- semantic suitability
 
-A linear regression trendline and R² are also rendered in the frontend.
+The engine uses:
+
+- **Pearson correlation** for linear relationships
+- **Spearman correlation** for monotonic relationships
+- **Mutual information** for nonlinear relationships such as quadratic, sinusoidal, and threshold effects
+
+Mutual information is calibrated against shuffled-data null distributions before contributing to the final signal.
+
+Correlation-based signals are also adjusted using statistical reliability so chance relationships in small samples are penalized without automatically suppressing genuinely strong effects.
+
+A linear trendline and R² are rendered in the frontend for scatterplots.
+
+---
 
 ### Line Charts
 
-Line charts evaluate:
+Line charts evaluate multiple forms of temporal structure:
 
-- temporal + numeric semantic compatibility
-- number of observations
+- long-term trend
+- seasonality
+- level shifts
+- volatility shifts
+- observation support
 - distinct time points
-- missing values
-- Pearson correlation with time
-- Spearman correlation with time
-- trend direction
+- data completeness
+- semantic compatibility
 
-Dense time series are automatically aggregated for visualization readability.
+Trend detection uses Pearson and Spearman correlation against time.
+
+Seasonality detection combines frequency-domain analysis with autocorrelation.
+
+Level-shift detection searches for persistent changes in the temporal level.
+
+Volatility-shift detection looks for large changes in robust dispersion across temporal regimes.
+
+The strongest supported temporal pattern determines the line-chart signal rather than adding overlapping signals together.
+
+Dense datetime series are automatically aggregated for readability.
+
+---
 
 ### Bar Charts
 
@@ -216,6 +249,8 @@ Grouped bar charts consider:
 
 Count bar charts also evaluate category-frequency imbalance.
 
+---
+
 ### Box Plots
 
 Box plots evaluate:
@@ -226,6 +261,8 @@ Box plots evaluate:
 - median separation
 - within-group outliers
 - semantic compatibility
+
+---
 
 ### Histograms
 
@@ -273,6 +310,24 @@ Spearman correlation: 0.728
 R²: 0.54
 ```
 
+Temporal recommendations can also explain patterns such as:
+
+```text
+Revenue shows a weak upward trend over time,
+with a temporal correlation of approximately 0.20.
+```
+
+or, when present:
+
+```text
+Metric shows a strong repeating seasonal pattern.
+
+Metric shows a strong change in variability across
+temporal regimes.
+
+Metric shows a persistent level shift over time.
+```
+
 ---
 
 ## Redundancy Handling
@@ -296,47 +351,97 @@ This helps the final recommendation list emphasize distinct insights rather than
 
 ---
 
-## Synthetic Validation
+## Synthetic Benchmarking
 
-A synthetic dataset with 500 observations was created to validate the recommendation engine.
+Dataviz Engine includes a controlled synthetic benchmark framework used to evaluate ranking behavior and false positives.
 
-Known relationships were intentionally planted into the data.
+The current hardened benchmark contains:
 
-Examples:
+- **125 synthetic datasets**
+- **95 positive datasets** with known planted patterns
+- **30 null/adversarial datasets**
+- **1,850 visualization candidates**
 
-```text
-ad_spend → revenue
-strong relationship
+The benchmark includes:
 
-revenue → units
-strong relationship
+- strong and weak linear relationships
+- nonlinear quadratic relationships
+- noisy nonlinear relationships
+- sinusoidal relationships
+- threshold effects
+- categorical group effects
+- category imbalance
+- temporal trends
+- seasonality
+- change points
+- trend + seasonality
+- volatility shifts
+- skewed distributions
+- outlier-heavy distributions
+- small sample sizes
+- 40% missingness
+- independent skewed variables
+- independent variables with outliers
+- random categorical groups
+- temporal white noise
+- small-sample random correlations
 
-date → revenue
-upward temporal trend
+### Current Hardened Benchmark Results
 
-region → revenue
-moderate grouped effect
+| Metric | Result |
+|---|---:|
+| Positive datasets | 95 |
+| Null datasets | 30 |
+| Visualization candidates | 1,850 |
+| Top-1 retrieval | 100.0% |
+| Top-3 retrieval | 100.0% |
+| Top-5 retrieval | 100.0% |
+| Mean reciprocal rank | 1.000 |
+| Highest evaluated null score | 43.25 |
+| Null candidates scoring ≥ 50 | 0.0% |
+| Null candidates scoring ≥ 65 | 0.0% |
 
-department → profit
-little meaningful relationship
-```
+These results come from a **controlled synthetic benchmark**, not from arbitrary real-world datasets.
 
-The engine generated **50 visualization candidates** across five chart types.
+A precise interpretation is:
 
-The highest-ranked scatterplots were:
+> On the current 125-dataset synthetic benchmark, Dataviz Engine ranked the planted visualization first in all 95 positive scenarios, while no evaluated null candidate scored 50 or higher.
 
-| Rank | Visualization | Score | Pearson |
-|---|---|---:|---:|
-| 1 | Revenue vs Units | 82.45 | 0.735 |
-| 2 | Ad Spend vs Revenue | 81.36 | 0.718 |
-| 3 | Ad Spend vs Units | 70.67 | 0.549 |
-| 4 | Revenue vs Profit | 50.97 | 0.249 |
+The benchmark is used primarily for regression testing and model-development comparisons rather than as a claim of universal real-world accuracy.
 
-This matched the relationships intentionally built into the synthetic data.
+---
 
-Weak or unrelated combinations received substantially lower scores.
+## Why the Benchmark Matters
 
-For example, a technically valid category-versus-numeric visualization with almost no group separation was prevented from receiving a high recommendation score solely because it had clean data and large sample sizes.
+The benchmark has directly influenced the engine's development.
+
+### Nonlinear Relationship Detection
+
+The original engine performed well on linear and monotonic relationships but struggled with quadratic relationships because Pearson and Spearman correlation can both be close to zero for strong U-shaped patterns.
+
+Adding permutation-calibrated mutual information improved nonlinear retrieval while preserving low scores on independent noise.
+
+### Temporal Pattern Detection
+
+The original line scorer primarily measured monotonic trend strength.
+
+Harder benchmarks exposed failures on:
+
+- pure seasonality
+- volatility regime shifts
+
+The temporal scorer was expanded to detect:
+
+- trend
+- seasonality
+- level shifts
+- volatility shifts
+
+### Small-Sample Reliability
+
+Adversarial tests showed that random correlations with only 30 observations could occasionally receive moderate scores.
+
+Correlation signals are now adjusted using p-value-based reliability, reducing small-sample false positives while preserving genuinely strong small-sample relationships.
 
 ---
 
@@ -418,6 +523,13 @@ Dataviz-Engine/
 │   ├── __init__.py
 │   └── renderer.py
 │
+├── evaluation/
+│   ├── __init__.py
+│   ├── datasets.py
+│   ├── metrics.py
+│   ├── benchmark.py
+│   └── results/
+│
 ├── assets/
 │   └── app-preview.png
 │
@@ -435,6 +547,7 @@ Dataviz-Engine/
 - pandas
 - NumPy
 - SciPy
+- scikit-learn
 
 ### Visualization
 
@@ -444,11 +557,34 @@ Dataviz-Engine/
 
 - Streamlit
 
+### Testing / Evaluation
+
+- Synthetic data generation
+- Controlled benchmark scenarios
+- Top-K retrieval metrics
+- Mean reciprocal rank
+- False-positive evaluation
+
 ### Version Control / Deployment
 
 - Git
 - GitHub
 - Streamlit Community Cloud
+
+---
+
+## Dark Analytics Interface
+
+The frontend uses a custom dark theme designed around:
+
+- black backgrounds
+- dark panels
+- neon-green data marks
+- neon-green selected states
+- muted pale-green secondary text
+- high-contrast interactive Plotly charts
+
+The visual styling is intentionally designed so that bright green is primarily used for **data and important accents** rather than large interface surfaces.
 
 ---
 
@@ -486,6 +622,20 @@ Then open the local Streamlit address shown in the terminal.
 
 ---
 
+## Running the Benchmark
+
+Run the synthetic benchmark from the repository root:
+
+```bash
+python -m evaluation.benchmark
+```
+
+The benchmark evaluates positive relationship retrieval and false-positive behavior across the full scenario suite.
+
+Results are written to the `evaluation/results/` directory.
+
+---
+
 ## Example Workflow
 
 1. Open Dataviz Engine
@@ -494,9 +644,10 @@ Then open the local Streamlit address shown in the terminal.
 4. Semantic types are inferred
 5. Valid visualization candidates are generated
 6. Every candidate is scored
-7. Redundant recommendations are consolidated
-8. The highest-ranked charts are rendered interactively
-9. Recommendation evidence can be inspected through the interface
+7. Statistical reliability is incorporated
+8. Redundant recommendations are consolidated
+9. The highest-ranked charts are rendered interactively
+10. Recommendation evidence can be inspected through the interface
 
 No chart selection is required beforehand.
 
@@ -510,38 +661,45 @@ A visualization can be technically valid without being useful.
 
 Dataviz Engine therefore keeps candidate generation broad while allowing the ranking system to penalize weak candidates.
 
-### Effect Size Is Not the Same as Confidence
+### Effect Size Is Not the Same as Reliability
 
 An apparent relationship based on a very small sample should not automatically receive a high recommendation score.
 
-Several scorers therefore adjust statistical signals using sample support.
+The engine incorporates sample support, permutation calibration, and p-value-based reliability where appropriate.
 
 ### Scores Should Be Explainable
 
-The engine exposes its component scores and statistical evidence rather than producing an unexplained ranking.
+The engine exposes component scores and statistical evidence rather than producing an unexplained ranking.
 
 ### Different Charts Require Different Definitions of Insight
 
-A meaningful scatterplot is not evaluated the same way as a meaningful histogram.
+A meaningful scatterplot is not evaluated the same way as a meaningful histogram or line chart.
 
 Each visualization type therefore has its own chart-specific signal calculation.
+
+### Benchmark Before Tuning
+
+Scoring changes are evaluated against controlled benchmark scenarios before additional tuning.
+
+This helps prevent improvements on one dataset from silently creating regressions elsewhere.
 
 ---
 
 ## Current Limitations
 
-The project is currently an early recommendation engine and has several areas for future improvement.
+The project is still under active development.
 
 Potential improvements include:
 
-- nonlinear relationship detection
-- mutual information
-- clustering and anomaly detection
-- seasonality detection
-- change-point detection
-- more sophisticated time-series aggregation
+- score calibration across weak, moderate, and strong effects
+- broader real-world dataset testing
+- irregular time-series handling
+- additional semantic-type robustness
+- currency and percentage string parsing
+- high-cardinality category handling
+- geographic visualization support
 - confidence intervals
-- statistical significance testing
+- additional statistical tests
 - visualization accessibility checks
 - additional chart types
 - Excel support
@@ -549,6 +707,38 @@ Potential improvements include:
 - natural-language dataset querying
 - automated dashboard generation
 - learned ranking models based on user feedback
+
+---
+
+## Current Development Roadmap
+
+### Completed
+
+- Core profiling and semantic inference
+- Candidate generation
+- Explainable global ranking
+- Interactive Streamlit frontend
+- Synthetic benchmark framework
+- Nonlinear scatter detection
+- Temporal seasonality detection
+- Temporal level-shift detection
+- Temporal volatility detection
+- Small-sample correlation reliability calibration
+- Dark neon dashboard redesign
+
+### Next
+
+- Graduated score calibration
+- Harder adversarial benchmark scenarios
+- Real-world messy-data robustness
+- Additional semantic inference improvements
+
+### Longer Term
+
+- More chart types
+- Natural-language querying
+- Automated dashboard generation
+- Learned visualization ranking from user feedback
 
 ---
 
