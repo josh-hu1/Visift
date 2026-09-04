@@ -1,0 +1,9 @@
+relationship_type,datasets,top_1_pct,top_3_pct,top_5_pct,mean_reciprocal_rank,median_rank,mean_score
+categorical_effect,5,100.0,100.0,100.0,1.0,1.0,89.328
+category_imbalance,5,100.0,100.0,100.0,1.0,1.0,59.072
+nonlinear_quadratic,5,100.0,100.0,100.0,1.0,1.0,97.16799999999999
+outlier_distribution,5,100.0,100.0,100.0,1.0,1.0,59.169999999999995
+skewed_distribution,5,100.0,100.0,100.0,1.0,1.0,89.268
+strong_linear,5,100.0,100.0,100.0,1.0,1.0,97.67200000000001
+temporal_trend,5,100.0,100.0,100.0,1.0,1.0,91.062
+weak_linear,5,100.0,100.0,100.0,1.0,1.0,59.602

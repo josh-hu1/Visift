@@ -20,7 +20,8 @@ from evaluation.metrics import (
     evaluate_null_scenario,
     summarize_positive_results,
     summarize_null_results,
-    relationship_breakdown
+    relationship_breakdown,
+    null_relationship_breakdown
 )
 
 
@@ -29,7 +30,7 @@ from evaluation.metrics import (
 # ==================================================
 
 RESULTS_DIR = Path(
-    "evaluation/results"
+    "evaluation/results/hardened_v1_2b"
 )
 
 
@@ -38,16 +39,20 @@ RESULTS_DIR = Path(
 # ==================================================
 
 def run_scenario(
-    scenario,
+    scenario
 ):
     """
     Run one synthetic dataset through the complete
     Dataviz Engine recommendation pipeline.
     """
 
-    start = time.perf_counter()
+    start = (
+        time.perf_counter()
+    )
 
-    df = scenario.dataframe
+    df = (
+        scenario.dataframe
+    )
 
     profile = profile_dataset(
         df
@@ -106,22 +111,96 @@ def run_scenario(
 # ==================================================
 
 def format_percentage(
-    value,
+    value
 ):
-    return f"{value:.1f}%"
+    return (
+        f"{value:.1f}%"
+    )
 
 
 def format_optional_number(
     value,
-    decimals=2,
+    decimals=2
 ):
     if value is None:
         return "N/A"
 
-    if pd.isna(value):
+    if pd.isna(
+        value
+    ):
         return "N/A"
 
-    return f"{value:.{decimals}f}"
+    return (
+        f"{value:.{decimals}f}"
+    )
+
+
+def printable_percentage_columns(
+    dataframe,
+    columns
+):
+    """
+    Return a copy with selected numeric percentage
+    columns formatted for terminal output.
+    """
+
+    output = (
+        dataframe.copy()
+    )
+
+    for column in columns:
+
+        if (
+            column
+            in output.columns
+        ):
+
+            output[
+                column
+            ] = output[
+                column
+            ].map(
+                lambda value:
+                f"{value:.1f}%"
+            )
+
+    return output
+
+
+def printable_numeric_columns(
+    dataframe,
+    columns,
+    decimals=2
+):
+    """
+    Format numeric columns for terminal output.
+    """
+
+    output = (
+        dataframe.copy()
+    )
+
+    for column in columns:
+
+        if (
+            column
+            in output.columns
+        ):
+
+            output[
+                column
+            ] = output[
+                column
+            ].map(
+                lambda value:
+                (
+                    f"{value:.{decimals}f}"
+                    if pd.notna(value)
+                    else "N/A"
+                )
+            )
+
+    return output
 
 
 # ==================================================
@@ -131,12 +210,13 @@ def format_optional_number(
 def print_report(
     positive_results,
     null_results,
-    breakdown,
+    positive_breakdown,
+    null_breakdown,
     total_candidates,
-    total_elapsed,
+    total_elapsed
 ):
     """
-    Print a readable terminal benchmark report.
+    Print the hardened benchmark report.
     """
 
     positive_summary = (
@@ -157,16 +237,17 @@ def print_report(
     )
 
     print()
+
     print(
-        "=" * 72
+        "=" * 88
     )
 
     print(
-        "DATAVIZ ENGINE BENCHMARK"
+        "DATAVIZ ENGINE HARDENED BENCHMARK"
     )
 
     print(
-        "=" * 72
+        "=" * 88
     )
 
     print()
@@ -177,19 +258,29 @@ def print_report(
     )
 
     print(
+        f"Positive datasets:                "
+        f"{len(positive_results)}"
+    )
+
+    print(
+        f"Null datasets:                    "
+        f"{len(null_results)}"
+    )
+
+    print(
         f"Visualization candidates:         "
         f"{total_candidates}"
     )
 
     print(
-        f"Total runtime:                     "
+        f"Total runtime:                    "
         f"{total_elapsed:.2f}s"
     )
 
     print()
 
     # -----------------------------------
-    # Retrieval
+    # Positive retrieval
     # -----------------------------------
 
     print(
@@ -197,97 +288,87 @@ def print_report(
     )
 
     print(
-        "-" * 72
+        "-" * 88
     )
 
     print(
-        f"Positive datasets:                 "
-        f"{positive_summary['datasets']}"
-    )
-
-    print(
-        f"Top-1 accuracy:                    "
+        f"Top-1 accuracy:                   "
         f"{format_percentage(positive_summary['top_1_accuracy'])}"
     )
 
     print(
-        f"Top-3 accuracy:                    "
+        f"Top-3 accuracy:                   "
         f"{format_percentage(positive_summary['top_3_accuracy'])}"
     )
 
     print(
-        f"Top-5 accuracy:                    "
+        f"Top-5 accuracy:                   "
         f"{format_percentage(positive_summary['top_5_accuracy'])}"
     )
 
     print(
-        f"Mean reciprocal rank:              "
+        f"Mean reciprocal rank:             "
         f"{positive_summary['mean_reciprocal_rank']:.3f}"
     )
 
     print(
-        f"Median global rank:                "
+        f"Median global rank:               "
         f"{format_optional_number(positive_summary['median_global_rank'], 1)}"
     )
 
     print(
-        f"Median chart-type rank:            "
+        f"Median chart-type rank:           "
         f"{format_optional_number(positive_summary['median_type_rank'], 1)}"
     )
 
     print(
-        f"Mean expected score:               "
+        f"Mean expected score:              "
         f"{format_optional_number(positive_summary['mean_expected_score'])}"
     )
 
     print()
 
     # -----------------------------------
-    # Noise rejection
+    # Null performance
     # -----------------------------------
 
     print(
-        "NOISE REJECTION"
+        "NULL / FALSE-POSITIVE PERFORMANCE"
     )
 
     print(
-        "-" * 72
+        "-" * 88
     )
 
     print(
-        f"Null datasets:                     "
-        f"{null_summary['datasets']}"
-    )
-
-    print(
-        f"Average noise candidate score:     "
+        f"Average evaluated null score:     "
         f"{null_summary['mean_candidate_score']:.2f}"
     )
 
     print(
-        f"Average maximum noise score:       "
+        f"Average maximum null score:       "
         f"{null_summary['mean_max_score']:.2f}"
     )
 
     print(
-        f"Highest noise score observed:      "
+        f"Highest null score observed:      "
         f"{null_summary['highest_noise_score']:.2f}"
     )
 
     print(
-        f"Noise candidates scoring >= 50:    "
+        f"Null candidates scoring >= 50:    "
         f"{format_percentage(null_summary['mean_pct_above_50'])}"
     )
 
     print(
-        f"Noise candidates scoring >= 65:    "
+        f"Null candidates scoring >= 65:    "
         f"{format_percentage(null_summary['mean_pct_above_65'])}"
     )
 
     print()
 
     # -----------------------------------
-    # Breakdown
+    # Positive breakdown
     # -----------------------------------
 
     print(
@@ -295,10 +376,10 @@ def print_report(
     )
 
     print(
-        "-" * 72
+        "-" * 88
     )
 
-    if breakdown.empty:
+    if positive_breakdown.empty:
 
         print(
             "No positive benchmark results."
@@ -307,61 +388,31 @@ def print_report(
     else:
 
         printable = (
-            breakdown.copy()
+            positive_breakdown.copy()
         )
 
-        printable[
-            "top_1_pct"
-        ] = printable[
-            "top_1_pct"
-        ].map(
-            lambda value:
-            f"{value:.1f}%"
+        printable = (
+            printable_percentage_columns(
+                printable,
+                [
+                    "top_1_pct",
+                    "top_3_pct",
+                    "top_5_pct"
+                ]
+            )
         )
 
-        printable[
-            "top_3_pct"
-        ] = printable[
-            "top_3_pct"
-        ].map(
-            lambda value:
-            f"{value:.1f}%"
-        )
-
-        printable[
-            "top_5_pct"
-        ] = printable[
-            "top_5_pct"
-        ].map(
-            lambda value:
-            f"{value:.1f}%"
-        )
-
-        printable[
-            "mean_reciprocal_rank"
-        ] = printable[
-            "mean_reciprocal_rank"
-        ].map(
-            lambda value:
-            f"{value:.3f}"
-        )
-
-        printable[
-            "median_rank"
-        ] = printable[
-            "median_rank"
-        ].map(
-            lambda value:
-            f"{value:.1f}"
-        )
-
-        printable[
-            "mean_score"
-        ] = printable[
-            "mean_score"
-        ].map(
-            lambda value:
-            f"{value:.2f}"
+        printable = (
+            printable_numeric_columns(
+                printable,
+                [
+                    "mean_reciprocal_rank",
+                    "median_rank",
+                    "median_type_rank",
+                    "mean_score"
+                ],
+                decimals=2
+            )
         )
 
         print(
@@ -372,16 +423,71 @@ def print_report(
 
     print()
 
+    # -----------------------------------
+    # Null breakdown
+    # -----------------------------------
+
     print(
-        "=" * 72
+        "PER-NULL-SCENARIO PERFORMANCE"
     )
 
     print(
-        "Raw results saved to evaluation/results/"
+        "-" * 88
+    )
+
+    if null_breakdown.empty:
+
+        print(
+            "No null benchmark results."
+        )
+
+    else:
+
+        printable_null = (
+            null_breakdown.copy()
+        )
+
+        printable_null = (
+            printable_percentage_columns(
+                printable_null,
+                [
+                    "pct_above_50",
+                    "pct_above_65"
+                ]
+            )
+        )
+
+        printable_null = (
+            printable_numeric_columns(
+                printable_null,
+                [
+                    "mean_score",
+                    "mean_max_score",
+                    "highest_score"
+                ],
+                decimals=2
+            )
+        )
+
+        print(
+            printable_null.to_string(
+                index=False
+            )
+        )
+
+    print()
+
+    print(
+        "=" * 88
     )
 
     print(
-        "=" * 72
+        f"Raw results saved to "
+        f"{RESULTS_DIR}/"
+    )
+
+    print(
+        "=" * 88
     )
 
     print()
@@ -392,16 +498,14 @@ def print_report(
 # ==================================================
 
 def run_benchmark(
-    seeds=None,
-    n=500,
+    seeds=None
 ):
     """
-    Run the complete benchmark suite.
+    Run the complete hardened benchmark suite.
     """
 
     scenarios = build_benchmark_suite(
-        seeds=seeds,
-        n=n
+        seeds=seeds
     )
 
     positive_results = []
@@ -419,7 +523,7 @@ def run_benchmark(
     ):
 
         print(
-            f"[{index:02d}/{len(scenarios):02d}] "
+            f"[{index:03d}/{len(scenarios):03d}] "
             f"{scenario.name}"
         )
 
@@ -453,7 +557,7 @@ def run_benchmark(
     )
 
     # -----------------------------------
-    # Dataframes
+    # Convert to dataframes
     # -----------------------------------
 
     positive_df = pd.DataFrame(
@@ -464,9 +568,15 @@ def run_benchmark(
         null_results
     )
 
-    breakdown = (
+    positive_breakdown = (
         relationship_breakdown(
             positive_results
+        )
+    )
+
+    null_breakdown = (
+        null_relationship_breakdown(
+            null_results
         )
     )
 
@@ -491,9 +601,15 @@ def run_benchmark(
         index=False
     )
 
-    breakdown.to_csv(
+    positive_breakdown.to_csv(
         RESULTS_DIR
         / "relationship_breakdown.csv",
+        index=False
+    )
+
+    null_breakdown.to_csv(
+        RESULTS_DIR
+        / "null_breakdown.csv",
         index=False
     )
 
@@ -504,7 +620,8 @@ def run_benchmark(
     print_report(
         positive_results=positive_results,
         null_results=null_results,
-        breakdown=breakdown,
+        positive_breakdown=positive_breakdown,
+        null_breakdown=null_breakdown,
         total_candidates=total_candidates,
         total_elapsed=total_elapsed
     )
@@ -513,11 +630,17 @@ def run_benchmark(
         "positive_results": (
             positive_df
         ),
+
         "null_results": (
             null_df
         ),
+
         "relationship_breakdown": (
-            breakdown
+            positive_breakdown
+        ),
+
+        "null_breakdown": (
+            null_breakdown
         )
     }
 
