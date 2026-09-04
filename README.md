@@ -3,7 +3,7 @@
 An explainable visualization recommendation engine that automatically profiles a dataset, generates valid visualization candidates, and ranks the charts most likely to reveal useful patterns.
 
 **Live Demo:**  
-https://dataviz-engine-hvlp2ydhtkitr6kpmpczzw.streamlit.app/
+https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/
 
 ![Visift preview](assets/app-preview.png)
 
