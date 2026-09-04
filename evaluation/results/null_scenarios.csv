@@ -1,0 +1,6 @@
+scenario,relationship_type,is_null,candidate_count,mean_score,max_score,pct_above_50,pct_above_65,elapsed_seconds
+null_noise_seed_0,null_noise,True,23,37.16434782608697,41.67,0.0,0.0,0.06740520798484795
+null_noise_seed_1,null_noise,True,23,37.61521739130435,40.73,0.0,0.0,0.05075766597292386
+null_noise_seed_2,null_noise,True,23,36.89608695652175,40.15,0.0,0.0,0.05063129198970273
+null_noise_seed_3,null_noise,True,23,37.64739130434783,42.67,0.0,0.0,0.05059258299297653
+null_noise_seed_4,null_noise,True,23,37.18826086956523,40.0,0.0,0.0,0.050365750008495525
