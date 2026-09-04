@@ -14,7 +14,9 @@ from scoring.engine import (
 
 from visualization.renderer import (
     render_candidate,
-    visualization_title
+    visualization_title,
+    humanize_column_name,
+    is_currency_column
 )
 
 
@@ -31,7 +33,7 @@ st.set_page_config(
 
 
 # ==================================================
-# HELPERS
+# DISPLAY HELPERS
 # ==================================================
 
 def strength_color(strength):
@@ -56,14 +58,482 @@ def strength_color(strength):
 
 def format_semantic_type(value):
     """
-    Convert semantic type identifiers into
-    cleaner display text.
+    Convert semantic-type identifiers into
+    clean display text.
     """
 
     return (
         str(value)
         .replace("_", " ")
         .title()
+    )
+
+
+def relationship_strength(value):
+    """
+    Convert an absolute relationship value
+    into plain-English wording.
+    """
+
+    value = abs(value)
+
+    if value >= 0.70:
+        return "strong"
+
+    if value >= 0.40:
+        return "moderate"
+
+    if value >= 0.20:
+        return "weak"
+
+    return "very weak"
+
+
+# ==================================================
+# PLAIN-ENGLISH INSIGHT GENERATION
+# ==================================================
+
+def scatter_insight(candidate):
+    """
+    Generate a plain-English explanation for
+    a scatterplot recommendation.
+    """
+
+    x = humanize_column_name(
+        candidate["x"]
+    )
+
+    y = humanize_column_name(
+        candidate["y"]
+    )
+
+    statistics = candidate[
+        "statistics"
+    ]
+
+    pearson = statistics[
+        "pearson"
+    ]
+
+    spearman = statistics[
+        "spearman"
+    ]
+
+    strongest = (
+        pearson
+        if abs(pearson) >= abs(spearman)
+        else spearman
+    )
+
+    strength = relationship_strength(
+        strongest
+    )
+
+    if strongest > 0:
+
+        return (
+            f"Higher {x} tends to be associated with "
+            f"higher {y}, with a {strength} positive "
+            f"relationship."
+        )
+
+    if strongest < 0:
+
+        return (
+            f"Higher {x} tends to be associated with "
+            f"lower {y}, with a {strength} negative "
+            f"relationship."
+        )
+
+    return (
+        f"{x} and {y} show little evidence of "
+        f"a consistent relationship."
+    )
+
+
+def line_insight(candidate):
+    """
+    Generate a plain-English explanation for
+    a line-chart recommendation.
+    """
+
+    x = humanize_column_name(
+        candidate["x"]
+    )
+
+    y = humanize_column_name(
+        candidate["y"]
+    )
+
+    statistics = candidate[
+        "statistics"
+    ]
+
+    direction = statistics.get(
+        "direction",
+        "flat"
+    )
+
+    signal = candidate[
+        "components"
+    ]["signal"]
+
+    if signal >= 50:
+        strength = "clear"
+
+    elif signal >= 20:
+        strength = "noticeable"
+
+    elif signal >= 10:
+        strength = "mild"
+
+    else:
+        strength = "very limited"
+
+    if direction == "upward":
+
+        return (
+            f"{y} shows a {strength} upward trend "
+            f"over {x}."
+        )
+
+    if direction == "downward":
+
+        return (
+            f"{y} shows a {strength} downward trend "
+            f"over {x}."
+        )
+
+    return (
+        f"{y} remains relatively stable over {x}, "
+        f"with little evidence of a consistent trend."
+    )
+
+
+def format_group_label(value):
+    """
+    Format category labels cleanly.
+
+    Float values that represent whole numbers
+    are shown without a decimal.
+    """
+
+    if isinstance(value, float):
+
+        if value.is_integer():
+            return str(
+                int(value)
+            )
+
+    return str(value)
+
+
+def box_insight(
+    df,
+    candidate
+):
+    """
+    Generate a plain-English explanation for
+    a grouped box plot.
+    """
+
+    x = candidate["x"]
+    y = candidate["y"]
+
+    clean = (
+        df[[x, y]]
+        .dropna()
+        .copy()
+    )
+
+    if clean.empty:
+
+        return (
+            "The available data is insufficient to "
+            "describe the grouped distributions."
+        )
+
+    medians = (
+        clean
+        .groupby(x)[y]
+        .median()
+        .sort_values()
+    )
+
+    if len(medians) <= 1:
+
+        return (
+            f"There is only one usable "
+            f"{humanize_column_name(x)} group."
+        )
+
+    lowest_group = (
+        format_group_label(
+            medians.index[0]
+        )
+    )
+
+    highest_group = (
+        format_group_label(
+            medians.index[-1]
+        )
+    )
+
+    lowest_value = (
+        medians.iloc[0]
+    )
+
+    highest_value = (
+        medians.iloc[-1]
+    )
+
+    y_name = humanize_column_name(
+        y
+    )
+
+    x_name = humanize_column_name(
+        x
+    )
+
+    if is_currency_column(y):
+
+        # Escape dollar signs because Streamlit
+        # Markdown otherwise interprets them as math.
+        lowest_display = (
+            f"\\${lowest_value:,.0f}"
+        )
+
+        highest_display = (
+            f"\\${highest_value:,.0f}"
+        )
+
+    else:
+
+        lowest_display = (
+            f"{lowest_value:,.1f}"
+        )
+
+        highest_display = (
+            f"{highest_value:,.1f}"
+        )
+
+    return (
+        f"Median {y_name} varies across {x_name} groups, "
+        f"ranging from about {lowest_display} for "
+        f"{lowest_group} to {highest_display} for "
+        f"{highest_group}."
+    )
+
+
+def histogram_insight(candidate):
+    """
+    Generate a plain-English explanation for
+    a histogram.
+    """
+
+    x = humanize_column_name(
+        candidate["x"]
+    )
+
+    statistics = candidate[
+        "statistics"
+    ]
+
+    skewness = statistics[
+        "skewness"
+    ]
+
+    outlier_rate = (
+        statistics["outlier_rate"]
+        * 100
+    )
+
+    if skewness >= 0.75:
+
+        shape = "noticeably right-skewed"
+
+    elif skewness <= -0.75:
+
+        shape = "noticeably left-skewed"
+
+    elif abs(skewness) >= 0.30:
+
+        shape = "slightly asymmetric"
+
+    else:
+
+        shape = "fairly symmetric"
+
+    if outlier_rate >= 5:
+
+        outlier_text = (
+            f"and contains a notable share of "
+            f"potential outliers ({outlier_rate:.1f}%)."
+        )
+
+    elif outlier_rate > 0:
+
+        outlier_text = (
+            f"with relatively few potential outliers "
+            f"({outlier_rate:.1f}%)."
+        )
+
+    else:
+
+        outlier_text = (
+            "with no potential outliers detected "
+            "by the current rule."
+        )
+
+    return (
+        f"The distribution of {x} is {shape} "
+        f"{outlier_text}"
+    )
+
+
+def bar_insight(
+    df,
+    candidate
+):
+    """
+    Generate a plain-English explanation for
+    a bar-chart recommendation.
+    """
+
+    x = candidate["x"]
+
+    x_name = humanize_column_name(
+        x
+    )
+
+    aggregation = candidate.get(
+        "aggregation",
+        "count"
+    )
+
+    # -----------------------------------
+    # Count bar
+    # -----------------------------------
+
+    if aggregation == "count":
+
+        counts = (
+            df[x]
+            .dropna()
+            .value_counts()
+        )
+
+        if counts.empty:
+
+            return (
+                f"No usable {x_name} values "
+                f"were available."
+            )
+
+        largest = counts.index[0]
+
+        smallest = counts.index[-1]
+
+        if counts.max() == counts.min():
+
+            return (
+                f"{x_name} categories appear "
+                f"evenly represented."
+            )
+
+        return (
+            f"{largest} is the most common {x_name} "
+            f"category, while {smallest} is the least common."
+        )
+
+    # -----------------------------------
+    # Mean bar
+    # -----------------------------------
+
+    y = candidate["y"]
+
+    y_name = humanize_column_name(
+        y
+    )
+
+    clean = (
+        df[[x, y]]
+        .dropna()
+    )
+
+    means = (
+        clean
+        .groupby(x)[y]
+        .mean()
+        .sort_values()
+    )
+
+    if means.empty:
+
+        return (
+            f"No usable values were available "
+            f"for this comparison."
+        )
+
+    lowest_group = means.index[0]
+    highest_group = means.index[-1]
+
+    return (
+        f"Average {y_name} is highest for "
+        f"{highest_group} and lowest for "
+        f"{lowest_group}."
+    )
+
+
+def plain_english_insight(
+    df,
+    candidate
+):
+    """
+    Generate the most useful plain-English
+    takeaway for a recommendation.
+    """
+
+    chart = candidate[
+        "chart"
+    ]
+
+    if chart == "scatter":
+
+        return scatter_insight(
+            candidate
+        )
+
+    if chart == "line":
+
+        return line_insight(
+            candidate
+        )
+
+    if chart == "box":
+
+        return box_insight(
+            df,
+            candidate
+        )
+
+    if chart == "histogram":
+
+        return histogram_insight(
+            candidate
+        )
+
+    if chart == "bar":
+
+        return bar_insight(
+            df,
+            candidate
+        )
+
+    return (
+        "This visualization was selected because "
+        "it combines strong chart suitability with "
+        "a potentially useful pattern."
     )
 
 
@@ -93,12 +563,14 @@ def load_data():
 
         if data_source == "Upload CSV":
 
-            uploaded_file = st.file_uploader(
-                "Upload CSV",
-                type=["csv"],
-                help=(
-                    "Upload a CSV dataset for "
-                    "automatic visualization analysis."
+            uploaded_file = (
+                st.file_uploader(
+                    "Upload CSV",
+                    type=["csv"],
+                    help=(
+                        "Upload a CSV dataset for "
+                        "automatic visualization analysis."
+                    )
                 )
             )
 
@@ -170,7 +642,7 @@ def analyze_dataset(df):
     """
     Run the full recommendation pipeline.
 
-    Results are cached so changing frontend
+    Results are cached so changing interface
     filters does not rerun the analysis.
     """
 
@@ -219,6 +691,13 @@ def display_header():
         """
 Automatically discover the visualizations most likely
 to reveal useful patterns in your dataset.
+"""
+    )
+
+    st.markdown(
+        """
+**Instead of showing every chart that can be made,
+Dataviz Engine ranks the charts most likely to be informative.**
 """
     )
 
@@ -287,7 +766,7 @@ def build_column_profile_table(
     profile
 ):
     """
-    Convert column profiles into a clean
+    Convert column profiles into a cleaner
     dataframe for display.
     """
 
@@ -298,14 +777,13 @@ def build_column_profile_table(
     ):
 
         rows.append({
-            "Column": column["name"],
+            "Column": (
+                column["name"]
+            ),
             "Semantic Type": (
                 format_semantic_type(
                     column["semantic_type"]
                 )
-            ),
-            "Pandas Type": (
-                column["pandas_dtype"]
             ),
             "Unique Values": (
                 column["unique_count"]
@@ -314,13 +792,153 @@ def build_column_profile_table(
                 column["missing_count"]
             ),
             "Missing %": (
-                column["missing_percent"]
+                f"{column['missing_percent']:.1f}%"
+            ),
+            "Pandas Type": (
+                column["pandas_dtype"]
             )
         })
 
     return pd.DataFrame(
         rows
     )
+
+
+def build_display_preview(
+    df,
+    profile,
+    rows=100
+):
+    """
+    Build a display-only dataframe with
+    friendlier dates, currency formatting,
+    and numeric formatting.
+
+    The original dataframe remains unchanged.
+    """
+
+    preview = (
+        df.head(rows)
+        .copy()
+    )
+
+    semantic_types = {
+        column["name"]: (
+            column["semantic_type"]
+        )
+        for column in profile[
+            "column_profiles"
+        ]
+    }
+
+    for column in preview.columns:
+
+        semantic_type = (
+            semantic_types.get(
+                column
+            )
+        )
+
+        original_series = (
+            df[column]
+        )
+
+        # -----------------------------------
+        # Datetime display
+        # -----------------------------------
+
+        if semantic_type == "datetime":
+
+            parsed = pd.to_datetime(
+                preview[column],
+                errors="coerce"
+            )
+
+            preview[column] = (
+                parsed
+                .dt.strftime(
+                    "%b %d, %Y"
+                )
+            )
+
+        # -----------------------------------
+        # Currency display
+        # -----------------------------------
+
+        elif (
+            semantic_type
+            in {
+                "numeric_continuous",
+                "numeric_discrete"
+            }
+            and is_currency_column(
+                column
+            )
+        ):
+
+            numeric = pd.to_numeric(
+                preview[column],
+                errors="coerce"
+            )
+
+            preview[column] = (
+                numeric.map(
+                    lambda value: (
+                        f"${value:,.2f}"
+                        if pd.notna(value)
+                        else None
+                    )
+                )
+            )
+
+        # -----------------------------------
+        # Integer numeric display
+        # -----------------------------------
+
+        elif pd.api.types.is_integer_dtype(
+            original_series
+        ):
+
+            numeric = pd.to_numeric(
+                preview[column],
+                errors="coerce"
+            )
+
+            preview[column] = (
+                numeric.map(
+                    lambda value: (
+                        f"{int(value):,}"
+                        if pd.notna(value)
+                        else None
+                    )
+                )
+            )
+
+        # -----------------------------------
+        # Continuous numeric display
+        # -----------------------------------
+
+        elif (
+            semantic_type
+            == "numeric_continuous"
+        ):
+
+            numeric = pd.to_numeric(
+                preview[column],
+                errors="coerce"
+            )
+
+            preview[column] = (
+                numeric.map(
+                    lambda value: (
+                        f"{value:,.2f}"
+                        if pd.notna(value)
+                        else None
+                    )
+                )
+            )
+
+    return preview
 
 
 # ==================================================
@@ -331,8 +949,17 @@ def display_score_breakdown(
     candidate
 ):
     """
-    Display all recommendation score components.
+    Display recommendation score components.
     """
+
+    display_names = {
+        "semantic_fit": "Semantic Fit",
+        "readability": "Readability",
+        "sample_support": "Sample Support",
+        "data_quality": "Data Quality",
+        "signal": "Pattern Strength",
+        "visualization_quality": "Chart Suitability"
+    }
 
     component_rows = []
 
@@ -342,9 +969,12 @@ def display_score_breakdown(
 
         component_rows.append({
             "Component": (
-                name
-                .replace("_", " ")
-                .title()
+                display_names.get(
+                    name,
+                    name
+                    .replace("_", " ")
+                    .title()
+                )
             ),
             "Score": value
         })
@@ -368,7 +998,7 @@ def display_recommendation(
     rank
 ):
     """
-    Render a polished recommendation card.
+    Render one polished recommendation card.
     """
 
     title = visualization_title(
@@ -379,7 +1009,9 @@ def display_recommendation(
         candidate["chart"]
     )
 
-    score = candidate["score"]
+    score = candidate[
+        "score"
+    ]
 
     strength = recommendation_strength(
         score
@@ -389,13 +1021,22 @@ def display_recommendation(
         strength
     )
 
+    alternatives = candidate.get(
+        "alternative_charts",
+        []
+    )
+
     with st.container(
         border=True
     ):
 
+        # -----------------------------------
+        # Header
+        # -----------------------------------
+
         header_left, header_right = (
             st.columns(
-                [5, 1]
+                [6, 1]
             )
         )
 
@@ -417,12 +1058,41 @@ def display_recommendation(
                 f"{score:.1f}"
             )
 
-        metric1, metric2, metric3 = (
-            st.columns(3)
+        # -----------------------------------
+        # Plain-English takeaway
+        # -----------------------------------
+
+        insight = plain_english_insight(
+            df,
+            candidate
         )
 
+        st.info(
+            insight,
+            icon="💡"
+        )
+
+        # -----------------------------------
+        # Top metrics
+        # -----------------------------------
+
+        if alternatives:
+
+            (
+                metric1,
+                metric2,
+                metric3
+            ) = st.columns(3)
+
+        else:
+
+            (
+                metric1,
+                metric2
+            ) = st.columns(2)
+
         metric1.metric(
-            "Insight signal",
+            "Pattern strength",
             (
                 f"{candidate['components']['signal']:.1f}"
                 "/100"
@@ -430,22 +1100,23 @@ def display_recommendation(
         )
 
         metric2.metric(
-            "Visualization quality",
+            "Chart suitability",
             (
                 f"{candidate['components']['visualization_quality']:.1f}"
                 "/100"
             )
         )
 
-        metric3.metric(
-            "Alternative views",
-            len(
-                candidate.get(
-                    "alternative_charts",
-                    []
-                )
+        if alternatives:
+
+            metric3.metric(
+                "Alternative views",
+                len(alternatives)
             )
-        )
+
+        # -----------------------------------
+        # Visualization
+        # -----------------------------------
 
         fig = render_candidate(
             df,
@@ -460,6 +1131,10 @@ def display_recommendation(
                 "responsive": True
             }
         )
+
+        # -----------------------------------
+        # Details
+        # -----------------------------------
 
         with st.expander(
             "Recommendation details"
@@ -477,7 +1152,7 @@ def display_recommendation(
             with evidence_tab:
 
                 st.markdown(
-                    "#### Why this chart ranked highly"
+                    "#### Key evidence"
                 )
 
                 for reason in summary_reasons(
@@ -487,11 +1162,6 @@ def display_recommendation(
                     st.write(
                         f"• {reason}"
                     )
-
-                alternatives = candidate.get(
-                    "alternative_charts",
-                    []
-                )
 
                 if alternatives:
 
@@ -614,7 +1284,7 @@ def display_recommendations_tab(
     st.write(
         f"The engine generated **{len(candidates)} valid "
         f"visualization candidates** and ranked them by "
-        f"visualization quality and insight strength."
+        f"chart suitability and pattern strength."
     )
 
     filtered = [
@@ -708,21 +1378,48 @@ def display_dataset_tab(
     )
 
     st.caption(
-        f"Showing the first {preview_rows} rows."
+        f"Showing the first "
+        f"{preview_rows} rows."
+    )
+
+    preview = build_display_preview(
+        df,
+        profile,
+        rows=preview_rows
     )
 
     st.dataframe(
-        df.head(
-            preview_rows
-        ),
+        preview,
         width="stretch",
         hide_index=True
     )
 
 
 # ==================================================
-# HOW IT WORKS TAB
+# HOW IT WORKS
 # ==================================================
+
+def method_card(
+    number,
+    title,
+    description
+):
+    """
+    Display one compact methodology card.
+    """
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            f"### {number}. {title}"
+        )
+
+        st.write(
+            description
+        )
+
 
 def display_method_tab():
     """
@@ -734,78 +1431,112 @@ def display_method_tab():
     )
 
     st.write(
-        "The engine separates visualization validity "
-        "from visualization usefulness."
+        "The engine separates whether a chart "
+        "**can be made well** from whether it is "
+        "**likely to reveal something useful**."
     )
 
-    with st.container(
-        border=True
-    ):
+    row1_col1, row1_col2, row1_col3 = (
+        st.columns(3)
+    )
 
-        st.markdown(
-            "### 1. Profile the dataset"
+    with row1_col1:
+
+        method_card(
+            1,
+            "Profile",
+            (
+                "Analyze types, missing values, "
+                "cardinality, and distributions."
+            )
         )
 
-        st.write(
-            "Columns are analyzed for missing values, "
-            "cardinality, distribution statistics, and "
-            "semantic meaning."
+    with row1_col2:
+
+        method_card(
+            2,
+            "Generate",
+            (
+                "Create semantically valid bar, "
+                "scatter, line, histogram, and "
+                "box-plot candidates."
+            )
         )
 
-    with st.container(
-        border=True
-    ):
+    with row1_col3:
 
-        st.markdown(
-            "### 2. Generate valid candidates"
+        method_card(
+            3,
+            "Evaluate",
+            (
+                "Measure semantic fit, readability, "
+                "data quality, and sample support."
+            )
         )
 
-        st.write(
-            "Semantically compatible combinations are "
-            "generated for bar charts, scatterplots, "
-            "line charts, histograms, and box plots."
+    row2_col1, row2_col2 = (
+        st.columns(2)
+    )
+
+    with row2_col1:
+
+        method_card(
+            4,
+            "Measure patterns",
+            (
+                "Use chart-specific statistics to "
+                "estimate how much useful structure "
+                "the chart may reveal."
+            )
         )
 
-    with st.container(
-        border=True
-    ):
+    with row2_col2:
 
-        st.markdown(
-            "### 3. Measure visualization quality"
+        method_card(
+            5,
+            "Rank & diversify",
+            (
+                "Combine suitability and pattern "
+                "strength, rank candidates, and "
+                "remove redundant views."
+            )
         )
 
-        st.write(
-            "Each candidate is evaluated for semantic fit, "
-            "readability, data quality, and sample support."
-        )
+    st.markdown(
+        "### Recommendation score"
+    )
 
-    with st.container(
-        border=True
-    ):
+    st.write(
+        "A high score requires both a chart that "
+        "is appropriate for the data and evidence "
+        "of an informative pattern. A visualization "
+        "cannot rank highly simply because it is "
+        "technically valid."
+    )
 
-        st.markdown(
-            "### 4. Measure insight strength"
-        )
+    score1, score2, score3, score4 = (
+        st.columns(4)
+    )
 
-        st.write(
-            "Chart-specific statistics evaluate whether "
-            "the visualization actually reveals a useful "
-            "pattern."
-        )
+    score1.metric(
+        "Excellent",
+        "80–100"
+    )
 
-    with st.container(
-        border=True
-    ):
+    score2.metric(
+        "Strong",
+        "65–79"
+    )
 
-        st.markdown(
-            "### 5. Rank and diversify"
-        )
+    score3.metric(
+        "Moderate",
+        "50–64"
+    )
 
-        st.write(
-            "The final recommendation score combines "
-            "quality and signal, then removes redundant "
-            "views of the same underlying relationship."
-        )
+    score4.metric(
+        "Weak",
+        "35–49"
+    )
 
 
 # ==================================================
@@ -875,7 +1606,7 @@ def main():
         st.stop()
 
     # -----------------------------------
-    # Overview metrics
+    # Overview
     # -----------------------------------
 
     st.divider()
@@ -900,7 +1631,7 @@ def main():
     )
 
     # -----------------------------------
-    # Main navigation
+    # Navigation
     # -----------------------------------
 
     st.divider()
