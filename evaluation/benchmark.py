@@ -43,7 +43,7 @@ def run_scenario(
 ):
     """
     Run one synthetic dataset through the complete
-    Dataviz Engine recommendation pipeline.
+    Visift recommendation pipeline.
     """
 
     start = (
@@ -243,7 +243,7 @@ def print_report(
     )
 
     print(
-        "DATAVIZ ENGINE HARDENED BENCHMARK"
+        "VISIFT HARDENED BENCHMARK"
     )
 
     print(

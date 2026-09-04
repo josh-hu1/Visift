@@ -1208,7 +1208,7 @@ def print_report(
         "=" * 96
     )
     print(
-        "DATAVIZ ENGINE HISTOGRAM SCORE CALIBRATION"
+        "VISIFT HISTOGRAM SCORE CALIBRATION"
     )
     print(
         "=" * 96

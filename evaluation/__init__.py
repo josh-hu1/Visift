@@ -1,3 +1,3 @@
 """
-Benchmarking utilities for Dataviz Engine.
+Benchmarking utilities for Visift.
 """

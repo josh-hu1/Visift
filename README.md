@@ -1,11 +1,11 @@
-# Dataviz Engine
+# Visift
 
 An explainable visualization recommendation engine that automatically profiles a dataset, generates valid visualization candidates, and ranks the charts most likely to reveal useful patterns.
 
 **Live Demo:**  
 https://dataviz-engine-hvlp2ydhtkitr6kpmpczzw.streamlit.app/
 
-![Dataviz Engine preview](assets/app-preview.png)
+![Visift preview](assets/app-preview.png)
 
 ---
 
@@ -13,7 +13,7 @@ https://dataviz-engine-hvlp2ydhtkitr6kpmpczzw.streamlit.app/
 
 Most visualization tools help users create charts after they already know what they want to visualize.
 
-Dataviz Engine approaches the problem differently:
+Visift approaches the problem differently:
 
 > Instead of showing every chart that can be made, it ranks the charts most likely to be informative.
 
@@ -53,7 +53,7 @@ The result is a ranked set of visualizations with statistical evidence, plain-En
 
 ### Supported Visualizations
 
-Dataviz Engine currently supports:
+Visift currently supports:
 
 - Scatterplots
 - Line charts
@@ -345,7 +345,7 @@ could reasonably be represented as either:
 - a box plot
 - a mean bar chart
 
-Instead of filling the recommendation list with both, Dataviz Engine keeps the higher-scoring visualization as the primary recommendation and stores the other as an alternative view.
+Instead of filling the recommendation list with both, Visift keeps the higher-scoring visualization as the primary recommendation and stores the other as an alternative view.
 
 This helps the final recommendation list emphasize distinct insights rather than duplicate variable combinations.
 
@@ -353,7 +353,7 @@ This helps the final recommendation list emphasize distinct insights rather than
 
 ## Synthetic Benchmarking
 
-Dataviz Engine includes a controlled synthetic benchmark framework used to evaluate ranking behavior and false positives.
+Visift includes a controlled synthetic benchmark framework used to evaluate ranking behavior and false positives.
 
 The current hardened benchmark contains:
 
@@ -405,7 +405,7 @@ These results come from a **controlled synthetic benchmark**, not from arbitrary
 
 A precise interpretation is:
 
-> On the current 125-dataset synthetic benchmark, Dataviz Engine ranked the planted visualization first in all 95 positive scenarios, while no evaluated null candidate scored 50 or higher.
+> On the current 125-dataset synthetic benchmark, Visift ranked the planted visualization first in all 95 positive scenarios, while no evaluated null candidate scored 50 or higher.
 
 The benchmark is used primarily for regression testing and model-development comparisons rather than as a claim of universal real-world accuracy.
 
@@ -499,7 +499,7 @@ Correlation signals are now adjusted using p-value-based reliability, reducing s
 ## Project Structure
 
 ```text
-Dataviz-Engine/
+visift/
 │
 ├── app.py
 ├── web_app.py
@@ -593,8 +593,8 @@ The visual styling is intentionally designed so that bright green is primarily u
 Clone the repository:
 
 ```bash
-git clone https://github.com/josh-hu1/Dataviz-Engine.git
-cd Dataviz-Engine
+git clone https://github.com/josh-hu1/visift.git
+cd visift
 ```
 
 Create a virtual environment if desired.
@@ -638,7 +638,7 @@ Results are written to the `evaluation/results/` directory.
 
 ## Example Workflow
 
-1. Open Dataviz Engine
+1. Open Visift
 2. Select the sample dataset or upload a CSV
 3. The dataset is automatically profiled
 4. Semantic types are inferred
@@ -659,7 +659,7 @@ No chart selection is required beforehand.
 
 A visualization can be technically valid without being useful.
 
-Dataviz Engine therefore keeps candidate generation broad while allowing the ranking system to penalize weak candidates.
+Visift therefore keeps candidate generation broad while allowing the ranking system to penalize weak candidates.
 
 ### Effect Size Is Not the Same as Reliability
 
@@ -744,7 +744,7 @@ Potential improvements include:
 
 ## Future Direction
 
-A longer-term version of Dataviz Engine could combine statistical analysis with machine learning to learn which visualizations users actually find useful.
+A longer-term version of Visift could combine statistical analysis with machine learning to learn which visualizations users actually find useful.
 
 The recommendation engine could eventually incorporate:
 

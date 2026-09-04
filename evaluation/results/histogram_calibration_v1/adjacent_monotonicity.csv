@@ -1,0 +1,17 @@
+family,comparison,paired_seeds,median_score_delta,mean_score_delta,stronger_higher_pct
+bimodality,ordinary -> weak,25,0.0,-0.3956,8.0
+bimodality,weak -> moderate,25,36.790000000000006,36.172799999999995,100.0
+bimodality,moderate -> strong,25,12.429999999999993,12.9228,100.0
+bimodality,strong -> extreme,25,2.5799999999999983,2.6432000000000015,100.0
+combined_right_tail,ordinary -> weak,25,11.700000000000003,11.678799999999999,100.0
+combined_right_tail,weak -> moderate,25,13.369999999999997,13.412799999999999,100.0
+combined_right_tail,moderate -> strong,25,18.589999999999996,18.444000000000003,100.0
+combined_right_tail,strong -> extreme,25,11.700000000000003,12.128399999999997,100.0
+skewness,ordinary -> weak,25,10.170000000000002,9.769200000000001,100.0
+skewness,weak -> moderate,25,10.050000000000004,9.8776,100.0
+skewness,moderate -> strong,25,12.370000000000005,12.0888,100.0
+skewness,strong -> extreme,25,11.120000000000005,10.8112,100.0
+symmetric_outliers,ordinary -> weak,25,6.82,6.005199999999999,96.0
+symmetric_outliers,weak -> moderate,25,10.240000000000002,10.582799999999999,100.0
+symmetric_outliers,moderate -> strong,25,12.450000000000003,12.4552,100.0
+symmetric_outliers,strong -> extreme,25,12.780000000000001,12.8216,100.0

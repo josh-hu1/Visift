@@ -422,7 +422,7 @@ def apply_custom_theme():
 # ==================================================
 
 st.set_page_config(
-    page_title="Dataviz Engine",
+    page_title="Visift",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1254,7 +1254,7 @@ def display_header():
     """
 
     st.title(
-        "Dataviz Engine"
+        "Visift"
     )
 
     st.markdown(
@@ -1267,7 +1267,7 @@ to reveal useful patterns in your dataset.
     st.markdown(
         """
 **Instead of showing every chart that can be made,
-Dataviz Engine ranks the charts most likely to be informative.**
+Visift ranks the charts most likely to be informative.**
 """
     )
 
@@ -1997,7 +1997,7 @@ def display_method_tab():
     """
 
     st.subheader(
-        "How Dataviz Engine Works"
+        "How Visift Works"
     )
 
     st.write(
@@ -2115,7 +2115,7 @@ def display_method_tab():
 
 def main():
     """
-    Run the Dataviz Engine frontend.
+    Run the Visift frontend.
     """
     apply_custom_theme()
     display_header()
