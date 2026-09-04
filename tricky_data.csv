@@ -1,0 +1,9 @@
+employee_id,year,zip_code,rating,price,department,signup_date,description,is_active
+E001,2022,92037,5,19.99,Engineering,2022-01-10,Excellent onboarding experience,True
+E002,2023,92122,4,25.50,Marketing,2023-02-15,Good overall experience,True
+E003,2024,94103,3,17.25,Engineering,2024-03-20,Average experience with some issues,False
+E004,2025,10001,5,31.99,Sales,2025-04-05,Very satisfied with the service,True
+E005,2022,92037,2,14.50,Marketing,2022-05-12,Several problems occurred,False
+E006,2023,92122,4,22.75,Engineering,2023-06-18,Would recommend to others,True
+E007,2024,94103,1,18.25,Sales,2024-07-21,Poor experience overall,False
+E008,2025,10001,5,35.00,Engineering,2025-08-30,Outstanding service and support,True
