@@ -1,25 +1,40 @@
 import numpy as np
 import pandas as pd
 
-from sklearn.feature_selection import mutual_info_regression
+from scipy.stats import (
+    pearsonr,
+    spearmanr
+)
+
+from sklearn.feature_selection import (
+    mutual_info_regression
+)
 
 
 # ==================================================
 # CONFIGURATION
 # ==================================================
 
-# Mutual information is only used as an additional
-# nonlinear relationship detector.
-#
-# These settings intentionally make the detector
-# conservative so random noise is unlikely to receive
-# a high nonlinear signal.
-
 MI_PERMUTATIONS = 8
 MI_MAX_SAMPLE_SIZE = 1000
 MI_MINIMUM_EFFECT = 0.10
 MI_NULL_STD_MULTIPLIER = 3.0
 MI_RANDOM_STATE = 42
+
+# Correlation reliability calibration.
+#
+# Correlations with p <= 0.001 receive essentially
+# full statistical reliability.
+#
+# Correlations with p >= 0.10 retain only 35% of
+# their raw signal.
+#
+# Values between these thresholds are interpolated
+# on a logarithmic p-value scale.
+
+CORRELATION_STRONG_P = 0.001
+CORRELATION_WEAK_P = 0.10
+CORRELATION_MIN_RELIABILITY = 0.35
 
 
 # ==================================================
@@ -76,9 +91,6 @@ def clean_numeric_pairs(
 ):
     """
     Return finite numeric x/y observations.
-
-    NaN and infinite values are removed before
-    statistical calculations.
     """
 
     clean = (
@@ -131,18 +143,12 @@ def semantic_fit_score(
         "numeric_discrete"
     }
 
-    # Ideal scatterplot:
-    # continuous numeric vs continuous numeric
-
     if (
         x_type in continuous_types
         and y_type in continuous_types
     ):
 
         return 100
-
-    # Still valid if one variable is
-    # discrete numeric.
 
     if (
         x_type in numeric_types
@@ -216,7 +222,9 @@ def variance_score(
     Penalize variables with little or no variation.
     """
 
-    clean = series.dropna()
+    clean = (
+        series.dropna()
+    )
 
     if clean.empty:
 
@@ -276,6 +284,114 @@ def readability_score(
 
 
 # ==================================================
+# CORRELATION RELIABILITY
+# ==================================================
+
+def correlation_reliability_score(
+    p_value
+):
+    """
+    Convert a correlation p-value into a
+    0-1 reliability multiplier.
+
+    Why logarithmic interpolation?
+
+    P-values change by orders of magnitude.
+    Treating 0.001, 0.01, and 0.10 as linearly
+    spaced would not reflect that difference well.
+
+    Approximate behavior:
+
+        p <= .001  -> 1.00 reliability
+        p =  .01   -> ~0.68 reliability
+        p =  .05   -> ~0.45 reliability
+        p >= .10   -> 0.35 reliability
+
+    The minimum is deliberately not zero because
+    statistical significance is not the same thing
+    as effect size, and small exploratory datasets
+    can still contain useful relationships.
+    """
+
+    if (
+        p_value is None
+        or not np.isfinite(
+            p_value
+        )
+    ):
+
+        return (
+            CORRELATION_MIN_RELIABILITY
+        )
+
+    if (
+        p_value
+        <= CORRELATION_STRONG_P
+    ):
+
+        return 1.0
+
+    if (
+        p_value
+        >= CORRELATION_WEAK_P
+    ):
+
+        return (
+            CORRELATION_MIN_RELIABILITY
+        )
+
+    log_strong = (
+        np.log10(
+            CORRELATION_STRONG_P
+        )
+    )
+
+    log_weak = (
+        np.log10(
+            CORRELATION_WEAK_P
+        )
+    )
+
+    log_p = (
+        np.log10(
+            p_value
+        )
+    )
+
+    position = (
+        (
+            log_weak
+            - log_p
+        )
+        / (
+            log_weak
+            - log_strong
+        )
+    )
+
+    position = max(
+        0,
+        min(
+            position,
+            1
+        )
+    )
+
+    reliability = (
+        CORRELATION_MIN_RELIABILITY
+        + (
+            1
+            - CORRELATION_MIN_RELIABILITY
+        )
+        * position
+    )
+
+    return float(
+        reliability
+    )
+
+
+# ==================================================
 # CORRELATION SIGNAL
 # ==================================================
 
@@ -285,74 +401,240 @@ def correlation_signal_score(
     y
 ):
     """
-    Measure linear and monotonic relationships.
+    Measure linear and monotonic relationships while
+    accounting for statistical reliability.
 
     Pearson:
-        Linear association.
+        linear association
 
     Spearman:
-        Monotonic association.
+        monotonic association
 
-    The strongest absolute correlation is converted
-    directly to a 0-100 signal.
+    The stronger absolute correlation is selected,
+    then calibrated using its corresponding p-value.
+
+    This helps distinguish:
+
+        strong relationship + small n
+            from
+        moderate chance correlation + small n
     """
 
     if len(clean) < 3:
 
-        return (
-            0,
-            0,
-            0
-        )
+        return {
+            "signal": 0,
+            "raw_signal": 0,
+            "pearson": 0,
+            "spearman": 0,
+            "pearson_p": 1,
+            "spearman_p": 1,
+            "selected_p": 1,
+            "reliability": 0,
+            "selected_method": "none"
+        }
 
     if (
         clean[x].nunique() <= 1
         or clean[y].nunique() <= 1
     ):
 
-        return (
-            0,
-            0,
-            0
+        return {
+            "signal": 0,
+            "raw_signal": 0,
+            "pearson": 0,
+            "spearman": 0,
+            "pearson_p": 1,
+            "spearman_p": 1,
+            "selected_p": 1,
+            "reliability": 0,
+            "selected_method": "none"
+        }
+
+    x_values = (
+        clean[x]
+        .to_numpy(
+            dtype=float
+        )
+    )
+
+    y_values = (
+        clean[y]
+        .to_numpy(
+            dtype=float
+        )
+    )
+
+    # -----------------------------------
+    # Pearson
+    # -----------------------------------
+
+    try:
+
+        pearson_result = pearsonr(
+            x_values,
+            y_values
         )
 
-    pearson = clean[x].corr(
-        clean[y],
-        method="pearson"
-    )
+        pearson = float(
+            pearson_result.statistic
+        )
 
-    spearman = clean[x].corr(
-        clean[y],
-        method="spearman"
-    )
+        pearson_p = float(
+            pearson_result.pvalue
+        )
 
-    if pd.isna(
+    except Exception:
+
+        pearson = 0
+        pearson_p = 1
+
+    # -----------------------------------
+    # Spearman
+    # -----------------------------------
+
+    try:
+
+        spearman_result = spearmanr(
+            x_values,
+            y_values
+        )
+
+        spearman = float(
+            spearman_result.statistic
+        )
+
+        spearman_p = float(
+            spearman_result.pvalue
+        )
+
+    except Exception:
+
+        spearman = 0
+        spearman_p = 1
+
+    if not np.isfinite(
         pearson
     ):
 
         pearson = 0
 
-    if pd.isna(
+    if not np.isfinite(
         spearman
     ):
 
         spearman = 0
 
-    strongest_relationship = max(
-        abs(pearson),
-        abs(spearman)
-    )
+    if not np.isfinite(
+        pearson_p
+    ):
 
-    signal = (
-        strongest_relationship
+        pearson_p = 1
+
+    if not np.isfinite(
+        spearman_p
+    ):
+
+        spearman_p = 1
+
+    # -----------------------------------
+    # Select strongest relationship
+    # -----------------------------------
+
+    if (
+        abs(
+            pearson
+        )
+        >= abs(
+            spearman
+        )
+    ):
+
+        strongest = (
+            pearson
+        )
+
+        selected_p = (
+            pearson_p
+        )
+
+        selected_method = (
+            "pearson"
+        )
+
+    else:
+
+        strongest = (
+            spearman
+        )
+
+        selected_p = (
+            spearman_p
+        )
+
+        selected_method = (
+            "spearman"
+        )
+
+    raw_signal = (
+        abs(
+            strongest
+        )
         * 100
     )
 
-    return (
-        signal,
-        float(pearson),
-        float(spearman)
+    reliability = (
+        correlation_reliability_score(
+            selected_p
+        )
     )
+
+    calibrated_signal = (
+        raw_signal
+        * reliability
+    )
+
+    calibrated_signal = clamp(
+        calibrated_signal
+    )
+
+    return {
+        "signal": float(
+            calibrated_signal
+        ),
+
+        "raw_signal": float(
+            raw_signal
+        ),
+
+        "pearson": float(
+            pearson
+        ),
+
+        "spearman": float(
+            spearman
+        ),
+
+        "pearson_p": float(
+            pearson_p
+        ),
+
+        "spearman_p": float(
+            spearman_p
+        ),
+
+        "selected_p": float(
+            selected_p
+        ),
+
+        "reliability": float(
+            reliability
+        ),
+
+        "selected_method": (
+            selected_method
+        )
+    }
 
 
 # ==================================================
@@ -368,9 +650,6 @@ def calculate_one_way_mutual_information(
     Estimate continuous mutual information for:
 
         feature -> target
-
-    using scikit-learn's nearest-neighbor
-    mutual information estimator.
     """
 
     feature = np.asarray(
@@ -383,14 +662,16 @@ def calculate_one_way_mutual_information(
         dtype=float
     )
 
-    result = mutual_info_regression(
-        feature.reshape(
-            -1,
-            1
-        ),
-        target,
-        discrete_features=False,
-        random_state=random_state
+    result = (
+        mutual_info_regression(
+            feature.reshape(
+                -1,
+                1
+            ),
+            target,
+            discrete_features=False,
+            random_state=random_state
+        )
     )
 
     return float(
@@ -404,12 +685,8 @@ def symmetric_mutual_information(
     random_state
 ):
     """
-    Mutual information estimation is directional
-    because one variable is treated as the feature
-    and the other as the target.
-
-    A scatterplot is symmetric, so estimate MI in
-    both directions and average the results.
+    Estimate MI in both directions and average
+    because a scatterplot is symmetric.
     """
 
     x_to_y = (
@@ -443,59 +720,36 @@ def nonlinear_signal_score(
     Estimate nonlinear dependence using
     permutation-calibrated mutual information.
 
-    Why permutation calibration?
-
-    Raw mutual information is not naturally bounded
-    between 0 and 1 and may contain positive estimator
-    bias even when two variables are independent.
-
-    Procedure:
-
-    1. Estimate the observed mutual information.
-    2. Shuffle y several times to destroy the
-       relationship.
-    3. Estimate the MI expected under independence.
-    4. Require observed MI to exceed both:
-         - an absolute minimum effect threshold
-         - the null mean + 3 standard deviations
-    5. Convert only the excess mutual information
-       into a bounded 0-100 signal.
-
-    This intentionally favors false-negative
-    protection over aggressively detecting weak
-    nonlinear patterns.
+    Raw MI is compared against a shuffled-data
+    null distribution before being converted to
+    a bounded nonlinear signal.
     """
+
+    default_result = {
+        "signal": 0,
+        "observed_mi": 0,
+        "null_mean": 0,
+        "null_std": 0,
+        "threshold": 0,
+        "excess_mi": 0,
+        "sample_size": len(
+            clean
+        )
+    }
 
     if len(clean) < 20:
 
-        return {
-            "signal": 0,
-            "observed_mi": 0,
-            "null_mean": 0,
-            "null_std": 0,
-            "threshold": 0,
-            "excess_mi": 0,
-            "sample_size": len(clean)
-        }
+        return default_result
 
     if (
         clean[x].nunique() <= 5
         or clean[y].nunique() <= 5
     ):
 
-        return {
-            "signal": 0,
-            "observed_mi": 0,
-            "null_mean": 0,
-            "null_std": 0,
-            "threshold": 0,
-            "excess_mi": 0,
-            "sample_size": len(clean)
-        }
+        return default_result
 
     # -----------------------------------
-    # Limit MI computation on very
-    # large datasets.
+    # Limit MI computation cost
     # -----------------------------------
 
     if (
@@ -598,10 +852,6 @@ def nonlinear_signal_score(
         )
     )
 
-    # -----------------------------------
-    # Conservative detection threshold
-    # -----------------------------------
-
     statistical_threshold = (
         null_mean
         + (
@@ -622,20 +872,7 @@ def nonlinear_signal_score(
     )
 
     # -----------------------------------
-    # Convert MI to correlation-like scale
-    # -----------------------------------
-    #
-    # For a bivariate Gaussian:
-    #
-    # MI = -0.5 * ln(1 - rho^2)
-    #
-    # Rearranging gives:
-    #
-    # |rho| = sqrt(1 - exp(-2 * MI))
-    #
-    # We apply the same transformation to the
-    # excess MI to obtain a bounded,
-    # correlation-like nonlinear signal.
+    # MI -> correlation-like scale
     # -----------------------------------
 
     if excess_mi <= 0:
@@ -706,19 +943,13 @@ def relationship_signal_score(
     """
     Estimate overall relationship strength.
 
-    Three forms of dependence are considered:
+    Linear / monotonic relationships are calibrated
+    using statistical reliability.
 
-    Pearson:
-        linear relationships
+    Nonlinear relationships retain the existing
+    permutation-calibrated MI detector.
 
-    Spearman:
-        monotonic relationships
-
-    Mutual information:
-        nonlinear relationships
-
-    The final scatter relationship signal uses the
-    strongest supported form of dependence.
+    The strongest supported form of dependence wins.
     """
 
     clean = clean_numeric_pairs(
@@ -732,44 +963,31 @@ def relationship_signal_score(
         return {
             "signal": 0,
             "linear_signal": 0,
-            "nonlinear_signal": 0,
+            "raw_linear_signal": 0,
+            "linear_reliability": 0,
             "pearson": 0,
             "spearman": 0,
+            "pearson_p": 1,
+            "spearman_p": 1,
+            "selected_correlation_p": 1,
+            "selected_correlation_method": "none",
+            "nonlinear_signal": 0,
             "mutual_information": 0,
             "mi_null_mean": 0,
             "mi_null_std": 0,
             "mi_threshold": 0,
             "mi_excess": 0,
-            "mi_sample_size": len(clean)
+            "mi_sample_size": len(
+                clean
+            )
         }
 
-    if (
-        clean[x].nunique() <= 1
-        or clean[y].nunique() <= 1
-    ):
-
-        return {
-            "signal": 0,
-            "linear_signal": 0,
-            "nonlinear_signal": 0,
-            "pearson": 0,
-            "spearman": 0,
-            "mutual_information": 0,
-            "mi_null_mean": 0,
-            "mi_null_std": 0,
-            "mi_threshold": 0,
-            "mi_excess": 0,
-            "mi_sample_size": len(clean)
-        }
-
-    (
-        linear_signal,
-        pearson,
-        spearman
-    ) = correlation_signal_score(
-        clean,
-        x,
-        y
+    correlation = (
+        correlation_signal_score(
+            clean,
+            x,
+            y
+        )
     )
 
     nonlinear = (
@@ -780,17 +998,17 @@ def relationship_signal_score(
         )
     )
 
-    nonlinear_signal = (
-        nonlinear["signal"]
+    linear_signal = (
+        correlation[
+            "signal"
+        ]
     )
 
-    # Conservative combination:
-    #
-    # Do not add the signals together, which would
-    # double-count related evidence.
-    #
-    # Instead use whichever relationship detector
-    # provides stronger evidence.
+    nonlinear_signal = (
+        nonlinear[
+            "signal"
+        ]
+    )
 
     signal = max(
         linear_signal,
@@ -810,16 +1028,56 @@ def relationship_signal_score(
             linear_signal
         ),
 
-        "nonlinear_signal": float(
-            nonlinear_signal
+        "raw_linear_signal": float(
+            correlation[
+                "raw_signal"
+            ]
+        ),
+
+        "linear_reliability": float(
+            correlation[
+                "reliability"
+            ]
         ),
 
         "pearson": float(
-            pearson
+            correlation[
+                "pearson"
+            ]
         ),
 
         "spearman": float(
-            spearman
+            correlation[
+                "spearman"
+            ]
+        ),
+
+        "pearson_p": float(
+            correlation[
+                "pearson_p"
+            ]
+        ),
+
+        "spearman_p": float(
+            correlation[
+                "spearman_p"
+            ]
+        ),
+
+        "selected_correlation_p": float(
+            correlation[
+                "selected_p"
+            ]
+        ),
+
+        "selected_correlation_method": (
+            correlation[
+                "selected_method"
+            ]
+        ),
+
+        "nonlinear_signal": float(
+            nonlinear_signal
         ),
 
         "mutual_information": float(
@@ -916,8 +1174,13 @@ def score_scatter_chart(
     Score one scatterplot candidate from 0 to 100.
     """
 
-    x = candidate["x"]
-    y = candidate["y"]
+    x = (
+        candidate["x"]
+    )
+
+    y = (
+        candidate["y"]
+    )
 
     clean = clean_numeric_pairs(
         df,
@@ -952,7 +1215,9 @@ def score_scatter_chart(
 
     support = (
         sample_support_score(
-            len(clean)
+            len(
+                clean
+            )
         )
     )
 
@@ -978,62 +1243,89 @@ def score_scatter_chart(
         ]
     )
 
-    final_score, visualization_quality = (
-        combine_quality_and_signal(
-            semantic_fit,
-            readability,
-            quality,
-            support,
-            signal
-        )
+    (
+        final_score,
+        visualization_quality
+    ) = combine_quality_and_signal(
+        semantic_fit,
+        readability,
+        quality,
+        support,
+        signal
     )
-
-    # -----------------------------------
-    # Explainability
-    # -----------------------------------
 
     reasons = [
         (
             f"X semantic type: "
             f"{x_type}."
         ),
+
         (
             f"Y semantic type: "
             f"{y_type}."
         ),
+
         (
             "Semantic fit for scatterplot: "
             f"{semantic_type_display(semantic_fit)}."
         ),
+
         (
             f"{len(clean)} complete paired "
             "observations."
         ),
+
         (
             f"Data completeness: "
             f"{quality:.1f}%."
         ),
+
         (
             f"Pearson correlation: "
             f"{relationship['pearson']:.3f}."
         ),
+
+        (
+            f"Pearson p-value: "
+            f"{relationship['pearson_p']:.4g}."
+        ),
+
         (
             f"Spearman correlation: "
             f"{relationship['spearman']:.3f}."
         ),
+
         (
-            "Correlation-based signal: "
+            f"Spearman p-value: "
+            f"{relationship['spearman_p']:.4g}."
+        ),
+
+        (
+            "Raw correlation signal: "
+            f"{relationship['raw_linear_signal']:.1f}/100."
+        ),
+
+        (
+            "Correlation reliability: "
+            f"{relationship['linear_reliability'] * 100:.1f}%."
+        ),
+
+        (
+            "Reliability-adjusted correlation signal: "
             f"{relationship['linear_signal']:.1f}/100."
         ),
+
         (
             "Mutual information: "
             f"{relationship['mutual_information']:.3f}."
         ),
+
         (
             "Permutation-calibrated nonlinear "
             f"signal: "
             f"{relationship['nonlinear_signal']:.1f}/100."
         ),
+
         (
             f"Relationship signal: "
             f"{signal:.1f}/100."
@@ -1089,6 +1381,47 @@ def score_scatter_chart(
             "spearman": round(
                 relationship[
                     "spearman"
+                ],
+                4
+            ),
+
+            "pearson_p": round(
+                relationship[
+                    "pearson_p"
+                ],
+                6
+            ),
+
+            "spearman_p": round(
+                relationship[
+                    "spearman_p"
+                ],
+                6
+            ),
+
+            "selected_correlation_method": (
+                relationship[
+                    "selected_correlation_method"
+                ]
+            ),
+
+            "selected_correlation_p": round(
+                relationship[
+                    "selected_correlation_p"
+                ],
+                6
+            ),
+
+            "raw_linear_signal": round(
+                relationship[
+                    "raw_linear_signal"
+                ],
+                2
+            ),
+
+            "linear_reliability": round(
+                relationship[
+                    "linear_reliability"
                 ],
                 4
             ),
@@ -1149,7 +1482,9 @@ def score_scatter_chart(
             )
         },
 
-        "reasons": reasons
+        "reasons": (
+            reasons
+        )
     }
 
 
