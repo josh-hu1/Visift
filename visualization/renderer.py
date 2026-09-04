@@ -6,6 +6,69 @@ import plotly.graph_objects as go
 
 
 # ==================================================
+# THEME
+# ==================================================
+
+NEON_GREEN = "#39FF14"
+NEON_GREEN_SOFT = "#7CFF5B"
+TEXT_LIGHT = "#E8FFE8"
+TEXT_MUTED = "#9CB39C"
+BG_BLACK = "#000000"
+BG_PANEL = "#050505"
+GRID_COLOR = "#1A1A1A"
+
+
+def apply_plot_theme(fig):
+    """
+    Apply the shared black + neon-green
+    Plotly appearance.
+    """
+
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor=BG_BLACK,
+        plot_bgcolor=BG_BLACK,
+        font=dict(
+            color=TEXT_LIGHT
+        ),
+        title_font=dict(
+            color=NEON_GREEN,
+            size=18
+        ),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(
+                color=TEXT_LIGHT
+            )
+        ),
+        xaxis=dict(
+            gridcolor=GRID_COLOR,
+            zerolinecolor=GRID_COLOR,
+            linecolor=GRID_COLOR,
+            tickfont=dict(
+                color=TEXT_MUTED
+            ),
+            title_font=dict(
+                color=TEXT_LIGHT
+            )
+        ),
+        yaxis=dict(
+            gridcolor=GRID_COLOR,
+            zerolinecolor=GRID_COLOR,
+            linecolor=GRID_COLOR,
+            tickfont=dict(
+                color=TEXT_MUTED
+            ),
+            title_font=dict(
+                color=TEXT_LIGHT
+            )
+        )
+    )
+
+    return fig
+
+
+# ==================================================
 # DISPLAY HELPERS
 # ==================================================
 
@@ -166,7 +229,7 @@ def hover_numeric_value(
     variable
 ):
     """
-    Construct a Plotly hover template value
+    Construct a Plotly hover-template value
     for a numeric variable.
     """
 
@@ -360,11 +423,6 @@ def prepare_scatter(
 
     clean = clean.dropna()
 
-    # -----------------------------------
-    # Limit rendered points for very
-    # large datasets.
-    # -----------------------------------
-
     max_display_points = 5000
 
     if len(clean) > max_display_points:
@@ -385,7 +443,7 @@ def prepare_scatter(
     opacity = (
         0.45
         if len(display_data) > 1000
-        else 0.70
+        else 0.72
     )
 
     fig = px.scatter(
@@ -399,8 +457,25 @@ def prepare_scatter(
             x: humanize_column_name(x),
             y: humanize_column_name(y)
         },
-        opacity=opacity,
         render_mode="auto"
+    )
+
+    # -----------------------------------
+    # Neon scatter points
+    # -----------------------------------
+
+    fig.update_traces(
+        marker=dict(
+            color=NEON_GREEN,
+            size=7,
+            opacity=opacity,
+            line=dict(
+                width=0
+            )
+        ),
+        selector=dict(
+            mode="markers"
+        )
     )
 
     x_hover = hover_numeric_value(
@@ -423,6 +498,9 @@ def prepare_scatter(
             f"<b>{humanize_column_name(y)}</b>: "
             f"{y_hover}"
             "<extra></extra>"
+        ),
+        selector=dict(
+            mode="markers"
         )
     )
 
@@ -448,16 +526,14 @@ def prepare_scatter(
                     f"(R² = "
                     f"{trend['r_squared']:.2f})"
                 ),
-                line={
-                    "dash": "dash"
-                },
+                line=dict(
+                    color=NEON_GREEN_SOFT,
+                    width=2,
+                    dash="dash"
+                ),
                 hoverinfo="skip"
             )
         )
-
-    # -----------------------------------
-    # Axis formatting
-    # -----------------------------------
 
     apply_numeric_axis_format(
         fig,
@@ -482,6 +558,9 @@ def prepare_scatter(
             yref="paper",
             xanchor="right",
             showarrow=False,
+            font=dict(
+                color=TEXT_MUTED
+            ),
             text=(
                 f"Showing {max_display_points:,} "
                 f"of {len(clean):,} observations"
@@ -503,10 +582,6 @@ def prepare_datetime_line_data(
     """
     Sort and optionally aggregate datetime data
     to make dense line charts easier to read.
-
-    Returns:
-        data
-        aggregation label
     """
 
     clean = clean.sort_values(
@@ -521,11 +596,6 @@ def prepare_datetime_line_data(
         clean[x].max()
         - clean[x].min()
     ).days
-
-    # -----------------------------------
-    # Sparse time series:
-    # preserve original observations.
-    # -----------------------------------
 
     if unique_points <= 100:
 
@@ -543,11 +613,6 @@ def prepare_datetime_line_data(
             result,
             None
         )
-
-    # -----------------------------------
-    # Long / dense time series:
-    # monthly average.
-    # -----------------------------------
 
     if (
         date_span > 365
@@ -567,11 +632,6 @@ def prepare_datetime_line_data(
             result,
             "Monthly average"
         )
-
-    # -----------------------------------
-    # Medium-density time series:
-    # weekly average.
-    # -----------------------------------
 
     result = (
         clean
@@ -612,10 +672,6 @@ def prepare_line(
         errors="coerce"
     )
 
-    # -----------------------------------
-    # Numeric temporal values such as year.
-    # -----------------------------------
-
     if (
         pd.api.types.is_numeric_dtype(
             clean[x]
@@ -631,7 +687,10 @@ def prepare_line(
         )
 
         clean = clean.dropna(
-            subset=[x, y]
+            subset=[
+                x,
+                y
+            ]
         )
 
         plot_data = (
@@ -647,10 +706,6 @@ def prepare_line(
         aggregation_label = None
         datetime_axis = False
 
-    # -----------------------------------
-    # Datetime temporal values.
-    # -----------------------------------
-
     else:
 
         clean[x] = pd.to_datetime(
@@ -659,7 +714,10 @@ def prepare_line(
         )
 
         clean = clean.dropna(
-            subset=[x, y]
+            subset=[
+                x,
+                y
+            ]
         )
 
         (
@@ -699,6 +757,21 @@ def prepare_line(
         )
     )
 
+    # -----------------------------------
+    # Neon line
+    # -----------------------------------
+
+    fig.update_traces(
+        line=dict(
+            color=NEON_GREEN,
+            width=3
+        ),
+        marker=dict(
+            color=NEON_GREEN,
+            size=6
+        )
+    )
+
     y_hover = hover_numeric_value(
         y,
         plot_data[y],
@@ -707,13 +780,20 @@ def prepare_line(
 
     if datetime_axis:
 
-        if aggregation_label == "Monthly average":
+        if (
+            aggregation_label
+            == "Monthly average"
+        ):
 
-            x_hover = "%{x|%b %Y}"
+            x_hover = (
+                "%{x|%b %Y}"
+            )
 
         else:
 
-            x_hover = "%{x|%b %d, %Y}"
+            x_hover = (
+                "%{x|%b %d, %Y}"
+            )
 
     else:
 
@@ -758,8 +838,6 @@ def histogram_bin_count(series):
     """
     Estimate a useful histogram bin count using
     the Freedman-Diaconis rule.
-
-    Falls back to square-root binning when needed.
     """
 
     clean = pd.to_numeric(
@@ -810,13 +888,17 @@ def histogram_bin_count(series):
         else:
 
             bins = int(
-                math.sqrt(n)
+                math.sqrt(
+                    n
+                )
             )
 
     else:
 
         bins = int(
-            math.sqrt(n)
+            math.sqrt(
+                n
+            )
         )
 
     return max(
@@ -865,6 +947,21 @@ def prepare_histogram(
         }
     )
 
+    # -----------------------------------
+    # Neon histogram bars
+    # -----------------------------------
+
+    fig.update_traces(
+        marker=dict(
+            color=NEON_GREEN,
+            line=dict(
+                color=BG_BLACK,
+                width=1
+            )
+        ),
+        opacity=0.82
+    )
+
     x_hover = hover_numeric_value(
         x,
         clean,
@@ -907,9 +1004,6 @@ def box_category_order(
 ):
     """
     Determine a sensible category order.
-
-    Numeric/ordinal groups preserve their natural
-    order. Text categories are ordered by median.
     """
 
     if pd.api.types.is_bool_dtype(
@@ -917,7 +1011,9 @@ def box_category_order(
     ):
 
         return sorted(
-            clean[x].dropna().unique()
+            clean[x]
+            .dropna()
+            .unique()
         )
 
     if pd.api.types.is_numeric_dtype(
@@ -925,12 +1021,16 @@ def box_category_order(
     ):
 
         return sorted(
-            clean[x].dropna().unique()
+            clean[x]
+            .dropna()
+            .unique()
         )
 
     medians = (
         clean
-        .groupby(x)[y]
+        .groupby(
+            x
+        )[y]
         .median()
         .sort_values(
             ascending=False
@@ -965,13 +1065,18 @@ def prepare_box(
     )
 
     clean = clean.dropna(
-        subset=[x, y]
+        subset=[
+            x,
+            y
+        ]
     )
 
-    category_order = box_category_order(
-        clean,
-        x,
-        y
+    category_order = (
+        box_category_order(
+            clean,
+            x,
+            y
+        )
     )
 
     fig = px.box(
@@ -989,6 +1094,23 @@ def prepare_box(
         category_orders={
             x: category_order
         }
+    )
+
+    # -----------------------------------
+    # Neon box plot
+    # -----------------------------------
+
+    fig.update_traces(
+        marker=dict(
+            color=NEON_GREEN
+        ),
+        line=dict(
+            color=NEON_GREEN,
+            width=2
+        ),
+        fillcolor=(
+            "rgba(57,255,20,0.28)"
+        )
     )
 
     apply_numeric_axis_format(
@@ -1039,21 +1161,23 @@ def prepare_bar(
             )
         )
 
-        # Numeric/ordinal categories should
-        # preserve natural ordering.
         if pd.api.types.is_numeric_dtype(
             counts[x]
         ):
 
-            counts = counts.sort_values(
-                x
+            counts = (
+                counts.sort_values(
+                    x
+                )
             )
 
         else:
 
-            counts = counts.sort_values(
-                "count",
-                ascending=False
+            counts = (
+                counts.sort_values(
+                    "count",
+                    ascending=False
+                )
             )
 
         fig = px.bar(
@@ -1067,6 +1191,18 @@ def prepare_bar(
                 x: humanize_column_name(x),
                 "count": "Count"
             }
+        )
+
+        # Neon bars
+        fig.update_traces(
+            marker=dict(
+                color=NEON_GREEN,
+                line=dict(
+                    color=NEON_GREEN_SOFT,
+                    width=1
+                )
+            ),
+            opacity=0.85
         )
 
         fig.update_traces(
@@ -1102,7 +1238,10 @@ def prepare_bar(
     )
 
     clean = clean.dropna(
-        subset=[x, y]
+        subset=[
+            x,
+            y
+        ]
     )
 
     grouped = (
@@ -1114,21 +1253,23 @@ def prepare_bar(
         .mean()
     )
 
-    # Numeric categories such as ordinal
-    # ratings should remain naturally ordered.
     if pd.api.types.is_numeric_dtype(
         grouped[x]
     ):
 
-        grouped = grouped.sort_values(
-            x
+        grouped = (
+            grouped.sort_values(
+                x
+            )
         )
 
     else:
 
-        grouped = grouped.sort_values(
-            y,
-            ascending=False
+        grouped = (
+            grouped.sort_values(
+                y,
+                ascending=False
+            )
         )
 
     fig = px.bar(
@@ -1139,12 +1280,26 @@ def prepare_bar(
             candidate
         ),
         labels={
-            x: humanize_column_name(x),
+            x: humanize_column_name(
+                x
+            ),
             y: (
                 f"Average "
                 f"{humanize_column_name(y)}"
             )
         }
+    )
+
+    # Neon bars
+    fig.update_traces(
+        marker=dict(
+            color=NEON_GREEN,
+            line=dict(
+                color=NEON_GREEN_SOFT,
+                width=1
+            )
+        ),
+        opacity=0.85
     )
 
     y_hover = hover_numeric_value(
@@ -1187,7 +1342,9 @@ def render_candidate(
     polished Plotly visualization.
     """
 
-    chart = candidate["chart"]
+    chart = (
+        candidate["chart"]
+    )
 
     if chart == "scatter":
 
@@ -1232,7 +1389,7 @@ def render_candidate(
         )
 
     # -----------------------------------
-    # Shared appearance
+    # Shared dimensions / spacing
     # -----------------------------------
 
     fig.update_layout(
@@ -1251,11 +1408,24 @@ def render_candidate(
         }
     )
 
+    # -----------------------------------
+    # Apply dark neon theme
+    # -----------------------------------
+
+    fig = apply_plot_theme(
+        fig
+    )
+
+    # Keep grids subtle rather than
+    # overwhelming the neon data.
+
     fig.update_xaxes(
         showgrid=False
     )
 
     fig.update_yaxes(
+        showgrid=True,
+        gridcolor=GRID_COLOR,
         zeroline=False
     )
 

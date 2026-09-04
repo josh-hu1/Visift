@@ -20,6 +20,403 @@ from visualization.renderer import (
 )
 
 
+def apply_custom_theme():
+    """
+    Apply a dark neon-green UI theme to Streamlit.
+    """
+
+    st.markdown(
+        """
+        <style>
+
+        /* =========================
+           Global app
+        ========================= */
+
+        .stApp {
+            background-color: #000000;
+            color: #E8FFE8;
+        }
+
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+
+        /* =========================
+           Sidebar
+        ========================= */
+
+        section[data-testid="stSidebar"] {
+            background-color: #050505;
+            border-right: 1px solid #1A1A1A;
+        }
+
+        section[data-testid="stSidebar"] * {
+            color: #E8FFE8 !important;
+        }
+
+
+        /* =========================
+           Headers / text
+        ========================= */
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            color: #E8FFE8 !important;
+            font-weight: 700 !important;
+        }
+
+        p,
+        li,
+        label {
+            color: #E8FFE8;
+        }
+
+        small {
+            color: #A5B8A5 !important;
+        }
+
+        .stCaption {
+            color: #93A593 !important;
+        }
+
+
+        /* =========================
+           Links
+        ========================= */
+
+        a {
+            color: #39FF14 !important;
+        }
+
+        a:hover {
+            color: #7CFF5B !important;
+        }
+
+
+        /* =========================
+           Tabs
+        ========================= */
+
+        button[data-baseweb="tab"] {
+            color: #A5B8A5 !important;
+            background: transparent !important;
+        }
+
+        button[data-baseweb="tab"]:hover {
+            color: #E8FFE8 !important;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #39FF14 !important;
+            border-bottom: 2px solid #39FF14 !important;
+        }
+
+
+        /* =========================
+           Buttons
+        ========================= */
+
+        .stButton > button {
+            background-color: #0A0A0A;
+            color: #39FF14;
+            border: 1px solid #39FF14;
+            border-radius: 8px;
+        }
+
+        .stButton > button:hover {
+            background-color: #102010;
+            color: #7CFF5B;
+            border-color: #7CFF5B;
+        }
+
+
+        /* =========================
+           Radio buttons
+        ========================= */
+
+        div[role="radiogroup"] label {
+            color: #E8FFE8 !important;
+        }
+
+
+        /* =========================
+           Inputs / dropdowns
+        ========================= */
+
+        div[data-baseweb="select"] > div {
+            background-color: #050505 !important;
+            border: 1px solid #242424 !important;
+            color: #E8FFE8 !important;
+        }
+
+        div[data-baseweb="select"] input {
+            color: #E8FFE8 !important;
+        }
+
+        input,
+        textarea {
+            background-color: #0A0A0A !important;
+            color: #E8FFE8 !important;
+        }
+
+
+       /* =========================
+        Multiselect chart-type tags
+        ========================= */
+
+        /* Entire selected tag */
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"],
+        div[data-testid="stMultiSelect"] div[data-baseweb="tag"],
+        div[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
+            background: #0B0B0B !important;
+            background-color: #0B0B0B !important;
+            background-image: none !important;
+
+            border: 1px solid #39FF14 !important;
+            border-radius: 6px !important;
+
+            box-shadow: none !important;
+        }
+
+        /* All text inside the selected tag */
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"] *,
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"] span {
+            color: #39FF14 !important;
+            font-weight: 600 !important;
+        }
+
+        /* Close / X button */
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"] button {
+            background: transparent !important;
+            background-color: transparent !important;
+            color: #39FF14 !important;
+            border: none !important;
+        }
+
+        /* X icon */
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"] svg {
+            fill: #39FF14 !important;
+            color: #39FF14 !important;
+        }
+
+        /* Hover */
+        div[data-testid="stMultiSelect"] [data-baseweb="tag"]:hover {
+            background: #102010 !important;
+            background-color: #102010 !important;
+            border-color: #7CFF5B !important;
+        }
+
+        /* Main multiselect box */
+        div[data-testid="stMultiSelect"] div[data-baseweb="select"] > div {
+            background-color: #050505 !important;
+            border: 1px solid #242424 !important;
+        }
+
+
+        /* =========================
+           Dropdown menu
+        ========================= */
+
+        div[data-baseweb="popover"] {
+            background-color: #080808 !important;
+        }
+
+        div[data-baseweb="menu"] {
+            background-color: #080808 !important;
+        }
+
+        li[role="option"] {
+            background-color: #080808 !important;
+            color: #E8FFE8 !important;
+        }
+
+        li[role="option"]:hover {
+            background-color: #102010 !important;
+            color: #39FF14 !important;
+        }
+
+        li[role="option"][aria-selected="true"] {
+            background-color: #0D1A0D !important;
+            color: #39FF14 !important;
+        }
+
+
+        /* =========================
+           Sliders
+        ========================= */
+
+        .stSlider * {
+            color: #E8FFE8 !important;
+        }
+
+        div[data-testid="stSlider"] div[role="slider"] {
+            background-color: #39FF14 !important;
+            border-color: #39FF14 !important;
+        }
+
+
+        /* =========================
+           Metric cards
+        ========================= */
+
+        div[data-testid="stMetric"] {
+            background-color: #070707;
+            border: 1px solid #1A1A1A;
+            border-left: 3px solid #39FF14;
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        div[data-testid="stMetricLabel"] {
+            color: #A5B8A5 !important;
+        }
+
+        div[data-testid="stMetricValue"] {
+            color: #E8FFE8 !important;
+            font-weight: 700;
+        }
+
+
+        /* =========================
+           Containers / cards
+        ========================= */
+
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #030303;
+            border-color: #1D1D1D !important;
+            border-radius: 10px;
+        }
+
+
+        /* =========================
+           Expanders
+        ========================= */
+
+        details {
+            background-color: #050505 !important;
+            border: 1px solid #1A1A1A !important;
+            border-radius: 8px !important;
+        }
+
+        details summary {
+            color: #E8FFE8 !important;
+        }
+
+        details summary:hover {
+            color: #39FF14 !important;
+        }
+
+
+        /* =========================
+           Dataframes / tables
+        ========================= */
+
+        .stDataFrame,
+        .stTable {
+            background-color: #050505;
+            border-radius: 8px;
+        }
+
+        [data-testid="stDataFrame"] {
+            border: 1px solid #1A1A1A;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        [data-testid="stDataFrame"] div {
+            color: #E8FFE8 !important;
+        }
+
+
+        /* =========================
+           Alerts / insight boxes
+        ========================= */
+
+        div[data-testid="stAlert"] {
+            background-color: #071107 !important;
+            border: 1px solid #1F6F1F !important;
+            color: #E8FFE8 !important;
+            border-radius: 8px;
+        }
+
+        div[data-testid="stAlert"] p {
+            color: #DFFFF0 !important;
+        }
+
+
+        /* =========================
+           File uploader
+        ========================= */
+
+        section[data-testid="stFileUploaderDropzone"] {
+            background-color: #070707 !important;
+            border: 1px dashed #39FF14 !important;
+        }
+
+        section[data-testid="stFileUploaderDropzone"] * {
+            color: #E8FFE8 !important;
+        }
+
+
+        /* =========================
+           Code blocks
+        ========================= */
+
+        code {
+            color: #39FF14 !important;
+        }
+
+        pre {
+            background-color: #050505 !important;
+            border: 1px solid #1A1A1A !important;
+            color: #E8FFE8 !important;
+        }
+
+
+        /* =========================
+           Horizontal rules
+        ========================= */
+
+        hr {
+            border-color: #1A1A1A !important;
+        }
+
+
+        /* =========================
+           ScrollbarsIt 
+        ========================= */
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #292929;
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #39FF14;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
 # ==================================================
 # PAGE CONFIGURATION
 # ==================================================
@@ -1720,7 +2117,7 @@ def main():
     """
     Run the Dataviz Engine frontend.
     """
-
+    apply_custom_theme()
     display_header()
 
     df, source_name = (
