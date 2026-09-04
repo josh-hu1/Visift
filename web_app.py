@@ -19,14 +19,52 @@ from visualization.renderer import (
 
 
 # ==================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # ==================================================
 
 st.set_page_config(
-    page_title="Data Visualization Recommender",
+    page_title="Dataviz Engine",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+
+# ==================================================
+# HELPERS
+# ==================================================
+
+def strength_color(strength):
+    """
+    Map recommendation strength to a
+    Streamlit badge color.
+    """
+
+    colors = {
+        "Excellent": "green",
+        "Strong": "blue",
+        "Moderate": "orange",
+        "Weak": "gray",
+        "Very weak": "red"
+    }
+
+    return colors.get(
+        strength,
+        "gray"
+    )
+
+
+def format_semantic_type(value):
+    """
+    Convert semantic type identifiers into
+    cleaner display text.
+    """
+
+    return (
+        str(value)
+        .replace("_", " ")
+        .title()
+    )
 
 
 # ==================================================
@@ -35,82 +73,85 @@ st.set_page_config(
 
 def load_data():
     """
-    Allow the user to use the sample dataset
-    or upload a CSV.
+    Allow the user to load the included sample
+    dataset or upload a CSV.
     """
 
-    st.sidebar.header(
-        "Dataset"
-    )
+    with st.sidebar:
 
-    data_source = st.sidebar.radio(
-        "Data source",
-        [
-            "Sample dataset",
-            "Upload CSV"
-        ]
-    )
-
-    if data_source == "Upload CSV":
-
-        uploaded_file = (
-            st.sidebar.file_uploader(
-                "Upload a CSV file",
-                type=["csv"]
-            )
+        st.header(
+            "Dataset"
         )
 
-        if uploaded_file is None:
-
-            st.info(
-                "Upload a CSV file using the "
-                "sidebar to begin."
-            )
-
-            st.stop()
-
-        try:
-
-            df = pd.read_csv(
-                uploaded_file
-            )
-
-        except Exception as error:
-
-            st.error(
-                "The CSV could not be read."
-            )
-
-            st.exception(
-                error
-            )
-
-            st.stop()
-
-        source_name = (
-            uploaded_file.name
+        data_source = st.radio(
+            "Choose a data source",
+            [
+                "Sample dataset",
+                "Upload CSV"
+            ]
         )
 
-    else:
+        if data_source == "Upload CSV":
 
-        try:
+            uploaded_file = st.file_uploader(
+                "Upload CSV",
+                type=["csv"],
+                help=(
+                    "Upload a CSV dataset for "
+                    "automatic visualization analysis."
+                )
+            )
 
-            df = pd.read_csv(
+            if uploaded_file is None:
+
+                st.info(
+                    "Upload a CSV file to begin."
+                )
+
+                st.stop()
+
+            try:
+
+                df = pd.read_csv(
+                    uploaded_file
+                )
+
+            except Exception as error:
+
+                st.error(
+                    "The CSV could not be read."
+                )
+
+                st.exception(
+                    error
+                )
+
+                st.stop()
+
+            source_name = (
+                uploaded_file.name
+            )
+
+        else:
+
+            try:
+
+                df = pd.read_csv(
+                    "synthetic_sales.csv"
+                )
+
+            except FileNotFoundError:
+
+                st.error(
+                    "synthetic_sales.csv "
+                    "could not be found."
+                )
+
+                st.stop()
+
+            source_name = (
                 "synthetic_sales.csv"
             )
-
-        except FileNotFoundError:
-
-            st.error(
-                "synthetic_sales.csv "
-                "was not found."
-            )
-
-            st.stop()
-
-        source_name = (
-            "synthetic_sales.csv"
-        )
 
     return (
         df,
@@ -119,29 +160,101 @@ def load_data():
 
 
 # ==================================================
-# DATASET SUMMARY
+# ENGINE
 # ==================================================
 
-def display_dataset_summary(
+@st.cache_data(
+    show_spinner=False
+)
+def analyze_dataset(df):
+    """
+    Run the full recommendation pipeline.
+
+    Results are cached so changing frontend
+    filters does not rerun the analysis.
+    """
+
+    profile = profile_dataset(
+        df
+    )
+
+    candidates = generate_candidates(
+        df,
+        profile
+    )
+
+    scored = score_all_candidates(
+        df,
+        candidates,
+        profile
+    )
+
+    recommendations = (
+        diversify_recommendations(
+            scored
+        )
+    )
+
+    return (
+        profile,
+        candidates,
+        recommendations
+    )
+
+
+# ==================================================
+# HEADER
+# ==================================================
+
+def display_header():
+    """
+    Display the main application header.
+    """
+
+    st.title(
+        "Dataviz Engine"
+    )
+
+    st.markdown(
+        """
+Automatically discover the visualizations most likely
+to reveal useful patterns in your dataset.
+"""
+    )
+
+    st.markdown(
+        ":violet-badge[Explainable scoring] "
+        ":blue-badge[5 visualization types] "
+        ":gray-badge[CSV analysis]"
+    )
+
+
+# ==================================================
+# DATASET OVERVIEW
+# ==================================================
+
+def display_dataset_metrics(
     df,
     profile,
-    source_name
+    candidates,
+    recommendations
 ):
     """
-    Display headline information about
-    the active dataset.
+    Display high-level dataset and engine metrics.
     """
 
-    st.subheader(
-        "Dataset Overview"
+    missing_values = int(
+        df.isna().sum().sum()
     )
 
-    st.caption(
-        f"Source: {source_name}"
+    top_score = (
+        recommendations[0]["score"]
+        if recommendations
+        else 0
     )
 
-    column1, column2, column3 = (
-        st.columns(3)
+    column1, column2, column3, column4 = (
+        st.columns(4)
     )
 
     column1.metric(
@@ -154,22 +267,28 @@ def display_dataset_summary(
         profile["columns"]
     )
 
-    missing_values = int(
-        df.isna().sum().sum()
-    )
-
     column3.metric(
-        "Missing Values",
-        f"{missing_values:,}"
+        "Candidates analyzed",
+        len(candidates)
+    )
+
+    column4.metric(
+        "Top score",
+        f"{top_score:.1f}"
+    )
+
+    st.caption(
+        f"{missing_values:,} missing values detected "
+        f"across the dataset."
     )
 
 
-def display_column_types(
+def build_column_profile_table(
     profile
 ):
     """
-    Display the engine's semantic type
-    classification for every column.
+    Convert column profiles into a clean
+    dataframe for display.
     """
 
     rows = []
@@ -179,11 +298,11 @@ def display_column_types(
     ):
 
         rows.append({
-            "Column": (
-                column["name"]
-            ),
+            "Column": column["name"],
             "Semantic Type": (
-                column["semantic_type"]
+                format_semantic_type(
+                    column["semantic_type"]
+                )
             ),
             "Pandas Type": (
                 column["pandas_dtype"]
@@ -199,26 +318,20 @@ def display_column_types(
             )
         })
 
-    type_df = pd.DataFrame(
+    return pd.DataFrame(
         rows
-    )
-
-    st.dataframe(
-        type_df,
-        width="stretch",
-        hide_index=True
     )
 
 
 # ==================================================
-# RECOMMENDATION DISPLAY
+# SCORE DISPLAY
 # ==================================================
 
 def display_score_breakdown(
     candidate
 ):
     """
-    Display detailed scoring information.
+    Display all recommendation score components.
     """
 
     component_rows = []
@@ -245,14 +358,17 @@ def display_score_breakdown(
     )
 
 
+# ==================================================
+# RECOMMENDATION CARD
+# ==================================================
+
 def display_recommendation(
     df,
     candidate,
     rank
 ):
     """
-    Display one ranked visualization
-    recommendation.
+    Render a polished recommendation card.
     """
 
     title = visualization_title(
@@ -269,136 +385,446 @@ def display_recommendation(
         score
     )
 
-    st.markdown("---")
-
-    st.subheader(
-        f"#{rank} — {title}"
-    )
-
-    metric1, metric2, metric3 = (
-        st.columns(3)
-    )
-
-    metric1.metric(
-        "Recommendation Score",
-        f"{score:.2f}/100"
-    )
-
-    metric2.metric(
-        "Strength",
+    color = strength_color(
         strength
     )
 
-    metric3.metric(
-        "Chart Type",
-        chart_name
-    )
-
-    fig = render_candidate(
-        df,
-        candidate
-    )
-
-    st.plotly_chart(
-        fig,
-        width="stretch",
-        config={
-            "displaylogo": False
-        }
-    )
-
-    with st.expander(
-        "Why was this recommended?"
+    with st.container(
+        border=True
     ):
 
-        insight_column, quality_column = (
-            st.columns(2)
-        )
-
-        insight_column.metric(
-            "Insight Signal",
-            (
-                f"{candidate['components']['signal']}"
-                "/100"
+        header_left, header_right = (
+            st.columns(
+                [5, 1]
             )
         )
 
-        quality_column.metric(
-            "Visualization Quality",
-            (
-                f"{candidate['components']['visualization_quality']}"
-                "/100"
-            )
-        )
-
-        st.markdown(
-            "#### Key Evidence"
-        )
-
-        for reason in summary_reasons(
-            candidate
-        ):
-
-            st.write(
-                f"• {reason}"
-            )
-
-        st.markdown(
-            "#### Score Breakdown"
-        )
-
-        display_score_breakdown(
-            candidate
-        )
-
-        alternatives = candidate.get(
-            "alternative_charts",
-            []
-        )
-
-        if alternatives:
+        with header_left:
 
             st.markdown(
-                "#### Alternative Views"
+                f"### #{rank} — {title}"
             )
 
-            for alternative in alternatives:
+            st.markdown(
+                f":{color}-badge[{strength}] "
+                f":gray-badge[{chart_name}]"
+            )
 
-                st.write(
-                    f"• "
-                    f"{alternative['chart_name']} "
-                    f"— "
-                    f"{alternative['score']:.2f}/100"
+        with header_right:
+
+            st.metric(
+                "Score",
+                f"{score:.1f}"
+            )
+
+        metric1, metric2, metric3 = (
+            st.columns(3)
+        )
+
+        metric1.metric(
+            "Insight signal",
+            (
+                f"{candidate['components']['signal']:.1f}"
+                "/100"
+            )
+        )
+
+        metric2.metric(
+            "Visualization quality",
+            (
+                f"{candidate['components']['visualization_quality']:.1f}"
+                "/100"
+            )
+        )
+
+        metric3.metric(
+            "Alternative views",
+            len(
+                candidate.get(
+                    "alternative_charts",
+                    []
+                )
+            )
+        )
+
+        fig = render_candidate(
+            df,
+            candidate
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            config={
+                "displaylogo": False,
+                "responsive": True
+            }
+        )
+
+        with st.expander(
+            "Recommendation details"
+        ):
+
+            evidence_tab, scoring_tab = (
+                st.tabs(
+                    [
+                        "Evidence",
+                        "Score breakdown"
+                    ]
+                )
+            )
+
+            with evidence_tab:
+
+                st.markdown(
+                    "#### Why this chart ranked highly"
+                )
+
+                for reason in summary_reasons(
+                    candidate
+                ):
+
+                    st.write(
+                        f"• {reason}"
+                    )
+
+                alternatives = candidate.get(
+                    "alternative_charts",
+                    []
+                )
+
+                if alternatives:
+
+                    st.markdown(
+                        "#### Alternative views"
+                    )
+
+                    for alternative in alternatives:
+
+                        st.write(
+                            f"• "
+                            f"{alternative['chart_name']} "
+                            f"— "
+                            f"{alternative['score']:.2f}/100"
+                        )
+
+            with scoring_tab:
+
+                st.markdown(
+                    "#### Component scores"
+                )
+
+                display_score_breakdown(
+                    candidate
                 )
 
 
 # ==================================================
-# MAIN APP
+# SIDEBAR FILTERS
+# ==================================================
+
+def recommendation_controls(
+    recommendations
+):
+    """
+    Build recommendation filtering controls.
+    """
+
+    with st.sidebar:
+
+        st.divider()
+
+        st.header(
+            "Recommendations"
+        )
+
+        available_chart_types = sorted({
+            candidate["chart"]
+            for candidate in recommendations
+        })
+
+        selected_chart_types = (
+            st.multiselect(
+                "Chart types",
+                options=available_chart_types,
+                default=available_chart_types,
+                format_func=chart_display_name
+            )
+        )
+
+        minimum_score = st.slider(
+            "Minimum score",
+            min_value=0,
+            max_value=100,
+            value=35,
+            help=(
+                "Hide recommendations below "
+                "this score."
+            )
+        )
+
+        maximum_display = min(
+            15,
+            len(recommendations)
+        )
+
+        if maximum_display > 0:
+
+            top_n = st.slider(
+                "Maximum recommendations",
+                min_value=1,
+                max_value=maximum_display,
+                value=min(
+                    5,
+                    maximum_display
+                )
+            )
+
+        else:
+
+            top_n = 0
+
+    return (
+        selected_chart_types,
+        minimum_score,
+        top_n
+    )
+
+
+# ==================================================
+# RECOMMENDATIONS TAB
+# ==================================================
+
+def display_recommendations_tab(
+    df,
+    candidates,
+    recommendations,
+    selected_chart_types,
+    minimum_score,
+    top_n
+):
+    """
+    Display globally ranked recommendations.
+    """
+
+    st.subheader(
+        "Recommended Visualizations"
+    )
+
+    st.write(
+        f"The engine generated **{len(candidates)} valid "
+        f"visualization candidates** and ranked them by "
+        f"visualization quality and insight strength."
+    )
+
+    filtered = [
+        candidate
+        for candidate in recommendations
+        if (
+            candidate["chart"]
+            in selected_chart_types
+            and candidate["score"]
+            >= minimum_score
+        )
+    ]
+
+    filtered = filtered[
+        :top_n
+    ]
+
+    if not filtered:
+
+        st.warning(
+            "No recommendations match the "
+            "current filters."
+        )
+
+        return
+
+    st.caption(
+        f"Showing {len(filtered)} recommendation"
+        f"{'' if len(filtered) == 1 else 's'}."
+    )
+
+    for rank, candidate in enumerate(
+        filtered,
+        start=1
+    ):
+
+        display_recommendation(
+            df,
+            candidate,
+            rank
+        )
+
+
+# ==================================================
+# DATASET TAB
+# ==================================================
+
+def display_dataset_tab(
+    df,
+    profile,
+    source_name
+):
+    """
+    Display dataset metadata and preview.
+    """
+
+    st.subheader(
+        "Dataset"
+    )
+
+    st.caption(
+        f"Source: {source_name}"
+    )
+
+    st.markdown(
+        "### Inferred column types"
+    )
+
+    st.write(
+        "The engine combines pandas data types, "
+        "column names, cardinality, and observed "
+        "values to infer how each column should "
+        "be interpreted."
+    )
+
+    st.dataframe(
+        build_column_profile_table(
+            profile
+        ),
+        width="stretch",
+        hide_index=True
+    )
+
+    st.markdown(
+        "### Data preview"
+    )
+
+    preview_rows = min(
+        100,
+        len(df)
+    )
+
+    st.caption(
+        f"Showing the first {preview_rows} rows."
+    )
+
+    st.dataframe(
+        df.head(
+            preview_rows
+        ),
+        width="stretch",
+        hide_index=True
+    )
+
+
+# ==================================================
+# HOW IT WORKS TAB
+# ==================================================
+
+def display_method_tab():
+    """
+    Explain the recommendation pipeline.
+    """
+
+    st.subheader(
+        "How Dataviz Engine Works"
+    )
+
+    st.write(
+        "The engine separates visualization validity "
+        "from visualization usefulness."
+    )
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "### 1. Profile the dataset"
+        )
+
+        st.write(
+            "Columns are analyzed for missing values, "
+            "cardinality, distribution statistics, and "
+            "semantic meaning."
+        )
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "### 2. Generate valid candidates"
+        )
+
+        st.write(
+            "Semantically compatible combinations are "
+            "generated for bar charts, scatterplots, "
+            "line charts, histograms, and box plots."
+        )
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "### 3. Measure visualization quality"
+        )
+
+        st.write(
+            "Each candidate is evaluated for semantic fit, "
+            "readability, data quality, and sample support."
+        )
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "### 4. Measure insight strength"
+        )
+
+        st.write(
+            "Chart-specific statistics evaluate whether "
+            "the visualization actually reveals a useful "
+            "pattern."
+        )
+
+    with st.container(
+        border=True
+    ):
+
+        st.markdown(
+            "### 5. Rank and diversify"
+        )
+
+        st.write(
+            "The final recommendation score combines "
+            "quality and signal, then removes redundant "
+            "views of the same underlying relationship."
+        )
+
+
+# ==================================================
+# MAIN APPLICATION
 # ==================================================
 
 def main():
     """
-    Run the Streamlit visualization
-    recommendation application.
+    Run the Dataviz Engine frontend.
     """
 
-    st.title(
-        "Data Visualization Recommender"
-    )
-
-    st.write(
-        "Automatically profile a dataset, "
-        "generate valid visualization candidates, "
-        "and rank the charts most likely to reveal "
-        "useful patterns."
-    )
+    display_header()
 
     df, source_name = (
         load_data()
     )
 
     # -----------------------------------
-    # Basic validation
+    # Dataset validation
     # -----------------------------------
 
     if df.empty:
@@ -418,35 +844,22 @@ def main():
         st.stop()
 
     # -----------------------------------
-    # Run engine
+    # Analysis
     # -----------------------------------
 
     try:
 
-        profile = profile_dataset(
-            df
-        )
+        with st.spinner(
+            "Analyzing dataset..."
+        ):
 
-        candidates = (
-            generate_candidates(
-                df,
-                profile
-            )
-        )
-
-        scored = (
-            score_all_candidates(
-                df,
+            (
+                profile,
                 candidates,
-                profile
+                recommendations
+            ) = analyze_dataset(
+                df
             )
-        )
-
-        recommendations = (
-            diversify_recommendations(
-                scored
-            )
-        )
 
     except Exception as error:
 
@@ -462,117 +875,70 @@ def main():
         st.stop()
 
     # -----------------------------------
-    # Sidebar recommendation controls
+    # Overview metrics
     # -----------------------------------
 
-    st.sidebar.header(
-        "Recommendations"
-    )
+    st.divider()
 
-    maximum_recommendations = min(
-        15,
-        len(recommendations)
-    )
-
-    if maximum_recommendations > 0:
-
-        top_n = st.sidebar.slider(
-            "Number of recommendations",
-            min_value=1,
-            max_value=maximum_recommendations,
-            value=min(
-                5,
-                maximum_recommendations
-            )
-        )
-
-    else:
-
-        top_n = 0
-
-    minimum_score = (
-        st.sidebar.slider(
-            "Minimum score",
-            min_value=0,
-            max_value=100,
-            value=0
-        )
-    )
-
-    # -----------------------------------
-    # Overview
-    # -----------------------------------
-
-    display_dataset_summary(
+    display_dataset_metrics(
         df,
         profile,
-        source_name
+        candidates,
+        recommendations
     )
-
-    with st.expander(
-        "View Inferred Column Types"
-    ):
-
-        display_column_types(
-            profile
-        )
-
-    with st.expander(
-        "Preview Dataset"
-    ):
-
-        st.dataframe(
-            df.head(100),
-            width="stretch"
-        )
 
     # -----------------------------------
-    # Recommendations
+    # Controls
     # -----------------------------------
 
-    st.markdown("---")
-
-    st.header(
-        "Recommended Visualizations"
+    (
+        selected_chart_types,
+        minimum_score,
+        top_n
+    ) = recommendation_controls(
+        recommendations
     )
 
-    st.write(
-        f"The engine generated "
-        f"**{len(candidates)} valid candidates** "
-        f"and ranked them based on visualization "
-        f"quality and insight strength."
+    # -----------------------------------
+    # Main navigation
+    # -----------------------------------
+
+    st.divider()
+
+    (
+        recommendations_tab,
+        dataset_tab,
+        method_tab
+    ) = st.tabs(
+        [
+            "Recommendations",
+            "Dataset",
+            "How it works"
+        ]
     )
 
-    filtered = [
-        candidate
-        for candidate in recommendations
-        if candidate["score"]
-        >= minimum_score
-    ]
+    with recommendations_tab:
 
-    filtered = (
-        filtered[:top_n]
-    )
-
-    if not filtered:
-
-        st.warning(
-            "No recommendations meet "
-            "the current score threshold."
-        )
-
-        return
-
-    for rank, candidate in enumerate(
-        filtered,
-        start=1
-    ):
-
-        display_recommendation(
+        display_recommendations_tab(
             df,
-            candidate,
-            rank
+            candidates,
+            recommendations,
+            selected_chart_types,
+            minimum_score,
+            top_n
         )
+
+    with dataset_tab:
+
+        display_dataset_tab(
+            df,
+            profile,
+            source_name
+        )
+
+    with method_tab:
+
+        display_method_tab()
 
 
 if __name__ == "__main__":
