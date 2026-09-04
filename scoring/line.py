@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.stats import levene, pearsonr, spearmanr, t as student_t
 
 
 # ==================================================
@@ -15,6 +16,19 @@ TIME_TYPES = {
     "datetime",
     "temporal"
 }
+
+
+# ==================================================
+# STATISTICAL RELIABILITY
+# ==================================================
+
+CORRELATION_STRONG_P = 0.001
+CORRELATION_WEAK_P = 0.05
+CORRELATION_MIN_RELIABILITY = 0.20
+
+VOLATILITY_STRONG_P = 0.001
+VOLATILITY_WEAK_P = 0.10
+
 
 
 # ==================================================
@@ -35,6 +49,177 @@ def clamp(
         min(
             value,
             maximum
+        )
+    )
+
+
+def piecewise_score(
+    value,
+    points
+):
+    """
+    Map a numeric statistic to a calibrated 0-100
+    score using linear interpolation.
+    """
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return 0
+
+    if not np.isfinite(value):
+        return 0
+
+    if value <= points[0][0]:
+        return float(points[0][1])
+
+    if value >= points[-1][0]:
+        return float(points[-1][1])
+
+    for (
+        x0,
+        y0
+    ), (
+        x1,
+        y1
+    ) in zip(
+        points,
+        points[1:]
+    ):
+
+        if x0 <= value <= x1:
+
+            if x1 == x0:
+                return float(y1)
+
+            fraction = (
+                value - x0
+            ) / (
+                x1 - x0
+            )
+
+            return float(
+                y0
+                + fraction
+                * (
+                    y1 - y0
+                )
+            )
+
+    return 0
+
+
+def correlation_reliability_score(
+    p_value
+):
+    """
+    Convert a trend-correlation p-value into a
+    reliability multiplier.
+
+    This mirrors the conservative calibration used
+    by Visift's scatter scorer so chance correlations
+    in small temporal samples do not receive full
+    credit.
+    """
+
+    if (
+        p_value is None
+        or not np.isfinite(
+            p_value
+        )
+    ):
+        return CORRELATION_MIN_RELIABILITY
+
+    if p_value <= CORRELATION_STRONG_P:
+        return 1.0
+
+    if p_value >= CORRELATION_WEAK_P:
+        return CORRELATION_MIN_RELIABILITY
+
+    log_strong = np.log10(
+        CORRELATION_STRONG_P
+    )
+
+    log_weak = np.log10(
+        CORRELATION_WEAK_P
+    )
+
+    log_p = np.log10(
+        p_value
+    )
+
+    position = (
+        log_weak - log_p
+    ) / (
+        log_weak - log_strong
+    )
+
+    position = clamp(
+        position,
+        0,
+        1
+    )
+
+    return float(
+        CORRELATION_MIN_RELIABILITY
+        + (
+            1
+            - CORRELATION_MIN_RELIABILITY
+        )
+        * position
+    )
+
+
+def significance_reliability_score(
+    p_value,
+    weak_p=VOLATILITY_WEAK_P,
+    strong_p=VOLATILITY_STRONG_P
+):
+    """
+    Convert a corrected p-value into a 0-1
+    reliability multiplier.
+
+    Unlike correlation reliability, this reaches
+    zero for unsupported regime-change evidence.
+    """
+
+    if (
+        p_value is None
+        or not np.isfinite(
+            p_value
+        )
+    ):
+        return 0
+
+    if p_value <= strong_p:
+        return 1.0
+
+    if p_value >= weak_p:
+        return 0.0
+
+    log_strong = np.log10(
+        strong_p
+    )
+
+    log_weak = np.log10(
+        weak_p
+    )
+
+    log_p = np.log10(
+        p_value
+    )
+
+    position = (
+        log_weak - log_p
+    ) / (
+        log_weak - log_strong
+    )
+
+    return float(
+        clamp(
+            position,
+            0,
+            1
         )
     )
 
@@ -462,23 +647,24 @@ def trend_signal_score(
     """
     Estimate monotonic temporal trend strength.
 
-    Pearson:
-        Linear trend.
-
-    Spearman:
-        Monotonic trend.
-
-    The stronger absolute relationship is used.
+    Pearson captures linear trend and Spearman
+    captures monotonic trend. The stronger absolute
+    relationship is selected, then calibrated using
+    its p-value so chance correlations in small
+    samples are discounted.
     """
 
-    if len(
-        trend_data
-    ) < 3:
+    if len(trend_data) < 3:
 
         return {
             "signal": 0,
+            "raw_signal": 0,
+            "reliability": 0,
+            "p_value": 1,
             "pearson": 0,
+            "pearson_p": 1,
             "spearman": 0,
+            "spearman_p": 1,
             "direction": "insufficient"
         }
 
@@ -486,112 +672,134 @@ def trend_signal_score(
         trend_data[
             "_time_numeric"
         ]
+        .to_numpy(
+            dtype=float
+        )
     )
 
     y_values = (
         trend_data[y]
+        .to_numpy(
+            dtype=float
+        )
     )
 
     if (
-        time_values.nunique()
+        np.unique(
+            time_values
+        ).size
         <= 1
-        or y_values.nunique()
+        or np.unique(
+            y_values
+        ).size
         <= 1
     ):
 
         return {
             "signal": 0,
+            "raw_signal": 0,
+            "reliability": 0,
+            "p_value": 1,
             "pearson": 0,
+            "pearson_p": 1,
             "spearman": 0,
+            "spearman_p": 1,
             "direction": "none"
         }
 
-    pearson = (
-        time_values.corr(
-            y_values,
-            method="pearson"
+    try:
+        pearson, pearson_p = pearsonr(
+            time_values,
+            y_values
         )
-    )
+    except Exception:
+        pearson, pearson_p = 0, 1
 
-    spearman = (
-        time_values.corr(
-            y_values,
-            method="spearman"
+    try:
+        spearman, spearman_p = spearmanr(
+            time_values,
+            y_values
         )
-    )
+    except Exception:
+        spearman, spearman_p = 0, 1
 
-    if pd.isna(
-        pearson
-    ):
-
+    if not np.isfinite(pearson):
         pearson = 0
 
-    if pd.isna(
-        spearman
-    ):
+    if not np.isfinite(pearson_p):
+        pearson_p = 1
 
+    if not np.isfinite(spearman):
         spearman = 0
 
-    if (
-        abs(
-            pearson
-        )
-        >= abs(
-            spearman
-        )
-    ):
+    if not np.isfinite(spearman_p):
+        spearman_p = 1
 
-        strongest = (
-            pearson
-        )
+    if abs(pearson) >= abs(spearman):
+
+        strongest = pearson
+        selected_p = pearson_p
 
     else:
 
-        strongest = (
-            spearman
-        )
+        strongest = spearman
+        selected_p = spearman_p
 
-    signal = (
+    raw_signal = (
         abs(
             strongest
         )
         * 100
     )
 
-    if strongest > 0.05:
-
-        direction = (
-            "upward"
+    reliability = (
+        correlation_reliability_score(
+            selected_p
         )
+    )
+
+    signal = (
+        raw_signal
+        * reliability
+    )
+
+    if strongest > 0.05:
+        direction = "upward"
 
     elif strongest < -0.05:
-
-        direction = (
-            "downward"
-        )
+        direction = "downward"
 
     else:
-
-        direction = (
-            "flat"
-        )
+        direction = "flat"
 
     return {
         "signal": float(
-            signal
+            clamp(
+                signal
+            )
         ),
-
+        "raw_signal": float(
+            raw_signal
+        ),
+        "reliability": float(
+            reliability
+        ),
+        "p_value": float(
+            selected_p
+        ),
         "pearson": float(
             pearson
         ),
-
+        "pearson_p": float(
+            pearson_p
+        ),
         "spearman": float(
             spearman
         ),
-
-        "direction": (
-            direction
-        )
+        "spearman_p": float(
+            spearman_p
+        ),
+        "direction": direction
     }
 
 
@@ -800,7 +1008,7 @@ def seasonality_signal_score(
         "regular_sampling": False
     }
 
-    if n < 20:
+    if n < 40:
 
         return default_result
 
@@ -1050,6 +1258,29 @@ def seasonality_signal_score(
             )
         )
 
+    # Small temporal samples produce much noisier
+    # spectral peaks and autocorrelations. Gradually
+    # restore full seasonality confidence between
+    # 40 and 100 observations.
+
+    sample_reliability = min(
+        1.0,
+        np.sqrt(
+            max(
+                0.0,
+                (
+                    n - 30
+                )
+                / 70
+            )
+        )
+    )
+
+    signal = (
+        signal
+        * sample_reliability
+    )
+
     period_temporal_units = (
         period_observations
         * regularity[
@@ -1168,38 +1399,79 @@ def pooled_standard_deviation(
 
 
 def level_shift_signal_score(
-    residuals
+    trend_data,
+    y
 ):
     """
-    Detect persistent changes in the temporal level.
+    Detect an abrupt persistent change in temporal
+    level while controlling for a smooth linear
+    trend.
 
-    Several central split points are tested. For
-    each split, the mean difference is standardized
-    using pooled within-segment variation.
+    For each candidate split, fit:
 
-    Linear trend is removed beforehand so a simple
-    slope is less likely to be mislabeled as a
-    change point.
+        y = intercept + slope * time + step
+
+    The step coefficient measures a level change
+    beyond what a global trend already explains.
+
+    Its effect size is combined with a Bonferroni-
+    corrected significance reliability score. This
+    prevents smooth trends and small-sample chance
+    splits from being mislabeled as change points.
     """
 
-    values = np.asarray(
-        residuals,
-        dtype=float
-    )
-
     n = len(
-        values
+        trend_data
     )
 
     default_result = {
         "signal": 0,
         "effect_size": 0,
+        "p_value": 1,
+        "adjusted_p_value": 1,
+        "reliability": 0,
         "split_fraction": 0
     }
 
-    if n < 20:
-
+    if n < 30:
         return default_result
+
+    time_values = (
+        trend_data[
+            "_time_numeric"
+        ]
+        .to_numpy(
+            dtype=float
+        )
+    )
+
+    values = (
+        trend_data[y]
+        .to_numpy(
+            dtype=float
+        )
+    )
+
+    if (
+        np.std(
+            values
+        )
+        <= 1e-12
+        or np.std(
+            time_values
+        )
+        <= 1e-12
+    ):
+        return default_result
+
+    time_standardized = (
+        time_values
+        - np.mean(
+            time_values
+        )
+    ) / np.std(
+        time_values
+    )
 
     split_fractions = [
         0.25,
@@ -1209,12 +1481,9 @@ def level_shift_signal_score(
         0.75
     ]
 
-    strongest_effect = 0
-    strongest_split = 0
+    candidates = []
 
-    for split_fraction in (
-        split_fractions
-    ):
+    for split_fraction in split_fractions:
 
         split_index = int(
             round(
@@ -1230,88 +1499,239 @@ def level_shift_signal_score(
                 - split_index
             ) < 8
         ):
+            continue
+
+        step_indicator = np.zeros(
+            n,
+            dtype=float
+        )
+
+        step_indicator[
+            split_index:
+        ] = 1.0
+
+        design = np.column_stack([
+            np.ones(
+                n
+            ),
+            time_standardized,
+            step_indicator
+        ])
+
+        try:
+
+            xtx_inverse = np.linalg.inv(
+                design.T
+                @ design
+            )
+
+        except np.linalg.LinAlgError:
 
             continue
 
-        left = (
-            values[
-                :split_index
-            ]
+        coefficients = (
+            xtx_inverse
+            @ design.T
+            @ values
         )
 
-        right = (
-            values[
-                split_index:
-            ]
+        fitted = (
+            design
+            @ coefficients
         )
 
-        pooled_sd = (
-            pooled_standard_deviation(
-                left,
-                right
-            )
+        residuals = (
+            values
+            - fitted
         )
 
-        if pooled_sd <= 0:
+        degrees_of_freedom = (
+            n
+            - design.shape[1]
+        )
 
+        if degrees_of_freedom <= 0:
             continue
 
-        effect_size = abs(
-            (
-                np.mean(
-                    right
-                )
-                - np.mean(
-                    left
-                )
+        residual_variance = (
+            np.sum(
+                residuals
+                ** 2
             )
-            / pooled_sd
+            / degrees_of_freedom
         )
 
         if (
-            effect_size
-            > strongest_effect
+            residual_variance
+            <= 0
+            or not np.isfinite(
+                residual_variance
+            )
         ):
+            continue
 
-            strongest_effect = (
-                effect_size
-            )
-
-            strongest_split = (
-                split_fraction
-            )
-
-    # Conservative effect-size mapping.
-    #
-    # |d| <= 0.50:
-    #     treated as insufficient evidence.
-    #
-    # |d| >= 2:
-    #     extremely strong persistent level shift.
-
-    signal = clamp(
-        (
-            strongest_effect
-            - 0.50
+        step_standard_error = np.sqrt(
+            residual_variance
+            * xtx_inverse[
+                2,
+                2
+            ]
         )
-        / (
-            2.00
-            - 0.50
+
+        residual_sd = np.sqrt(
+            residual_variance
         )
-        * 100
+
+        if (
+            step_standard_error
+            <= 0
+            or residual_sd
+            <= 0
+        ):
+            continue
+
+        step_coefficient = (
+            coefficients[
+                2
+            ]
+        )
+
+        t_statistic = (
+            step_coefficient
+            / step_standard_error
+        )
+
+        p_value = (
+            2
+            * student_t.sf(
+                abs(
+                    t_statistic
+                ),
+                degrees_of_freedom
+            )
+        )
+
+        if not np.isfinite(
+            p_value
+        ):
+            p_value = 1.0
+
+        effect_size = (
+            abs(
+                step_coefficient
+            )
+            / residual_sd
+        )
+
+        candidates.append({
+            "split_fraction":
+                split_fraction,
+            "effect_size":
+                effect_size,
+            "p_value":
+                float(
+                    p_value
+                )
+        })
+
+    if not candidates:
+        return default_result
+
+    comparison_count = len(
+        candidates
     )
+
+    strongest = None
+
+    for candidate in candidates:
+
+        adjusted_p = min(
+            1.0,
+            candidate[
+                "p_value"
+            ]
+            * comparison_count
+        )
+
+        reliability = (
+            significance_reliability_score(
+                adjusted_p,
+                weak_p=0.01,
+                strong_p=0.0001
+            )
+        )
+
+        effect_score = piecewise_score(
+            candidate[
+                "effect_size"
+            ],
+            [
+                (0.35, 0),
+                (0.50, 10),
+                (1.00, 40),
+                (2.00, 80),
+                (3.00, 100)
+            ]
+        )
+
+        signal = (
+            effect_score
+            * reliability
+        )
+
+        enriched = {
+            **candidate,
+            "adjusted_p_value":
+                adjusted_p,
+            "reliability":
+                reliability,
+            "signal":
+                signal
+        }
+
+        if (
+            strongest is None
+            or enriched[
+                "signal"
+            ]
+            > strongest[
+                "signal"
+            ]
+        ):
+            strongest = enriched
 
     return {
         "signal": float(
-            signal
+            clamp(
+                strongest[
+                    "signal"
+                ]
+            )
         ),
-
         "effect_size": float(
-            strongest_effect
+            strongest[
+                "effect_size"
+            ]
         ),
-
+        "p_value": float(
+            strongest[
+                "p_value"
+            ]
+        ),
+        "adjusted_p_value": float(
+            strongest[
+                "adjusted_p_value"
+            ]
+        ),
+        "reliability": float(
+            strongest[
+                "reliability"
+            ]
+        ),
         "split_fraction": float(
-            strongest_split
+            strongest[
+                "split_fraction"
+            ]
         )
     }
 
@@ -1365,14 +1785,15 @@ def volatility_shift_signal_score(
     """
     Detect a sustained change in temporal variance.
 
-    Robust dispersion is compared before and after
-    several candidate split points.
+    Robust dispersion ratios describe effect size.
+    Brown-Forsythe tests provide statistical
+    reliability. Because several candidate split
+    points are scanned, p-values are Bonferroni
+    corrected before they can contribute signal.
 
-    A dispersion ratio near 1 indicates similar
-    volatility.
-
-    A large ratio indicates a potential regime
-    change in variability.
+    This sharply reduces chance volatility regimes
+    in small samples while preserving large,
+    persistent variance changes.
     """
 
     values = np.asarray(
@@ -1380,12 +1801,14 @@ def volatility_shift_signal_score(
         dtype=float
     )
 
-    n = len(
-        values
-    )
+    n = len(values)
 
     default_result = {
         "signal": 0,
+        "raw_signal": 0,
+        "reliability": 0,
+        "p_value": 1,
+        "adjusted_p_value": 1,
         "dispersion_ratio": 1,
         "split_fraction": 0,
         "left_scale": 0,
@@ -1393,7 +1816,6 @@ def volatility_shift_signal_score(
     }
 
     if n < 30:
-
         return default_result
 
     split_fractions = [
@@ -1404,16 +1826,11 @@ def volatility_shift_signal_score(
         0.75
     ]
 
-    strongest_ratio = 1
-    strongest_split = 0
-    strongest_left_scale = 0
-    strongest_right_scale = 0
+    candidates = []
 
     epsilon = 1e-12
 
-    for split_fraction in (
-        split_fractions
-    ):
+    for split_fraction in split_fractions:
 
         split_index = int(
             round(
@@ -1429,31 +1846,22 @@ def volatility_shift_signal_score(
                 - split_index
             ) < 10
         ):
-
             continue
 
-        left = (
-            values[
-                :split_index
-            ]
+        left = values[
+            :split_index
+        ]
+
+        right = values[
+            split_index:
+        ]
+
+        left_scale = robust_scale(
+            left
         )
 
-        right = (
-            values[
-                split_index:
-            ]
-        )
-
-        left_scale = (
-            robust_scale(
-                left
-            )
-        )
-
-        right_scale = (
-            robust_scale(
-                right
-            )
+        right_scale = robust_scale(
+            right
         )
 
         larger = max(
@@ -1474,66 +1882,151 @@ def volatility_shift_signal_score(
             / smaller
         )
 
+        raw_signal = clamp(
+            (
+                ratio - 1.50
+            )
+            / (
+                4.00 - 1.50
+            )
+            * 100
+        )
+
+        try:
+
+            _, p_value = levene(
+                left,
+                right,
+                center="median"
+            )
+
+        except Exception:
+
+            p_value = 1.0
+
+        if not np.isfinite(
+            p_value
+        ):
+            p_value = 1.0
+
+        candidates.append({
+            "split_fraction":
+                split_fraction,
+            "left_scale":
+                left_scale,
+            "right_scale":
+                right_scale,
+            "dispersion_ratio":
+                ratio,
+            "raw_signal":
+                raw_signal,
+            "p_value":
+                float(
+                    p_value
+                )
+        })
+
+    if not candidates:
+        return default_result
+
+    comparison_count = len(
+        candidates
+    )
+
+    strongest = None
+
+    for candidate in candidates:
+
+        adjusted_p = min(
+            1.0,
+            candidate[
+                "p_value"
+            ]
+            * comparison_count
+        )
+
+        reliability = (
+            significance_reliability_score(
+                adjusted_p
+            )
+        )
+
+        signal = (
+            candidate[
+                "raw_signal"
+            ]
+            * reliability
+        )
+
+        enriched = {
+            **candidate,
+            "adjusted_p_value":
+                adjusted_p,
+            "reliability":
+                reliability,
+            "signal":
+                signal
+        }
+
         if (
-            ratio
-            > strongest_ratio
+            strongest is None
+            or enriched[
+                "signal"
+            ]
+            > strongest[
+                "signal"
+            ]
         ):
 
-            strongest_ratio = (
-                ratio
-            )
-
-            strongest_split = (
-                split_fraction
-            )
-
-            strongest_left_scale = (
-                left_scale
-            )
-
-            strongest_right_scale = (
-                right_scale
-            )
-
-    # Conservative mapping:
-    #
-    # ratio <= 1.5:
-    #     ordinary variation
-    #
-    # ratio >= 4:
-    #     very strong volatility regime change
-
-    signal = clamp(
-        (
-            strongest_ratio
-            - 1.50
-        )
-        / (
-            4.00
-            - 1.50
-        )
-        * 100
-    )
+            strongest = enriched
 
     return {
         "signal": float(
-            signal
+            clamp(
+                strongest[
+                    "signal"
+                ]
+            )
         ),
-
+        "raw_signal": float(
+            strongest[
+                "raw_signal"
+            ]
+        ),
+        "reliability": float(
+            strongest[
+                "reliability"
+            ]
+        ),
+        "p_value": float(
+            strongest[
+                "p_value"
+            ]
+        ),
+        "adjusted_p_value": float(
+            strongest[
+                "adjusted_p_value"
+            ]
+        ),
         "dispersion_ratio": float(
-            strongest_ratio
+            strongest[
+                "dispersion_ratio"
+            ]
         ),
-
         "split_fraction": float(
-            strongest_split
+            strongest[
+                "split_fraction"
+            ]
         ),
-
         "left_scale": float(
-            strongest_left_scale
+            strongest[
+                "left_scale"
+            ]
         ),
-
         "right_scale": float(
-            strongest_right_scale
+            strongest[
+                "right_scale"
+            ]
         )
     }
 
@@ -1615,7 +2108,8 @@ def temporal_signal_score(
 
     level_shift = (
         level_shift_signal_score(
-            residuals
+            trend_data,
+            y
         )
     )
 
@@ -1749,6 +2243,24 @@ def temporal_signal_score(
         "direction": (
             trend[
                 "direction"
+            ]
+        ),
+
+        "trend_reliability": (
+            trend[
+                "reliability"
+            ]
+        ),
+
+        "trend_p_value": (
+            trend[
+                "p_value"
+            ]
+        ),
+
+        "raw_linear_trend_signal": (
+            trend[
+                "raw_signal"
             ]
         ),
 
@@ -2018,6 +2530,11 @@ def score_line_chart(
         ),
 
         (
+            "Trend reliability: "
+            f"{temporal['trend_reliability'] * 100:.1f}%."
+        ),
+
+        (
             "Trend signal: "
             f"{temporal['trend_signal']:.1f}/100."
         ),
@@ -2090,6 +2607,13 @@ def score_line_chart(
             )
         )
 
+        reasons.append(
+            (
+                "Level-shift corrected p-value: "
+                f"{temporal['level_shift']['adjusted_p_value']:.4f}."
+            )
+        )
+
     if (
         temporal[
             "volatility"
@@ -2103,6 +2627,13 @@ def score_line_chart(
             (
                 "Strongest temporal dispersion ratio: "
                 f"{temporal['volatility']['dispersion_ratio']:.2f}."
+            )
+        )
+
+        reasons.append(
+            (
+                "Volatility-shift corrected p-value: "
+                f"{temporal['volatility']['adjusted_p_value']:.4f}."
             )
         )
 
@@ -2166,6 +2697,27 @@ def score_line_chart(
                 temporal[
                     "direction"
                 ]
+            ),
+
+            "trend_p_value": round(
+                temporal[
+                    "trend_p_value"
+                ],
+                6
+            ),
+
+            "trend_reliability": round(
+                temporal[
+                    "trend_reliability"
+                ],
+                4
+            ),
+
+            "raw_linear_trend_signal": round(
+                temporal[
+                    "raw_linear_trend_signal"
+                ],
+                2
             ),
 
             "time_points": (
@@ -2289,6 +2841,24 @@ def score_line_chart(
                 2
             ),
 
+            "level_shift_reliability": round(
+                temporal[
+                    "level_shift"
+                ][
+                    "reliability"
+                ],
+                4
+            ),
+
+            "level_shift_adjusted_p_value": round(
+                temporal[
+                    "level_shift"
+                ][
+                    "adjusted_p_value"
+                ],
+                6
+            ),
+
             "volatility_dispersion_ratio": round(
                 temporal[
                     "volatility"
@@ -2305,6 +2875,33 @@ def score_line_chart(
                     "split_fraction"
                 ],
                 2
+            ),
+
+            "volatility_raw_signal": round(
+                temporal[
+                    "volatility"
+                ][
+                    "raw_signal"
+                ],
+                2
+            ),
+
+            "volatility_reliability": round(
+                temporal[
+                    "volatility"
+                ][
+                    "reliability"
+                ],
+                4
+            ),
+
+            "volatility_adjusted_p_value": round(
+                temporal[
+                    "volatility"
+                ][
+                    "adjusted_p_value"
+                ],
+                6
             )
         },
 
