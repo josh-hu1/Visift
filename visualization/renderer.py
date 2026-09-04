@@ -18,6 +18,24 @@ BG_PANEL = "#050505"
 GRID_COLOR = "#1A1A1A"
 
 
+# ==================================================
+# HISTOGRAM DISPLAY SETTINGS
+# ==================================================
+
+# Fraction trimmed from a tail when an extreme
+# outlier would otherwise destroy the chart scale.
+HISTOGRAM_TRIM_QUANTILE = 0.01
+
+# A tail is considered extreme only when the
+# distance from the percentile boundary to the
+# extreme value is much larger than the central
+# 98% span.
+HISTOGRAM_EXTREME_TAIL_MULTIPLIER = 4.0
+
+# Do not automatically trim very small datasets.
+HISTOGRAM_MIN_TRIM_SAMPLE = 100
+
+
 def apply_plot_theme(fig):
     """
     Apply the shared black + neon-green
@@ -423,6 +441,11 @@ def prepare_scatter(
 
     clean = clean.dropna()
 
+    # -----------------------------------
+    # Limit rendered points for very
+    # large datasets.
+    # -----------------------------------
+
     max_display_points = 5000
 
     if len(clean) > max_display_points:
@@ -535,6 +558,10 @@ def prepare_scatter(
             )
         )
 
+    # -----------------------------------
+    # Axis formatting
+    # -----------------------------------
+
     apply_numeric_axis_format(
         fig,
         "x",
@@ -582,6 +609,10 @@ def prepare_datetime_line_data(
     """
     Sort and optionally aggregate datetime data
     to make dense line charts easier to read.
+
+    Returns:
+        data
+        aggregation label
     """
 
     clean = clean.sort_values(
@@ -596,6 +627,11 @@ def prepare_datetime_line_data(
         clean[x].max()
         - clean[x].min()
     ).days
+
+    # -----------------------------------
+    # Sparse time series:
+    # preserve original observations.
+    # -----------------------------------
 
     if unique_points <= 100:
 
@@ -613,6 +649,11 @@ def prepare_datetime_line_data(
             result,
             None
         )
+
+    # -----------------------------------
+    # Long / dense time series:
+    # monthly average.
+    # -----------------------------------
 
     if (
         date_span > 365
@@ -632,6 +673,11 @@ def prepare_datetime_line_data(
             result,
             "Monthly average"
         )
+
+    # -----------------------------------
+    # Medium-density time series:
+    # weekly average.
+    # -----------------------------------
 
     result = (
         clean
@@ -672,6 +718,10 @@ def prepare_line(
         errors="coerce"
     )
 
+    # -----------------------------------
+    # Numeric temporal values such as year.
+    # -----------------------------------
+
     if (
         pd.api.types.is_numeric_dtype(
             clean[x]
@@ -687,10 +737,7 @@ def prepare_line(
         )
 
         clean = clean.dropna(
-            subset=[
-                x,
-                y
-            ]
+            subset=[x, y]
         )
 
         plot_data = (
@@ -706,6 +753,10 @@ def prepare_line(
         aggregation_label = None
         datetime_axis = False
 
+    # -----------------------------------
+    # Datetime temporal values.
+    # -----------------------------------
+
     else:
 
         clean[x] = pd.to_datetime(
@@ -714,10 +765,7 @@ def prepare_line(
         )
 
         clean = clean.dropna(
-            subset=[
-                x,
-                y
-            ]
+            subset=[x, y]
         )
 
         (
@@ -780,20 +828,13 @@ def prepare_line(
 
     if datetime_axis:
 
-        if (
-            aggregation_label
-            == "Monthly average"
-        ):
+        if aggregation_label == "Monthly average":
 
-            x_hover = (
-                "%{x|%b %Y}"
-            )
+            x_hover = "%{x|%b %Y}"
 
         else:
 
-            x_hover = (
-                "%{x|%b %d, %Y}"
-            )
+            x_hover = "%{x|%b %d, %Y}"
 
     else:
 
@@ -838,6 +879,8 @@ def histogram_bin_count(series):
     """
     Estimate a useful histogram bin count using
     the Freedman-Diaconis rule.
+
+    Falls back to square-root binning when needed.
     """
 
     clean = pd.to_numeric(
@@ -888,17 +931,13 @@ def histogram_bin_count(series):
         else:
 
             bins = int(
-                math.sqrt(
-                    n
-                )
+                math.sqrt(n)
             )
 
     else:
 
         bins = int(
-            math.sqrt(
-                n
-            )
+            math.sqrt(n)
         )
 
     return max(
@@ -910,6 +949,348 @@ def histogram_bin_count(series):
     )
 
 
+def prepare_histogram_display_data(series):
+    """
+    Prepare histogram data for visualization.
+
+    Extremely distant tails can make an otherwise
+    informative histogram collapse into one visible
+    bar. When that happens, trim only the displayed
+    range while preserving the full dataset for
+    scoring.
+
+    Trimming is intentionally conservative. A tail
+    is only hidden when its distance from the central
+    distribution is much larger than the span of the
+    central 98% of observations.
+    """
+
+    clean = pd.to_numeric(
+        series,
+        errors="coerce"
+    ).dropna()
+
+    info = {
+        "trimmed": False,
+        "trim_lower": False,
+        "trim_upper": False,
+        "lower_bound": None,
+        "upper_bound": None,
+        "excluded_below": 0,
+        "excluded_above": 0,
+        "excluded_total": 0
+    }
+
+    if (
+        len(clean)
+        < HISTOGRAM_MIN_TRIM_SAMPLE
+        or clean.nunique() < 3
+    ):
+        return (
+            clean,
+            info
+        )
+
+    lower_quantile = (
+        HISTOGRAM_TRIM_QUANTILE
+    )
+
+    upper_quantile = (
+        1
+        - HISTOGRAM_TRIM_QUANTILE
+    )
+
+    lower_bound = clean.quantile(
+        lower_quantile
+    )
+
+    upper_bound = clean.quantile(
+        upper_quantile
+    )
+
+    central_span = (
+        upper_bound
+        - lower_bound
+    )
+
+    if (
+        not math.isfinite(
+            float(central_span)
+        )
+        or central_span <= 0
+    ):
+        return (
+            clean,
+            info
+        )
+
+    minimum = clean.min()
+    maximum = clean.max()
+
+    lower_tail_distance = (
+        lower_bound
+        - minimum
+    )
+
+    upper_tail_distance = (
+        maximum
+        - upper_bound
+    )
+
+    trim_lower = (
+        lower_tail_distance
+        > (
+            HISTOGRAM_EXTREME_TAIL_MULTIPLIER
+            * central_span
+        )
+    )
+
+    trim_upper = (
+        upper_tail_distance
+        > (
+            HISTOGRAM_EXTREME_TAIL_MULTIPLIER
+            * central_span
+        )
+    )
+
+    if not (
+        trim_lower
+        or trim_upper
+    ):
+        return (
+            clean,
+            info
+        )
+
+    mask = pd.Series(
+        True,
+        index=clean.index
+    )
+
+    if trim_lower:
+
+        mask &= (
+            clean
+            >= lower_bound
+        )
+
+    if trim_upper:
+
+        mask &= (
+            clean
+            <= upper_bound
+        )
+
+    display_data = (
+        clean[
+            mask
+        ]
+    )
+
+    # -----------------------------------
+    # Safety fallback:
+    # never trim into an unusable plot.
+    # -----------------------------------
+
+    if (
+        len(display_data) < 10
+        or display_data.nunique() < 2
+    ):
+
+        return (
+            clean,
+            info
+        )
+
+    excluded_below = (
+        int(
+            (
+                clean
+                < lower_bound
+            ).sum()
+        )
+        if trim_lower
+        else 0
+    )
+
+    excluded_above = (
+        int(
+            (
+                clean
+                > upper_bound
+            ).sum()
+        )
+        if trim_upper
+        else 0
+    )
+
+    info = {
+        "trimmed": True,
+        "trim_lower": trim_lower,
+        "trim_upper": trim_upper,
+        "lower_bound": (
+            float(lower_bound)
+            if trim_lower
+            else None
+        ),
+        "upper_bound": (
+            float(upper_bound)
+            if trim_upper
+            else None
+        ),
+        "excluded_below": excluded_below,
+        "excluded_above": excluded_above,
+        "excluded_total": (
+            excluded_below
+            + excluded_above
+        )
+    }
+
+    return (
+        display_data,
+        info
+    )
+
+
+def format_histogram_bound(
+    column_name,
+    value
+):
+    """
+    Format a histogram display boundary for
+    a user-facing annotation.
+    """
+
+    prefix = (
+        "$"
+        if is_currency_column(
+            column_name
+        )
+        else ""
+    )
+
+    if abs(value) >= 100:
+
+        formatted = (
+            f"{value:,.0f}"
+        )
+
+    elif abs(value) >= 10:
+
+        formatted = (
+            f"{value:,.1f}"
+        )
+
+    else:
+
+        formatted = (
+            f"{value:,.2f}"
+        )
+
+    return (
+        f"{prefix}"
+        f"{formatted}"
+    )
+
+
+def histogram_display_note(
+    column_name,
+    info
+):
+    """
+    Generate a transparent explanation when
+    extreme observations are omitted only from
+    histogram rendering.
+    """
+
+    if not info["trimmed"]:
+        return None
+
+    excluded = (
+        info["excluded_total"]
+    )
+
+    observation_word = (
+        "observation"
+        if excluded == 1
+        else "observations"
+    )
+
+    # -----------------------------------
+    # Upper tail only
+    # -----------------------------------
+
+    if (
+        info["trim_upper"]
+        and not info["trim_lower"]
+    ):
+
+        upper = (
+            format_histogram_bound(
+                column_name,
+                info["upper_bound"]
+            )
+        )
+
+        return (
+            "Display limited to the "
+            f"99th percentile (≤ {upper}); "
+            f"{excluded:,} extreme "
+            f"{observation_word} hidden. "
+            "Scoring uses the full dataset."
+        )
+
+    # -----------------------------------
+    # Lower tail only
+    # -----------------------------------
+
+    if (
+        info["trim_lower"]
+        and not info["trim_upper"]
+    ):
+
+        lower = (
+            format_histogram_bound(
+                column_name,
+                info["lower_bound"]
+            )
+        )
+
+        return (
+            "Display limited from the "
+            f"1st percentile (≥ {lower}); "
+            f"{excluded:,} extreme "
+            f"{observation_word} hidden. "
+            "Scoring uses the full dataset."
+        )
+
+    # -----------------------------------
+    # Both tails
+    # -----------------------------------
+
+    lower = (
+        format_histogram_bound(
+            column_name,
+            info["lower_bound"]
+        )
+    )
+
+    upper = (
+        format_histogram_bound(
+            column_name,
+            info["upper_bound"]
+        )
+    )
+
+    return (
+        "Display limited to the central "
+        f"98% ({lower} to {upper}); "
+        f"{excluded:,} extreme "
+        f"{observation_word} hidden. "
+        "Scoring uses the full dataset."
+    )
+
+
 def prepare_histogram(
     df,
     candidate
@@ -917,21 +1298,35 @@ def prepare_histogram(
     """
     Build a histogram with automatic
     distribution-aware binning.
+
+    Extremely distant tails are omitted only
+    from the displayed histogram when they would
+    otherwise destroy the useful visual scale.
+
+    The recommendation scorer still receives
+    the complete, unmodified dataset.
     """
 
     x = candidate["x"]
 
-    clean = pd.to_numeric(
+    full_data = pd.to_numeric(
         df[x],
         errors="coerce"
     ).dropna()
 
+    (
+        display_data,
+        display_info
+    ) = prepare_histogram_display_data(
+        full_data
+    )
+
     nbins = histogram_bin_count(
-        clean
+        display_data
     )
 
     plot_data = pd.DataFrame({
-        x: clean
+        x: display_data
     })
 
     fig = px.histogram(
@@ -964,7 +1359,7 @@ def prepare_histogram(
 
     x_hover = hover_numeric_value(
         x,
-        clean,
+        display_data,
         "x"
     )
 
@@ -982,12 +1377,50 @@ def prepare_histogram(
         fig,
         "x",
         x,
-        clean
+        display_data
     )
 
     fig.update_yaxes(
         tickformat=",d",
         title="Count"
+    )
+
+    # -----------------------------------
+    # Explain display-only trimming
+    # -----------------------------------
+
+    note = histogram_display_note(
+        x,
+        display_info
+    )
+
+    if note:
+
+        fig.add_annotation(
+            x=0,
+            y=1.08,
+            xref="paper",
+            yref="paper",
+            xanchor="left",
+            yanchor="bottom",
+            showarrow=False,
+            align="left",
+            text=note,
+            font=dict(
+                color=TEXT_MUTED,
+                size=11
+            )
+        )
+
+    # Store whether additional top spacing
+    # is needed by render_candidate().
+    fig.update_layout(
+        meta={
+            "histogram_trimmed":
+                display_info[
+                    "trimmed"
+                ]
+        }
     )
 
     return fig
@@ -1004,6 +1437,9 @@ def box_category_order(
 ):
     """
     Determine a sensible category order.
+
+    Numeric/ordinal groups preserve their natural
+    order. Text categories are ordered by median.
     """
 
     if pd.api.types.is_bool_dtype(
@@ -1161,6 +1597,8 @@ def prepare_bar(
             )
         )
 
+        # Numeric/ordinal categories should
+        # preserve natural ordering.
         if pd.api.types.is_numeric_dtype(
             counts[x]
         ):
@@ -1193,7 +1631,10 @@ def prepare_bar(
             }
         )
 
+        # -----------------------------------
         # Neon bars
+        # -----------------------------------
+
         fig.update_traces(
             marker=dict(
                 color=NEON_GREEN,
@@ -1253,6 +1694,8 @@ def prepare_bar(
         .mean()
     )
 
+    # Numeric categories such as ordinal
+    # ratings should remain naturally ordered.
     if pd.api.types.is_numeric_dtype(
         grouped[x]
     ):
@@ -1290,7 +1733,10 @@ def prepare_bar(
         }
     )
 
+    # -----------------------------------
     # Neon bars
+    # -----------------------------------
+
     fig.update_traces(
         marker=dict(
             color=NEON_GREEN,
@@ -1389,6 +1835,32 @@ def render_candidate(
         )
 
     # -----------------------------------
+    # Histograms with a trimming note
+    # need slightly more room above the
+    # chart.
+    # -----------------------------------
+
+    histogram_trimmed = False
+
+    if isinstance(
+        fig.layout.meta,
+        dict
+    ):
+
+        histogram_trimmed = (
+            fig.layout.meta.get(
+                "histogram_trimmed",
+                False
+            )
+        )
+
+    top_margin = (
+        105
+        if histogram_trimmed
+        else 75
+    )
+
+    # -----------------------------------
     # Shared dimensions / spacing
     # -----------------------------------
 
@@ -1396,7 +1868,7 @@ def render_candidate(
         margin={
             "l": 25,
             "r": 25,
-            "t": 75,
+            "t": top_margin,
             "b": 25
         },
         legend={
