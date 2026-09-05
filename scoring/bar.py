@@ -1,5 +1,6 @@
 import math
 import pandas as pd
+from value_normalization import coerce_numeric_or_boolean
 
 from scipy.stats import chisquare
 
@@ -343,7 +344,15 @@ def group_separation_score(df, x, y):
     Returns a score from 0 to 100.
     """
 
-    clean = df[[x, y]].dropna()
+    clean = df[[x, y]].copy()
+
+    clean[y] = coerce_numeric_or_boolean(
+        clean[y]
+    )
+
+    clean = clean.dropna(
+        subset=[x, y]
+    )
 
     if clean.empty:
         return 0

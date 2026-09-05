@@ -89,6 +89,80 @@ def detect_datetime(series: pd.Series) -> bool:
 
 
 # ==================================================
+# CALENDAR LABEL FIELDS
+# ==================================================
+
+def is_calendar_label_text(
+    series: pd.Series
+) -> bool:
+    non_null = series.dropna()
+
+    if non_null.empty:
+        return False
+
+    column_name = normalize_column_name(
+        series
+    )
+
+    normalized_values = {
+        str(value).strip().lower()
+        for value in non_null.unique()
+    }
+
+    month_names = {
+        "jan", "january",
+        "feb", "february",
+        "mar", "march",
+        "apr", "april",
+        "may",
+        "jun", "june",
+        "jul", "july",
+        "aug", "august",
+        "sep", "sept", "september",
+        "oct", "october",
+        "nov", "november",
+        "dec", "december"
+    }
+
+    weekday_names = {
+        "mon", "monday",
+        "tue", "tues", "tuesday",
+        "wed", "wednesday",
+        "thu", "thur", "thurs", "thursday",
+        "fri", "friday",
+        "sat", "saturday",
+        "sun", "sunday"
+    }
+
+    if column_name in {
+        "month",
+        "mnth",
+        "month_name"
+    }:
+        return bool(
+            normalized_values
+            and normalized_values.issubset(
+                month_names
+            )
+        )
+
+    if column_name in {
+        "weekday",
+        "dayofweek",
+        "day_of_week",
+        "dow"
+    }:
+        return bool(
+            normalized_values
+            and normalized_values.issubset(
+                weekday_names
+            )
+        )
+
+    return False
+
+
+# ==================================================
 # IDENTIFIERS
 # ==================================================
 
@@ -606,6 +680,9 @@ def classify_column(series: pd.Series) -> str:
 
         if is_boolean_text(series):
             return "boolean"
+
+        if is_calendar_label_text(series):
+            return "categorical"
 
         if detect_datetime(series):
             return "datetime"

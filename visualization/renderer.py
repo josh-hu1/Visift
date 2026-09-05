@@ -3,6 +3,7 @@ import math
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from value_normalization import coerce_numeric_or_boolean
 
 
 # ==================================================
@@ -1673,9 +1674,8 @@ def prepare_bar(
         .copy()
     )
 
-    clean[y] = pd.to_numeric(
-        clean[y],
-        errors="coerce"
+    clean[y] = coerce_numeric_or_boolean(
+        clean[y]
     )
 
     clean = clean.dropna(

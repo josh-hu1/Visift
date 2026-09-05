@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from value_normalization import coerce_numeric_or_boolean
 
 from profiler import profile_dataset
 from candidate_generator import generate_candidates
@@ -1362,7 +1363,15 @@ def bar_insight(
 
     clean = (
         df[[x, y]]
-        .dropna()
+        .copy()
+    )
+
+    clean[y] = coerce_numeric_or_boolean(
+        clean[y]
+    )
+
+    clean = clean.dropna(
+        subset=[x, y]
     )
 
     means = (
