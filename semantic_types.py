@@ -500,6 +500,7 @@ def is_numeric_categorical_code(series: pd.Series) -> bool:
         or column_name.endswith("_code")
         or column_name.endswith("_type")
         or column_name.endswith("_class")
+        or column_name.endswith("class")
         or column_name.endswith("_category")
         or column_name.endswith("_status")
     )

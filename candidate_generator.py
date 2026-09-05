@@ -13,33 +13,67 @@ CATEGORY_TYPES = {
     "geographic"
 }
 
+# Category-like fields that can sensibly define groups for
+# a binary-rate comparison.
+#
+# Boolean is intentionally excluded here. When both variables
+# are boolean, there is no obvious predictor/outcome direction
+# to infer automatically from semantics alone.
+RATE_PREDICTOR_TYPES = {
+    "categorical",
+    "ordinal",
+    "geographic"
+}
+
 TIME_TYPES = {
     "datetime",
     "temporal"
 }
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(
+    profile,
+    column_name
+):
     """
     Get semantic type for a column from the dataset profile.
     """
 
-    for column in profile["column_profiles"]:
-        if column["name"] == column_name:
-            return column["semantic_type"]
+    for column in profile[
+        "column_profiles"
+    ]:
+
+        if (
+            column["name"]
+            == column_name
+        ):
+
+            return column[
+                "semantic_type"
+            ]
 
     return None
 
 
-def generate_candidates(df, profile):
+def generate_candidates(
+    df,
+    profile
+):
     """
     Generate valid visualization candidates based on
     semantic column types.
+
+    Candidate generation is intentionally permissive:
+    it decides whether a visualization can make semantic
+    sense. The scoring layer decides whether the resulting
+    visualization is actually informative.
     """
 
     candidates = []
 
-    columns = list(df.columns)
+    columns = list(
+        df.columns
+    )
 
     # ---------------------------------
     # Single-column visualizations
@@ -47,20 +81,30 @@ def generate_candidates(df, profile):
 
     for column in columns:
 
-        semantic_type = get_semantic_type(
-            profile,
-            column
+        semantic_type = (
+            get_semantic_type(
+                profile,
+                column
+            )
         )
 
         # Numeric distribution
-        if semantic_type in NUMERIC_TYPES:
+        if (
+            semantic_type
+            in NUMERIC_TYPES
+        ):
+
             candidates.append({
                 "chart": "histogram",
                 "x": column
             })
 
         # Category counts
-        if semantic_type in CATEGORY_TYPES:
+        if (
+            semantic_type
+            in CATEGORY_TYPES
+        ):
+
             candidates.append({
                 "chart": "bar",
                 "x": column,
@@ -71,16 +115,36 @@ def generate_candidates(df, profile):
     # Two-column visualizations
     # ---------------------------------
 
-    for col1, col2 in combinations(columns, 2):
+    for (
+        col1,
+        col2
+    ) in combinations(
+        columns,
+        2
+    ):
 
-        type1 = get_semantic_type(profile, col1)
-        type2 = get_semantic_type(profile, col2)
+        type1 = (
+            get_semantic_type(
+                profile,
+                col1
+            )
+        )
+
+        type2 = (
+            get_semantic_type(
+                profile,
+                col2
+            )
+        )
 
         # -----------------------------
         # Numeric + Numeric
         # -----------------------------
 
-        if type1 in NUMERIC_TYPES and type2 in NUMERIC_TYPES:
+        if (
+            type1 in NUMERIC_TYPES
+            and type2 in NUMERIC_TYPES
+        ):
 
             candidates.append({
                 "chart": "scatter",
@@ -92,7 +156,10 @@ def generate_candidates(df, profile):
         # Time + Numeric
         # -----------------------------
 
-        if type1 in TIME_TYPES and type2 in NUMERIC_TYPES:
+        if (
+            type1 in TIME_TYPES
+            and type2 in NUMERIC_TYPES
+        ):
 
             candidates.append({
                 "chart": "line",
@@ -100,7 +167,10 @@ def generate_candidates(df, profile):
                 "y": col2
             })
 
-        elif type2 in TIME_TYPES and type1 in NUMERIC_TYPES:
+        elif (
+            type2 in TIME_TYPES
+            and type1 in NUMERIC_TYPES
+        ):
 
             candidates.append({
                 "chart": "line",
@@ -112,7 +182,10 @@ def generate_candidates(df, profile):
         # Category + Numeric
         # -----------------------------
 
-        if type1 in CATEGORY_TYPES and type2 in NUMERIC_TYPES:
+        if (
+            type1 in CATEGORY_TYPES
+            and type2 in NUMERIC_TYPES
+        ):
 
             candidates.append({
                 "chart": "bar",
@@ -127,7 +200,10 @@ def generate_candidates(df, profile):
                 "y": col2
             })
 
-        elif type2 in CATEGORY_TYPES and type1 in NUMERIC_TYPES:
+        elif (
+            type2 in CATEGORY_TYPES
+            and type1 in NUMERIC_TYPES
+        ):
 
             candidates.append({
                 "chart": "bar",
@@ -140,6 +216,43 @@ def generate_candidates(df, profile):
                 "chart": "box",
                 "x": col2,
                 "y": col1
+            })
+
+        # -----------------------------
+        # Category + Boolean Outcome
+        # -----------------------------
+        #
+        # The mean of a boolean outcome is the positive rate:
+        #
+        #     mean(converted) = conversion rate
+        #     mean(churned)   = churn rate
+        #     mean(survived)  = survival rate
+        #
+        # This reuses the existing mean-bar scoring path rather
+        # than introducing a separate chart/scorer family.
+
+        if (
+            type1 in RATE_PREDICTOR_TYPES
+            and type2 == "boolean"
+        ):
+
+            candidates.append({
+                "chart": "bar",
+                "x": col1,
+                "y": col2,
+                "aggregation": "mean"
+            })
+
+        elif (
+            type2 in RATE_PREDICTOR_TYPES
+            and type1 == "boolean"
+        ):
+
+            candidates.append({
+                "chart": "bar",
+                "x": col2,
+                "y": col1,
+                "aggregation": "mean"
             })
 
     return candidates
