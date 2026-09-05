@@ -26,3 +26,19 @@ titanic3,sibsp,numeric_discrete,numeric_discrete,True,"SibSp is a genuine count 
 titanic3,parch,numeric_discrete,numeric_discrete,True,"Parch is a genuine count of parents/children aboard, not a category code."
 titanic3,fare,numeric_continuous,numeric_continuous,True,Fare is a continuous monetary quantity.
 titanic3,embarked,categorical,categorical,True,Embarkation port is a nominal category.
+uci_bank_marketing,age,numeric_continuous,numeric_continuous,True,Age is an integer-valued measurement that is normally treated as a continuous numeric feature for exploratory analysis.
+uci_bank_marketing,job,categorical,categorical,True,Job is a nominal occupation category.
+uci_bank_marketing,marital,categorical,categorical,True,Marital status is categorical.
+uci_bank_marketing,education,categorical,categorical | ordinal,True,"UCI describes education as categorical, though an ordinal interpretation is also defensible."
+uci_bank_marketing,default,boolean,boolean,True,Credit default is represented as yes/no.
+uci_bank_marketing,balance,numeric_continuous,numeric_continuous,True,Average yearly balance is a numeric monetary quantity.
+uci_bank_marketing,housing,boolean,boolean,True,Housing-loan status is represented as yes/no.
+uci_bank_marketing,loan,boolean,boolean,True,Personal-loan status is represented as yes/no.
+uci_bank_marketing,contact,categorical,categorical,True,Contact communication type is categorical.
+uci_bank_marketing,day,temporal,temporal | numeric_discrete | ordinal,True,Day of month is a discrete calendar field. Temporal or ordered-discrete treatment is reasonable within Visift's current taxonomy.
+uci_bank_marketing,month,categorical,categorical | temporal | ordinal,True,Month is a cyclical calendar field encoded with month abbreviations.
+uci_bank_marketing,campaign,numeric_continuous,numeric_discrete | numeric_continuous,True,Campaign is a count of contacts; both discrete and general numeric treatment preserve the intended visualization family.
+uci_bank_marketing,pdays,numeric_continuous,numeric_discrete | numeric_continuous,True,"Pdays is an integer count of elapsed days, with -1 indicating no previous contact."
+uci_bank_marketing,previous,numeric_continuous,numeric_discrete | numeric_continuous,True,Previous is an integer count of prior campaign contacts.
+uci_bank_marketing,poutcome,categorical,categorical,True,Previous campaign outcome is categorical.
+uci_bank_marketing,y,boolean,boolean,True,The target records term-deposit subscription as yes/no.

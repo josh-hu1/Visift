@@ -76,6 +76,56 @@ Titanic is deliberately useful for testing the distinction between:
 
 The pre-registered survival-by-sex and survival-by-class expectations also test whether Visift can represent useful relationships between categorical/binary variables. If those are not generated, that is treated as a product capability gap rather than silently removed from the benchmark.
 
+
+### UCI Bank Marketing
+
+Domain: business / direct marketing
+
+Source:
+https://archive.ics.uci.edu/dataset/222/bank+marketing
+
+License: CC BY 4.0
+
+Citation:
+Moro, S., Rita, P., & Cortez, P. (2014). *Bank Marketing* [Dataset]. UCI Machine Learning Repository. https://doi.org/10.24432/C5K306.
+
+The dataset contains 45,211 observations from direct-marketing phone campaigns by a Portuguese banking institution. The binary target `y` records whether a client subscribed to a term deposit.
+
+For the Visift benchmark, we use UCI `bank-full.csv` and remove only:
+
+- `duration` — last contact duration. It is only known after the call and the dataset documentation warns that it strongly reveals the output target.
+
+The retained benchmark columns are:
+
+- `age`
+- `job`
+- `marital`
+- `education`
+- `default`
+- `balance`
+- `housing`
+- `loan`
+- `contact`
+- `day`
+- `month`
+- `campaign`
+- `pdays`
+- `previous`
+- `poutcome`
+- `y`
+
+Bank Marketing broadens the suite into a business dataset and tests:
+
+- yes/no text values being recognized as booleans
+- category-to-binary subscription-rate recommendations
+- higher-cardinality categorical variables such as job
+- numeric financial measures such as balance
+- count-like integer fields such as campaign and previous
+- calendar fields represented as day numbers and month abbreviations
+- prior-campaign outcome as a potentially informative categorical relationship
+
+The pre-registered expected insights are defined before inspecting Visift's ranking.
+
 ## Run
 
 From the repository root:

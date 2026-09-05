@@ -566,6 +566,275 @@ TITANIC = RealWorldDataset(
 
 
 # ==================================================
+# UCI BANK MARKETING
+# ==================================================
+
+BANK_MARKETING = RealWorldDataset(
+    name="uci_bank_marketing",
+    filename="bank_marketing_full.csv",
+    domain="marketing",
+    source=(
+        "https://archive.ics.uci.edu/"
+        "dataset/222/bank+marketing"
+    ),
+    license_name="CC BY 4.0",
+    citation=(
+        "Moro, S., Rita, P., & Cortez, P. (2014). "
+        "Bank Marketing [Dataset]. UCI Machine Learning "
+        "Repository. https://doi.org/10.24432/C5K306."
+    ),
+    description=(
+        "Direct-marketing campaign data from a Portuguese "
+        "bank. The binary outcome y records whether a client "
+        "subscribed to a term deposit."
+    ),
+    expected_insights=(
+        ExpectedInsight(
+            name="previous_outcome_vs_subscription_rate",
+            variables=(
+                "poutcome",
+                "y"
+            ),
+            acceptable_charts=(
+                "bar",
+            ),
+            aggregation="mean",
+            required_x="poutcome",
+            required_y="y",
+            rationale=(
+                "The outcome of a previous marketing campaign "
+                "is a natural and decision-relevant grouping "
+                "for current term-deposit subscription rate."
+            )
+        ),
+        ExpectedInsight(
+            name="job_vs_subscription_rate",
+            variables=(
+                "job",
+                "y"
+            ),
+            acceptable_charts=(
+                "bar",
+            ),
+            aggregation="mean",
+            required_x="job",
+            required_y="y",
+            rationale=(
+                "Occupation is a core customer attribute and "
+                "subscription rates can meaningfully differ "
+                "across job categories."
+            )
+        ),
+        ExpectedInsight(
+            name="education_vs_subscription_rate",
+            variables=(
+                "education",
+                "y"
+            ),
+            acceptable_charts=(
+                "bar",
+            ),
+            aggregation="mean",
+            required_x="education",
+            required_y="y",
+            rationale=(
+                "Education level is a core customer attribute "
+                "and is useful to compare against subscription "
+                "rate."
+            )
+        ),
+        ExpectedInsight(
+            name="month_vs_subscription_rate",
+            variables=(
+                "month",
+                "y"
+            ),
+            acceptable_charts=(
+                "bar",
+            ),
+            aggregation="mean",
+            required_x="month",
+            required_y="y",
+            rationale=(
+                "The contact month can capture substantial "
+                "campaign timing differences in subscription "
+                "rate."
+            )
+        ),
+        ExpectedInsight(
+            name="balance_by_subscription_status",
+            variables=(
+                "y",
+                "balance"
+            ),
+            acceptable_charts=(
+                "box",
+            ),
+            required_x="y",
+            required_y="balance",
+            rationale=(
+                "Average yearly account balance is an important "
+                "financial measure to compare between clients "
+                "who did and did not subscribe."
+            )
+        ),
+        ExpectedInsight(
+            name="age_by_subscription_status",
+            variables=(
+                "y",
+                "age"
+            ),
+            acceptable_charts=(
+                "box",
+            ),
+            required_x="y",
+            required_y="age",
+            rationale=(
+                "Age distributions are useful to compare "
+                "between subscribers and non-subscribers."
+            )
+        ),
+    ),
+    expected_semantics=(
+        ExpectedSemanticType(
+            column="age",
+            acceptable_types=("numeric_continuous",),
+            rationale=(
+                "Age is an integer-valued measurement that is "
+                "normally treated as a continuous numeric "
+                "feature for exploratory analysis."
+            )
+        ),
+        ExpectedSemanticType(
+            column="job",
+            acceptable_types=("categorical",),
+            rationale="Job is a nominal occupation category."
+        ),
+        ExpectedSemanticType(
+            column="marital",
+            acceptable_types=("categorical",),
+            rationale="Marital status is categorical."
+        ),
+        ExpectedSemanticType(
+            column="education",
+            acceptable_types=("categorical", "ordinal"),
+            rationale=(
+                "UCI describes education as categorical, though "
+                "an ordinal interpretation is also defensible."
+            )
+        ),
+        ExpectedSemanticType(
+            column="default",
+            acceptable_types=("boolean",),
+            rationale="Credit default is represented as yes/no."
+        ),
+        ExpectedSemanticType(
+            column="balance",
+            acceptable_types=("numeric_continuous",),
+            rationale=(
+                "Average yearly balance is a numeric monetary "
+                "quantity."
+            )
+        ),
+        ExpectedSemanticType(
+            column="housing",
+            acceptable_types=("boolean",),
+            rationale="Housing-loan status is represented as yes/no."
+        ),
+        ExpectedSemanticType(
+            column="loan",
+            acceptable_types=("boolean",),
+            rationale="Personal-loan status is represented as yes/no."
+        ),
+        ExpectedSemanticType(
+            column="contact",
+            acceptable_types=("categorical",),
+            rationale="Contact communication type is categorical."
+        ),
+        ExpectedSemanticType(
+            column="day",
+            acceptable_types=(
+                "temporal",
+                "numeric_discrete",
+                "ordinal"
+            ),
+            rationale=(
+                "Day of month is a discrete calendar field. "
+                "Temporal or ordered-discrete treatment is "
+                "reasonable within Visift's current taxonomy."
+            )
+        ),
+        ExpectedSemanticType(
+            column="month",
+            acceptable_types=(
+                "categorical",
+                "temporal",
+                "ordinal"
+            ),
+            rationale=(
+                "Month is a cyclical calendar field encoded "
+                "with month abbreviations."
+            )
+        ),
+        ExpectedSemanticType(
+            column="campaign",
+            acceptable_types=(
+                "numeric_discrete",
+                "numeric_continuous"
+            ),
+            rationale=(
+                "Campaign is a count of contacts; both discrete "
+                "and general numeric treatment preserve the "
+                "intended visualization family."
+            )
+        ),
+        ExpectedSemanticType(
+            column="pdays",
+            acceptable_types=(
+                "numeric_discrete",
+                "numeric_continuous"
+            ),
+            rationale=(
+                "Pdays is an integer count of elapsed days, "
+                "with -1 indicating no previous contact."
+            )
+        ),
+        ExpectedSemanticType(
+            column="previous",
+            acceptable_types=(
+                "numeric_discrete",
+                "numeric_continuous"
+            ),
+            rationale=(
+                "Previous is an integer count of prior campaign "
+                "contacts."
+            )
+        ),
+        ExpectedSemanticType(
+            column="poutcome",
+            acceptable_types=("categorical",),
+            rationale="Previous campaign outcome is categorical."
+        ),
+        ExpectedSemanticType(
+            column="y",
+            acceptable_types=("boolean",),
+            rationale=(
+                "The target records term-deposit subscription "
+                "as yes/no."
+            )
+        ),
+    ),
+    preprocessing_notes=(
+        "The benchmark uses UCI bank-full.csv. It removes "
+        "duration because call duration is only known after the "
+        "marketing call and the dataset documentation warns that "
+        "it strongly reveals the output target. All other "
+        "columns and source values are retained unchanged."
+    )
+)
+
+
+# ==================================================
 # SUITE
 # ==================================================
 
@@ -573,6 +842,7 @@ REAL_WORLD_DATASETS = (
     PENGUINS,
     BIKE_SHARING,
     TITANIC,
+    BANK_MARKETING,
 )
 
 

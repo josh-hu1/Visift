@@ -31,6 +31,12 @@ TITANIC3_URL = (
 )
 
 
+BANK_MARKETING_ZIP_URL = (
+    "https://archive.ics.uci.edu/static/public/222/"
+    "bank%2Bmarketing.zip"
+)
+
+
 # ==================================================
 # DOWNLOAD HELPERS
 # ==================================================
@@ -459,6 +465,238 @@ def validate_titanic(
 
 
 # ==================================================
+# UCI BANK MARKETING
+# ==================================================
+
+def download_bank_marketing():
+    """
+    Download UCI Bank Marketing and create a benchmark-ready
+    version of bank-full.csv.
+
+    The UCI archive may contain bank-full.csv directly or place
+    it inside a nested bank.zip, so the downloader supports both
+    layouts.
+
+    We remove duration because it records the last call duration,
+    is only known after the call, and is documented as strongly
+    revealing the output target. All remaining source values are
+    left unchanged.
+    """
+
+    archive_bytes = download_bytes(
+        BANK_MARKETING_ZIP_URL
+    )
+
+    raw_bytes = None
+
+    with zipfile.ZipFile(
+        BytesIO(
+            archive_bytes
+        )
+    ) as outer_archive:
+
+        direct_candidates = [
+            name
+            for name in outer_archive.namelist()
+            if (
+                name == "bank-full.csv"
+                or name.endswith(
+                    "/bank-full.csv"
+                )
+            )
+        ]
+
+        if direct_candidates:
+
+            raw_bytes = outer_archive.read(
+                direct_candidates[0]
+            )
+
+        else:
+
+            nested_candidates = [
+                name
+                for name in outer_archive.namelist()
+                if (
+                    name == "bank.zip"
+                    or name.endswith(
+                        "/bank.zip"
+                    )
+                )
+            ]
+
+            if not nested_candidates:
+
+                raise FileNotFoundError(
+                    "Could not find bank-full.csv or nested "
+                    "bank.zip inside the UCI Bank Marketing "
+                    "archive."
+                )
+
+            nested_bytes = outer_archive.read(
+                nested_candidates[0]
+            )
+
+            with zipfile.ZipFile(
+                BytesIO(
+                    nested_bytes
+                )
+            ) as bank_archive:
+
+                bank_full_candidates = [
+                    name
+                    for name in bank_archive.namelist()
+                    if (
+                        name == "bank-full.csv"
+                        or name.endswith(
+                            "/bank-full.csv"
+                        )
+                    )
+                ]
+
+                if not bank_full_candidates:
+
+                    raise FileNotFoundError(
+                        "Could not find bank-full.csv inside "
+                        "the nested UCI bank.zip archive."
+                    )
+
+                raw_bytes = bank_archive.read(
+                    bank_full_candidates[0]
+                )
+
+    raw = pd.read_csv(
+        BytesIO(
+            raw_bytes
+        ),
+        sep=";"
+    )
+
+    expected_raw_columns = {
+        "age",
+        "job",
+        "marital",
+        "education",
+        "default",
+        "balance",
+        "housing",
+        "loan",
+        "contact",
+        "day",
+        "month",
+        "duration",
+        "campaign",
+        "pdays",
+        "previous",
+        "poutcome",
+        "y"
+    }
+
+    missing_columns = (
+        expected_raw_columns
+        - set(raw.columns)
+    )
+
+    if missing_columns:
+
+        raise ValueError(
+            "Bank Marketing bank-full.csv is missing expected "
+            f"columns: {sorted(missing_columns)}"
+        )
+
+    if len(raw) != 45211:
+
+        raise ValueError(
+            "Expected 45211 UCI Bank Marketing rows, "
+            f"found {len(raw)}."
+        )
+
+    benchmark_df = (
+        raw.drop(
+            columns=[
+                "duration"
+            ]
+        )
+        .copy()
+    )
+
+    destination = (
+        DATASET_DIR
+        / "bank_marketing_full.csv"
+    )
+
+    benchmark_df.to_csv(
+        destination,
+        index=False
+    )
+
+    return (
+        destination,
+        raw,
+        benchmark_df
+    )
+
+
+def validate_bank_marketing(
+    path
+):
+    """
+    Validate the benchmark-ready UCI Bank Marketing CSV.
+    """
+
+    df = pd.read_csv(
+        path
+    )
+
+    expected_columns = {
+        "age",
+        "job",
+        "marital",
+        "education",
+        "default",
+        "balance",
+        "housing",
+        "loan",
+        "contact",
+        "day",
+        "month",
+        "campaign",
+        "pdays",
+        "previous",
+        "poutcome",
+        "y"
+    }
+
+    missing_columns = (
+        expected_columns
+        - set(df.columns)
+    )
+
+    if missing_columns:
+
+        raise ValueError(
+            "Benchmark-ready Bank Marketing CSV is missing "
+            f"columns: {sorted(missing_columns)}"
+        )
+
+    if "duration" in df.columns:
+
+        raise ValueError(
+            "Benchmark-ready Bank Marketing CSV should not "
+            "contain duration."
+        )
+
+    if len(df) != 45211:
+
+        raise ValueError(
+            "Expected 45211 benchmark Bank Marketing rows, "
+            f"found {len(df)}."
+        )
+
+    return df
+
+
+# ==================================================
 # MAIN
 # ==================================================
 
@@ -542,6 +780,30 @@ def main():
         f"{len(titanic_validated)} rows, "
         f"{len(titanic_validated.columns)} benchmark columns "
         f"({len(titanic_raw.columns)} raw columns)"
+    )
+
+
+    (
+        bank_path,
+        bank_raw,
+        bank_benchmark
+    ) = download_bank_marketing()
+
+    bank_validated = (
+        validate_bank_marketing(
+            bank_path
+        )
+    )
+
+    print(
+        f"Downloaded/prepared: {bank_path}"
+    )
+
+    print(
+        f"Validated UCI Bank Marketing: "
+        f"{len(bank_validated)} rows, "
+        f"{len(bank_validated.columns)} benchmark columns "
+        f"({len(bank_raw.columns)} raw columns)"
     )
 
     print()

@@ -13,3 +13,9 @@ titanic3,passenger survival,survival_rate_by_passenger_class,pclass | survived,b
 titanic3,passenger survival,age_by_survival_status,survived | age,box,survived,age,,33,32.75,box,,Age distributions are useful to compare between survivors and non-survivors.
 titanic3,passenger survival,fare_by_passenger_class,pclass | fare,box | bar,pclass,fare,,1,96.74,box,,Passenger fares differ strongly across the three passenger classes.
 titanic3,passenger survival,fare_distribution,fare,histogram,fare,,,3,90.61,histogram,,Passenger fare has a distinctly uneven distribution that is useful to inspect.
+uci_bank_marketing,marketing,previous_outcome_vs_subscription_rate,poutcome | y,bar,poutcome,y,mean,47,41.31,bar,mean,The outcome of a previous marketing campaign is a natural and decision-relevant grouping for current term-deposit subscription rate.
+uci_bank_marketing,marketing,job_vs_subscription_rate,job | y,bar,job,y,mean,75,35.12,bar,mean,Occupation is a core customer attribute and subscription rates can meaningfully differ across job categories.
+uci_bank_marketing,marketing,education_vs_subscription_rate,education | y,bar,education,y,mean,71,35.34,bar,mean,Education level is a core customer attribute and is useful to compare against subscription rate.
+uci_bank_marketing,marketing,month_vs_subscription_rate,month | y,bar,month,y,mean,55,38.22,bar,mean,The contact month can capture substantial campaign timing differences in subscription rate.
+uci_bank_marketing,marketing,balance_by_subscription_status,y | balance,box,y,balance,,35,47.07,box,,Average yearly account balance is an important financial measure to compare between clients who did and did not subscribe.
+uci_bank_marketing,marketing,age_by_subscription_status,y | age,box,y,age,,53,38.97,box,,Age distributions are useful to compare between subscribers and non-subscribers.
