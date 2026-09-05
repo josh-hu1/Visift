@@ -1,6 +1,8 @@
 import math
 import pandas as pd
 
+from scipy.stats import chisquare
+
 
 def clamp(value, minimum=0, maximum=100):
     """
@@ -121,20 +123,115 @@ def data_quality_score(df, columns):
     return completeness * 100
 
 
-def count_signal_score(counts):
-    """
-    Estimate whether category frequencies show an
-    interesting difference.
+COUNT_STRONG_P = 0.001
+COUNT_WEAK_P = 0.10
+COUNT_MIN_RELIABILITY = 0.20
+COUNT_IMBALANCE_EXPONENT = 0.50
 
-    Balanced distributions receive a low signal score,
-    while increasingly imbalanced distributions receive
-    higher scores.
+
+def count_reliability_score(p_value):
     """
+    Convert a goodness-of-fit p-value into a
+    0-1 reliability multiplier.
+
+    Category imbalance is measured against an
+    equal-frequency reference distribution. Small
+    samples can look strongly imbalanced by chance,
+    so weak statistical evidence receives only
+    partial signal credit.
+    """
+
+    if (
+        p_value is None
+        or not math.isfinite(
+            p_value
+        )
+    ):
+        return COUNT_MIN_RELIABILITY
+
+    if p_value <= COUNT_STRONG_P:
+        return 1.0
+
+    if p_value >= COUNT_WEAK_P:
+        return COUNT_MIN_RELIABILITY
+
+    log_strong = math.log10(
+        COUNT_STRONG_P
+    )
+
+    log_weak = math.log10(
+        COUNT_WEAK_P
+    )
+
+    log_p = math.log10(
+        p_value
+    )
+
+    position = (
+        (
+            log_weak
+            - log_p
+        )
+        / (
+            log_weak
+            - log_strong
+        )
+    )
+
+    position = clamp(
+        position,
+        0,
+        1
+    )
+
+    return (
+        COUNT_MIN_RELIABILITY
+        + (
+            1
+            - COUNT_MIN_RELIABILITY
+        )
+        * position
+    )
+
+
+def count_signal_details(counts):
+    """
+    Estimate category-frequency imbalance and its
+    statistical reliability.
+
+    The raw effect is normalized entropy deficit.
+    Entropy deficit is bounded and category-count
+    aware, but its numeric scale is compressed: a
+    visibly meaningful imbalance can still produce
+    a relatively small raw value.
+
+    A square-root calibration expands the lower and
+    middle part of the scale while preserving 0-100
+    bounds. The transformed effect is then adjusted
+    by a chi-square goodness-of-fit reliability
+    multiplier.
+    """
+
+    default_result = {
+        "signal": 0,
+        "entropy_imbalance": 0,
+        "effect_signal": 0,
+        "p_value": 1,
+        "reliability": 0
+    }
 
     if len(counts) <= 1:
-        return 0
+        return default_result
 
-    probabilities = counts / counts.sum()
+    total = counts.sum()
+
+    if total <= 0:
+        return default_result
+
+    probabilities = (
+        counts
+        / total
+    )
 
     entropy = -sum(
         p * math.log(p)
@@ -142,18 +239,96 @@ def count_signal_score(counts):
         if p > 0
     )
 
-    max_entropy = math.log(len(counts))
+    max_entropy = math.log(
+        len(counts)
+    )
 
     normalized_entropy = (
-        entropy / max_entropy
+        entropy
+        / max_entropy
         if max_entropy > 0
         else 1
     )
 
-    imbalance = 1 - normalized_entropy
+    entropy_imbalance = clamp(
+        1
+        - normalized_entropy,
+        0,
+        1
+    )
 
-    # Greater imbalance produces a stronger frequency signal.
-    return imbalance * 100
+    effect_signal = (
+        entropy_imbalance
+        ** COUNT_IMBALANCE_EXPONENT
+        * 100
+    )
+
+    expected_count = (
+        total
+        / len(counts)
+    )
+
+    try:
+        result = chisquare(
+            counts.to_numpy(
+                dtype=float
+            ),
+            f_exp=[
+                expected_count
+            ]
+            * len(counts)
+        )
+
+        p_value = float(
+            result.pvalue
+        )
+
+    except Exception:
+        p_value = 1
+
+    reliability = (
+        count_reliability_score(
+            p_value
+        )
+    )
+
+    signal = clamp(
+        effect_signal
+        * reliability
+    )
+
+    return {
+        "signal": float(
+            signal
+        ),
+        "entropy_imbalance": float(
+            entropy_imbalance
+        ),
+        "effect_signal": float(
+            effect_signal
+        ),
+        "p_value": float(
+            p_value
+        ),
+        "reliability": float(
+            reliability
+        )
+    }
+
+
+def count_signal_score(counts):
+    """
+    Return the calibrated count-bar signal.
+
+    This wrapper preserves the existing public
+    function name used by evaluation code.
+    """
+
+    return count_signal_details(
+        counts
+    )[
+        "signal"
+    ]
 
 
 def group_separation_score(df, x, y):
@@ -263,9 +438,15 @@ def score_bar_chart(df, candidate, profile):
             [x]
         )
 
-        signal = count_signal_score(
-            counts
+        count_signal = (
+            count_signal_details(
+                counts
+            )
         )
+
+        signal = count_signal[
+            "signal"
+        ]
 
         final_score, visualization_quality = (
             combine_quality_and_signal(
@@ -284,6 +465,19 @@ def score_bar_chart(df, candidate, profile):
             f"Average category size: {counts.mean():.1f} observations.",
             f"Smallest category: {counts.min()} observations.",
             f"Data completeness: {quality:.1f}%.",
+            (
+                "Normalized entropy imbalance: "
+                f"{count_signal['entropy_imbalance']:.3f}."
+            ),
+            (
+                "Frequency-imbalance effect: "
+                f"{count_signal['effect_signal']:.1f}/100."
+            ),
+            (
+                "Imbalance reliability: "
+                f"{count_signal['reliability']:.2f} "
+                f"(p={count_signal['p_value']:.3g})."
+            ),
             f"Category frequency signal: {signal:.1f}/100."
         ]
 
