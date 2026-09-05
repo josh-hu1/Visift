@@ -486,6 +486,27 @@ def relationship_strength(value):
     return "very weak"
 
 
+def signal_strength(value):
+    """
+    Convert a calibrated 0-100 pattern signal into
+    concise plain-English wording.
+    """
+
+    if value >= 80:
+        return "strong"
+
+    if value >= 60:
+        return "moderate"
+
+    if value >= 40:
+        return "noticeable"
+
+    if value >= 20:
+        return "weak"
+
+    return "very weak"
+
+
 # ==================================================
 # PLAIN-ENGLISH INSIGHT GENERATION
 # ==================================================
@@ -494,6 +515,10 @@ def scatter_insight(candidate):
     """
     Generate a plain-English explanation for
     a scatterplot recommendation.
+
+    The takeaway follows the signal that actually
+    drives the scorer: linear/monotonic association
+    or nonlinear dependence.
     """
 
     x = humanize_column_name(
@@ -504,23 +529,96 @@ def scatter_insight(candidate):
         candidate["y"]
     )
 
-    statistics = candidate[
-        "statistics"
-    ]
-
-    pearson = statistics[
-        "pearson"
-    ]
-
-    spearman = statistics[
-        "spearman"
-    ]
-
-    strongest = (
-        pearson
-        if abs(pearson) >= abs(spearman)
-        else spearman
+    statistics = candidate.get(
+        "statistics",
+        {}
     )
+
+    signal = candidate.get(
+        "components",
+        {}
+    ).get(
+        "signal",
+        0
+    )
+
+    linear_signal = statistics.get(
+        "linear_signal",
+        0
+    )
+
+    nonlinear_signal = statistics.get(
+        "nonlinear_signal",
+        0
+    )
+
+    # -----------------------------------
+    # Nonlinear relationship
+    # -----------------------------------
+
+    if nonlinear_signal > linear_signal:
+
+        strength = signal_strength(
+            nonlinear_signal
+        )
+
+        pearson = statistics.get(
+            "pearson",
+            0
+        )
+
+        spearman = statistics.get(
+            "spearman",
+            0
+        )
+
+        strongest_linear = max(
+            abs(pearson),
+            abs(spearman)
+        )
+
+        if strongest_linear < 0.20:
+
+            return (
+                f"{x} and {y} show a {strength} nonlinear "
+                f"relationship that is not well summarized "
+                f"by a straight-line trend."
+            )
+
+        return (
+            f"{x} and {y} show a {strength} nonlinear "
+            f"relationship, which is more informative than "
+            f"their linear correlation alone."
+        )
+
+    # -----------------------------------
+    # Linear / monotonic relationship
+    # -----------------------------------
+
+    pearson = statistics.get(
+        "pearson",
+        0
+    )
+
+    spearman = statistics.get(
+        "spearman",
+        0
+    )
+
+    selected_method = statistics.get(
+        "selected_correlation_method"
+    )
+
+    if selected_method == "pearson":
+        strongest = pearson
+    elif selected_method == "spearman":
+        strongest = spearman
+    else:
+        strongest = (
+            pearson
+            if abs(pearson) >= abs(spearman)
+            else spearman
+        )
 
     strength = relationship_strength(
         strongest
@@ -805,10 +903,116 @@ def box_insight(
     """
     Generate a plain-English explanation for
     a grouped box plot.
+
+    The takeaway follows the dominant grouped-
+    distribution signal when available:
+        - location
+        - dispersion
+        - differential outliers
     """
 
     x = candidate["x"]
     y = candidate["y"]
+
+    x_name = humanize_column_name(
+        x
+    )
+
+    y_name = humanize_column_name(
+        y
+    )
+
+    statistics = candidate.get(
+        "statistics",
+        {}
+    )
+
+    location_score = statistics.get(
+        "location_score",
+        0
+    )
+
+    dispersion_score = statistics.get(
+        "dispersion_score",
+        0
+    )
+
+    outlier_score = statistics.get(
+        "outlier_score",
+        0
+    )
+
+    dominant = max(
+        [
+            (
+                "location",
+                location_score
+            ),
+            (
+                "dispersion",
+                dispersion_score
+            ),
+            (
+                "outliers",
+                outlier_score
+            )
+        ],
+        key=lambda item:
+            item[1]
+    )[0]
+
+    # -----------------------------------
+    # Dispersion differences
+    # -----------------------------------
+
+    if (
+        dominant == "dispersion"
+        and dispersion_score > 0
+    ):
+
+        dispersion_ratio = statistics.get(
+            "dispersion_ratio",
+            1
+        )
+
+        return (
+            f"{y_name} varies much more within some "
+            f"{x_name} groups than others, with the "
+            f"largest group IQR about "
+            f"{dispersion_ratio:.1f}× the smallest."
+        )
+
+    # -----------------------------------
+    # Differential outlier behavior
+    # -----------------------------------
+
+    if (
+        dominant == "outliers"
+        and outlier_score > 0
+    ):
+
+        disparity = statistics.get(
+            "outlier_rate_disparity",
+            0
+        )
+
+        maximum_rate = statistics.get(
+            "maximum_group_outlier_rate",
+            0
+        )
+
+        return (
+            f"Potential outliers are unevenly distributed "
+            f"across {x_name} groups: the highest group "
+            f"outlier rate is about "
+            f"{maximum_rate * 100:.1f}%, with a "
+            f"{disparity * 100:.1f}-point disparity "
+            f"between groups."
+        )
+
+    # -----------------------------------
+    # Location / median differences
+    # -----------------------------------
 
     clean = (
         df[[x, y]]
@@ -834,7 +1038,7 @@ def box_insight(
 
         return (
             f"There is only one usable "
-            f"{humanize_column_name(x)} group."
+            f"{x_name} group."
         )
 
     lowest_group = (
@@ -855,14 +1059,6 @@ def box_insight(
 
     highest_value = (
         medians.iloc[-1]
-    )
-
-    y_name = humanize_column_name(
-        y
-    )
-
-    x_name = humanize_column_name(
-        x
     )
 
     if is_currency_column(y):
@@ -888,7 +1084,7 @@ def box_insight(
         )
 
     return (
-        f"Median {y_name} varies across {x_name} groups, "
+        f"Group medians for {y_name} vary across {x_name}, "
         f"ranging from about {lowest_display} for "
         f"{lowest_group} to {highest_display} for "
         f"{highest_group}."
@@ -899,34 +1095,159 @@ def histogram_insight(candidate):
     """
     Generate a plain-English explanation for
     a histogram.
+
+    The takeaway follows the strongest calibrated
+    distribution signal:
+        - asymmetric shape
+        - unusual tail observations
+        - multimodality
     """
 
     x = humanize_column_name(
         candidate["x"]
     )
 
-    statistics = candidate[
-        "statistics"
-    ]
+    statistics = candidate.get(
+        "statistics",
+        {}
+    )
 
-    skewness = statistics[
-        "skewness"
-    ]
+    signal = candidate.get(
+        "components",
+        {}
+    ).get(
+        "signal",
+        0
+    )
+
+    if signal < 15:
+        return (
+            f"The distribution of {x} appears fairly ordinary, "
+            f"with no strong distributional pattern detected."
+        )
+
+    shape_score = statistics.get(
+        "shape_score",
+        0
+    )
+
+    outlier_score = statistics.get(
+        "outlier_score",
+        0
+    )
+
+    multimodality_score = statistics.get(
+        "multimodality_score",
+        0
+    )
+
+    # -----------------------------------
+    # Multimodality
+    # -----------------------------------
+
+    if (
+        multimodality_score
+        >= max(
+            shape_score,
+            outlier_score
+        )
+        and multimodality_score > 0
+    ):
+
+        strength = signal_strength(
+            multimodality_score
+        )
+
+        separation = statistics.get(
+            "multimodality_component_separation",
+            0
+        )
+
+        smaller_weight = statistics.get(
+            "multimodality_smaller_component_weight",
+            0
+        )
+
+        if (
+            separation > 0
+            and smaller_weight > 0
+        ):
+
+            return (
+                f"The distribution of {x} shows {strength} "
+                f"evidence of multiple modes, with the "
+                f"fitted components separated by about "
+                f"{separation:.1f} standard deviations."
+            )
+
+        return (
+            f"The distribution of {x} shows {strength} "
+            f"evidence of multiple modes or clusters."
+        )
+
+    # -----------------------------------
+    # Outlier / tail behavior
+    # -----------------------------------
+
+    if (
+        outlier_score > shape_score
+        and outlier_score > 0
+    ):
+
+        outlier_rate = (
+            statistics.get(
+                "outlier_rate",
+                0
+            )
+            * 100
+        )
+
+        return (
+            f"The distribution of {x} contains unusual "
+            f"tail observations, with about "
+            f"{outlier_rate:.1f}% flagged as potential "
+            f"outliers by the current rule."
+        )
+
+    # -----------------------------------
+    # Shape / asymmetry
+    # -----------------------------------
+
+    skewness = statistics.get(
+        "skewness",
+        0
+    )
+
+    tail_asymmetry = statistics.get(
+        "tail_asymmetry",
+        0
+    )
 
     outlier_rate = (
-        statistics["outlier_rate"]
+        statistics.get(
+            "outlier_rate",
+            0
+        )
         * 100
     )
 
-    if skewness >= 0.75:
+    # Prefer robust tail asymmetry for direction when
+    # it is meaningfully different from zero.
+    direction_value = (
+        tail_asymmetry
+        if abs(tail_asymmetry) >= 0.10
+        else skewness
+    )
+
+    if direction_value >= 0.75:
 
         shape = "noticeably right-skewed"
 
-    elif skewness <= -0.75:
+    elif direction_value <= -0.75:
 
         shape = "noticeably left-skewed"
 
-    elif abs(skewness) >= 0.30:
+    elif abs(direction_value) >= 0.30:
 
         shape = "slightly asymmetric"
 
@@ -1011,9 +1332,22 @@ def bar_insight(
                 f"evenly represented."
             )
 
+        signal = candidate.get(
+            "components",
+            {}
+        ).get(
+            "signal",
+            0
+        )
+
+        strength = signal_strength(
+            signal
+        )
+
         return (
-            f"{largest} is the most common {x_name} "
-            f"category, while {smallest} is the least common."
+            f"{x_name} categories show a {strength} "
+            f"frequency imbalance: {largest} is the most "
+            f"common, while {smallest} is the least common."
         )
 
     # -----------------------------------
