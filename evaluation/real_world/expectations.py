@@ -16,6 +16,11 @@ class ExpectedInsight:
     Real-world evaluation is deliberately insight-centric
     rather than exact-chart-centric. Several chart forms can
     communicate the same underlying relationship.
+
+    required_x / required_y are optional orientation constraints.
+    They are useful when reversing x and y would change the
+    meaning of the expected insight, such as a mean bar showing
+    survival rate by passenger class.
     """
 
     name: str
@@ -23,6 +28,8 @@ class ExpectedInsight:
     acceptable_charts: tuple[str, ...]
     rationale: str
     aggregation: Optional[str] = None
+    required_x: Optional[str] = None
+    required_y: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -382,12 +389,190 @@ BIKE_SHARING = RealWorldDataset(
 
 
 # ==================================================
+# TITANIC3
+# ==================================================
+
+TITANIC = RealWorldDataset(
+    name="titanic3",
+    filename="titanic3_benchmark.csv",
+    domain="passenger survival",
+    source="https://hbiostat.org/data/",
+    license_name=(
+        "Use permitted by Vanderbilt University "
+        "Department of Biostatistics"
+    ),
+    citation=(
+        "Titanic3 data obtained from hbiostat.org/data "
+        "courtesy of the Vanderbilt University Department "
+        "of Biostatistics. The dataset was compiled and "
+        "interpreted by Thomas Cason from Titanic passenger "
+        "list sources described by Frank Harrell."
+    ),
+    description=(
+        "Passenger-level Titanic data with survival status, "
+        "passenger class, sex, age, family counts, fare, and "
+        "embarkation location."
+    ),
+    expected_insights=(
+        ExpectedInsight(
+            name="survival_rate_by_sex",
+            variables=(
+                "sex",
+                "survived"
+            ),
+            acceptable_charts=(
+                "bar",
+            ),
+            aggregation="mean",
+            required_x="sex",
+            required_y="survived",
+            rationale=(
+                "Survival status differs substantially by sex. "
+                "The intended visualization is survival rate "
+                "by sex rather than the reverse orientation."
+            )
+        ),
+        ExpectedInsight(
+            name="survival_rate_by_passenger_class",
+            variables=(
+                "pclass",
+                "survived"
+            ),
+            acceptable_charts=(
+                "bar",
+            ),
+            aggregation="mean",
+            required_x="pclass",
+            required_y="survived",
+            rationale=(
+                "Passenger class is a core survival-related "
+                "factor. The intended view is survival rate "
+                "by passenger class."
+            )
+        ),
+        ExpectedInsight(
+            name="age_by_survival_status",
+            variables=(
+                "survived",
+                "age"
+            ),
+            acceptable_charts=(
+                "box",
+            ),
+            required_x="survived",
+            required_y="age",
+            rationale=(
+                "Age distributions are useful to compare "
+                "between survivors and non-survivors."
+            )
+        ),
+        ExpectedInsight(
+            name="fare_by_passenger_class",
+            variables=(
+                "pclass",
+                "fare"
+            ),
+            acceptable_charts=(
+                "box",
+                "bar"
+            ),
+            required_x="pclass",
+            required_y="fare",
+            rationale=(
+                "Passenger fares differ strongly across the "
+                "three passenger classes."
+            )
+        ),
+        ExpectedInsight(
+            name="fare_distribution",
+            variables=(
+                "fare",
+            ),
+            acceptable_charts=(
+                "histogram",
+            ),
+            required_x="fare",
+            rationale=(
+                "Passenger fare has a distinctly uneven "
+                "distribution that is useful to inspect."
+            )
+        ),
+    ),
+    expected_semantics=(
+        ExpectedSemanticType(
+            column="pclass",
+            acceptable_types=("categorical", "ordinal"),
+            rationale=(
+                "Passenger class is a three-level ordered "
+                "category encoded numerically."
+            )
+        ),
+        ExpectedSemanticType(
+            column="survived",
+            acceptable_types=("boolean",),
+            rationale="Survival status is a binary 0/1 outcome."
+        ),
+        ExpectedSemanticType(
+            column="sex",
+            acceptable_types=("categorical",),
+            rationale="Sex is a nominal category."
+        ),
+        ExpectedSemanticType(
+            column="age",
+            acceptable_types=("numeric_continuous",),
+            rationale=(
+                "Age is measured in years and includes "
+                "fractional ages for some infants."
+            )
+        ),
+        ExpectedSemanticType(
+            column="sibsp",
+            acceptable_types=("numeric_discrete",),
+            rationale=(
+                "SibSp is a genuine count of siblings/spouses "
+                "aboard, not a category code."
+            )
+        ),
+        ExpectedSemanticType(
+            column="parch",
+            acceptable_types=("numeric_discrete",),
+            rationale=(
+                "Parch is a genuine count of parents/children "
+                "aboard, not a category code."
+            )
+        ),
+        ExpectedSemanticType(
+            column="fare",
+            acceptable_types=("numeric_continuous",),
+            rationale="Fare is a continuous monetary quantity."
+        ),
+        ExpectedSemanticType(
+            column="embarked",
+            acceptable_types=("categorical",),
+            rationale="Embarkation port is a nominal category."
+        ),
+    ),
+    preprocessing_notes=(
+        "The source titanic3 dataset has 14 variables. The "
+        "benchmark keeps only pclass, survived, sex, age, "
+        "sibsp, parch, fare, and embarked. Name, ticket, cabin, "
+        "home destination, boat, and body are omitted because "
+        "they are high-cardinality identifiers/text fields or "
+        "post-outcome/leakage-like fields that would distort an "
+        "exploratory ranking. Source values in the retained "
+        "columns are otherwise left unchanged."
+    )
+)
+
+
+# ==================================================
 # SUITE
 # ==================================================
 
 REAL_WORLD_DATASETS = (
     PENGUINS,
     BIKE_SHARING,
+    TITANIC,
 )
 
 

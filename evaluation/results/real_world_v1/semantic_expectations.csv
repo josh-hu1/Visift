@@ -18,3 +18,11 @@ uci_bike_sharing_day,atemp,numeric_continuous,numeric_continuous,True,Feeling te
 uci_bike_sharing_day,hum,numeric_continuous,numeric_continuous,True,Normalized humidity is continuous.
 uci_bike_sharing_day,windspeed,numeric_continuous,numeric_continuous,True,Normalized wind speed is continuous.
 uci_bike_sharing_day,cnt,numeric_continuous,numeric_continuous | numeric_discrete,True,Total rentals is a numeric count; either numeric treatment is acceptable.
+titanic3,pclass,categorical,categorical | ordinal,True,Passenger class is a three-level ordered category encoded numerically.
+titanic3,survived,boolean,boolean,True,Survival status is a binary 0/1 outcome.
+titanic3,sex,categorical,categorical,True,Sex is a nominal category.
+titanic3,age,numeric_continuous,numeric_continuous,True,Age is measured in years and includes fractional ages for some infants.
+titanic3,sibsp,numeric_discrete,numeric_discrete,True,"SibSp is a genuine count of siblings/spouses aboard, not a category code."
+titanic3,parch,numeric_discrete,numeric_discrete,True,"Parch is a genuine count of parents/children aboard, not a category code."
+titanic3,fare,numeric_continuous,numeric_continuous,True,Fare is a continuous monetary quantity.
+titanic3,embarked,categorical,categorical,True,Embarkation port is a nominal category.

@@ -12,10 +12,20 @@ palmer_penguins,14,67.49,50.11,box,,island,bill_length_mm,box | island vs bill_l
 uci_bike_sharing_day,1,99.88,99.82,scatter,,temp,atemp,scatter | temp vs atemp
 uci_bike_sharing_day,2,97.0,100.0,line,,dteday,temp,line | dteday vs temp
 uci_bike_sharing_day,3,97.0,100.0,line,,dteday,atemp,line | dteday vs atemp
-uci_bike_sharing_day,4,90.77,90.11,bar,count,holiday,,bar | count | holiday
-uci_bike_sharing_day,6,81.77,71.96,scatter,,atemp,cnt,scatter | atemp vs cnt
-uci_bike_sharing_day,7,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
-uci_bike_sharing_day,8,78.98,67.66,box,,season,atemp,box | season vs atemp
-uci_bike_sharing_day,10,76.72,64.18,box,,weathersit,hum,box | weathersit vs hum
-uci_bike_sharing_day,11,71.89,56.76,histogram,,temp,,histogram | temp
-uci_bike_sharing_day,12,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
+uci_bike_sharing_day,4,92.28,88.13,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
+uci_bike_sharing_day,5,90.77,90.11,bar,count,holiday,,bar | count | holiday
+uci_bike_sharing_day,7,81.77,71.96,scatter,,atemp,cnt,scatter | atemp vs cnt
+uci_bike_sharing_day,8,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
+uci_bike_sharing_day,9,78.98,67.66,box,,season,atemp,box | season vs atemp
+uci_bike_sharing_day,11,76.72,64.18,box,,weathersit,hum,box | weathersit vs hum
+uci_bike_sharing_day,12,71.89,56.76,histogram,,temp,,histogram | temp
+titanic3,2,96.71,95.0,box,,embarked,fare,box | embarked vs fare
+titanic3,4,81.53,92.0,histogram,,sibsp,,histogram | sibsp
+titanic3,5,81.53,92.0,histogram,,parch,,histogram | parch
+titanic3,6,68.96,52.28,bar,count,embarked,,bar | count | embarked
+titanic3,7,68.27,54.11,box,,survived,fare,box | survived vs fare
+titanic3,8,67.5,50.01,box,,sex,fare,box | sex vs fare
+titanic3,9,67.4,60.11,scatter,,sibsp,fare,scatter | sibsp vs fare
+titanic3,10,61.95,50.91,scatter,,parch,fare,scatter | parch vs fare
+titanic3,11,59.9,40.0,box,,pclass,parch,box | pclass vs parch
+titanic3,12,55.87,43.84,scatter,,sibsp,parch,scatter | sibsp vs parch

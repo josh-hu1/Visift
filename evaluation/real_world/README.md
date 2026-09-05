@@ -42,6 +42,40 @@ The benchmark uses UCI `day.csv`, but removes:
 
 All other values are left unchanged, including integer-coded categorical fields. This intentionally tests Visift's semantic inference on realistic CSV input.
 
+### Titanic3
+
+Domain: passenger survival
+
+Source:
+https://hbiostat.org/data/
+
+Vanderbilt University Department of Biostatistics grants permission to use the datasets provided on its data page and requests attribution to the original source plus acknowledgement that the data were obtained from hbiostat.org/data courtesy of Vanderbilt Biostatistics.
+
+The `titanic3` dataset contains 1309 passenger observations. It was compiled and interpreted by Thomas Cason from Titanic passenger-list sources described on the Vanderbilt/Harrell documentation pages.
+
+For the Visift benchmark, we retain only:
+
+- `pclass`
+- `survived`
+- `sex`
+- `age`
+- `sibsp`
+- `parch`
+- `fare`
+- `embarked`
+
+We omit name, ticket, cabin, home destination, boat, and body. Those fields are high-cardinality identity/text features or are closely tied to the observed survival outcome and would make the exploratory ranking less representative.
+
+Titanic is deliberately useful for testing the distinction between:
+
+- numeric-coded categories (`pclass`)
+- binary indicators (`survived`)
+- real discrete counts (`sibsp`, `parch`)
+- continuous measurements (`age`, `fare`)
+- ordinary string categories (`sex`, `embarked`)
+
+The pre-registered survival-by-sex and survival-by-class expectations also test whether Visift can represent useful relationships between categorical/binary variables. If those are not generated, that is treated as a product capability gap rather than silently removed from the benchmark.
+
 ## Run
 
 From the repository root:
@@ -69,6 +103,14 @@ The benchmark tracks:
 - top unmatched recommendations for manual review
 - per-dataset runtime
 - a direct cross-dataset comparison table
+
+Expected insights may optionally specify:
+
+- required x-variable
+- required y-variable
+- required aggregation
+
+Those constraints prevent a reversed visualization from being counted as the intended insight when orientation changes the meaning.
 
 ## Methodology rules
 

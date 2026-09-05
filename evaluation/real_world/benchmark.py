@@ -45,9 +45,9 @@ def candidate_variables(
     """
     Return the variables represented by a recommendation.
 
-    Variable order is intentionally ignored because real-world
-    expectations describe the underlying insight rather than
-    a specific x/y orientation.
+    Variable order is intentionally ignored for the initial
+    relationship match. Optional required_x / required_y fields
+    on an expectation can then enforce meaningful orientation.
     """
 
     variables = []
@@ -67,47 +67,82 @@ def candidate_variables(
     )
 
 
+def chart_variant_matches(
+    variant,
+    expectation
+):
+    """
+    Check chart type plus any pre-registered orientation and
+    aggregation constraints.
+    """
+
+    if (
+        variant.get("chart")
+        not in expectation.acceptable_charts
+    ):
+        return False
+
+    if (
+        expectation.aggregation is not None
+        and variant.get("aggregation")
+        != expectation.aggregation
+    ):
+        return False
+
+    if (
+        expectation.required_x is not None
+        and variant.get("x")
+        != expectation.required_x
+    ):
+        return False
+
+    if (
+        expectation.required_y is not None
+        and variant.get("y")
+        != expectation.required_y
+    ):
+        return False
+
+    return True
+
+
 def acceptable_chart_present(
     candidate,
     expectation
 ):
     """
     Determine whether the primary recommendation or one of its
-    diversified alternative views uses an acceptable chart
-    form for the expected insight.
+    diversified alternative views satisfies the expected chart
+    form, orientation, and aggregation.
     """
 
-    primary_chart = candidate.get(
-        "chart"
-    )
-
-    if (
-        primary_chart
-        in expectation.acceptable_charts
+    if chart_variant_matches(
+        candidate,
+        expectation
     ):
-
-        if expectation.aggregation is None:
-            return True
-
-        return (
-            candidate.get(
-                "aggregation"
-            )
-            == expectation.aggregation
-        )
+        return True
 
     for alternative in candidate.get(
         "alternative_charts",
         []
     ):
 
-        if (
-            alternative.get("chart")
-            in expectation.acceptable_charts
-        ):
+        # Alternatives may contain only the fields that differ
+        # from the primary recommendation. Overlay them so that
+        # x/y/aggregation can fall back to the primary candidate.
+        variant = dict(
+            candidate
+        )
 
-            if expectation.aggregation is None:
-                return True
+        variant.update(
+            alternative
+        )
+
+        if chart_variant_matches(
+            variant,
+            expectation
+        ):
+            return True
 
     return False
 
@@ -404,6 +439,9 @@ def evaluate_dataset(
             "acceptable_charts": " | ".join(
                 expectation.acceptable_charts
             ),
+            "required_x": expectation.required_x,
+            "required_y": expectation.required_y,
+            "required_aggregation": expectation.aggregation,
             "rank": rank,
             "score": (
                 matched.get("score")

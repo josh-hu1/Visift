@@ -20,3 +20,11 @@ uci_bike_sharing_day,atemp,numeric_continuous,float64,690,0,0.0
 uci_bike_sharing_day,hum,numeric_continuous,float64,595,0,0.0
 uci_bike_sharing_day,windspeed,numeric_continuous,float64,650,0,0.0
 uci_bike_sharing_day,cnt,numeric_continuous,int64,696,0,0.0
+titanic3,pclass,categorical,int64,3,0,0.0
+titanic3,survived,boolean,int64,2,0,0.0
+titanic3,sex,categorical,str,2,0,0.0
+titanic3,age,numeric_continuous,float64,98,263,20.09
+titanic3,sibsp,numeric_discrete,int64,7,0,0.0
+titanic3,parch,numeric_discrete,int64,8,0,0.0
+titanic3,fare,numeric_continuous,float64,281,1,0.08
+titanic3,embarked,categorical,str,3,2,0.15

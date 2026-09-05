@@ -26,6 +26,10 @@ BIKE_SHARING_ZIP_URL = (
     "bike%2Bsharing%2Bdataset.zip"
 )
 
+TITANIC3_URL = (
+    "https://hbiostat.org/data/repo/titanic3.csv"
+)
+
 
 # ==================================================
 # DOWNLOAD HELPERS
@@ -306,6 +310,155 @@ def validate_bike_sharing(
 
 
 # ==================================================
+# TITANIC3
+# ==================================================
+
+def download_titanic():
+    """
+    Download Vanderbilt's titanic3 CSV and create a focused
+    benchmark view.
+
+    The source dataset has 14 variables. We retain:
+        pclass
+        survived
+        sex
+        age
+        sibsp
+        parch
+        fare
+        embarked
+
+    We omit high-cardinality identity/text columns and fields
+    such as boat/body that are strongly tied to the observed
+    outcome and would act like leakage in an exploratory ranking.
+    """
+
+    content = download_bytes(
+        TITANIC3_URL
+    )
+
+    raw = pd.read_csv(
+        BytesIO(
+            content
+        )
+    )
+
+    expected_raw_columns = {
+        "pclass",
+        "survived",
+        "name",
+        "sex",
+        "age",
+        "sibsp",
+        "parch",
+        "ticket",
+        "fare",
+        "cabin",
+        "embarked",
+        "boat",
+        "body",
+        "home.dest"
+    }
+
+    missing_columns = (
+        expected_raw_columns
+        - set(raw.columns)
+    )
+
+    if missing_columns:
+
+        raise ValueError(
+            "Titanic3 CSV is missing expected columns: "
+            f"{sorted(missing_columns)}"
+        )
+
+    if len(raw) != 1309:
+
+        raise ValueError(
+            "Expected 1309 Titanic3 rows, "
+            f"found {len(raw)}."
+        )
+
+    retained_columns = [
+        "pclass",
+        "survived",
+        "sex",
+        "age",
+        "sibsp",
+        "parch",
+        "fare",
+        "embarked"
+    ]
+
+    benchmark_df = (
+        raw[
+            retained_columns
+        ]
+        .copy()
+    )
+
+    destination = (
+        DATASET_DIR
+        / "titanic3_benchmark.csv"
+    )
+
+    benchmark_df.to_csv(
+        destination,
+        index=False
+    )
+
+    return (
+        destination,
+        raw,
+        benchmark_df
+    )
+
+
+def validate_titanic(
+    path
+):
+    """
+    Validate the benchmark-ready Titanic3 CSV.
+    """
+
+    df = pd.read_csv(
+        path
+    )
+
+    expected_columns = {
+        "pclass",
+        "survived",
+        "sex",
+        "age",
+        "sibsp",
+        "parch",
+        "fare",
+        "embarked"
+    }
+
+    missing_columns = (
+        expected_columns
+        - set(df.columns)
+    )
+
+    if missing_columns:
+
+        raise ValueError(
+            "Benchmark-ready Titanic3 CSV is missing "
+            f"columns: {sorted(missing_columns)}"
+        )
+
+    if len(df) != 1309:
+
+        raise ValueError(
+            "Expected 1309 benchmark Titanic3 rows, "
+            f"found {len(df)}."
+        )
+
+    return df
+
+
+# ==================================================
 # MAIN
 # ==================================================
 
@@ -366,6 +519,29 @@ def main():
         f"{len(bike_validated)} rows, "
         f"{len(bike_validated.columns)} benchmark columns "
         f"({len(bike_raw.columns)} raw columns)"
+    )
+
+    (
+        titanic_path,
+        titanic_raw,
+        titanic_benchmark
+    ) = download_titanic()
+
+    titanic_validated = (
+        validate_titanic(
+            titanic_path
+        )
+    )
+
+    print(
+        f"Downloaded/prepared: {titanic_path}"
+    )
+
+    print(
+        f"Validated Titanic3: "
+        f"{len(titanic_validated)} rows, "
+        f"{len(titanic_validated.columns)} benchmark columns "
+        f"({len(titanic_raw.columns)} raw columns)"
     )
 
     print()
