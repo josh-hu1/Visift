@@ -31,3 +31,7 @@ dist/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Downloaded real-world benchmark datasets
+evaluation/real_world/datasets/*.csv
+!evaluation/real_world/datasets/.gitkeep

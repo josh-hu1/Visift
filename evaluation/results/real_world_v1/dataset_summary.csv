@@ -1,0 +1,3 @@
+dataset,domain,rows,columns,candidate_count,recommendation_count,expected_insights,found_anywhere,coverage_anywhere,mean_reciprocal_expected_rank,median_found_rank,semantic_expectations,semantic_matches,semantic_accuracy,elapsed_seconds,recall_at_3,recall_at_5,recall_at_10
+palmer_penguins,ecology,344,8,41,29,4,4,1.0,0.39375,4.5,8,8,1.0,0.3672383329976583,0.25,0.75,1.0
+uci_bike_sharing_day,transportation,731,13,85,60,5,5,1.0,0.09065394341710131,16.0,11,11,1.0,0.6652552089944948,0.0,0.2,0.4

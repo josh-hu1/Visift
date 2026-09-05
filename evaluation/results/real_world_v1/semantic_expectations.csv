@@ -1,0 +1,20 @@
+dataset,column,inferred_type,acceptable_types,matches,rationale
+palmer_penguins,species,categorical,categorical,True,Species is a nominal category.
+palmer_penguins,island,categorical,categorical,True,Island is a nominal location category.
+palmer_penguins,bill_length_mm,numeric_continuous,numeric_continuous,True,Bill length is a continuous measurement.
+palmer_penguins,bill_depth_mm,numeric_continuous,numeric_continuous,True,Bill depth is a continuous measurement.
+palmer_penguins,flipper_length_mm,numeric_continuous,numeric_continuous,True,Flipper length is a measured quantity.
+palmer_penguins,body_mass_g,numeric_continuous,numeric_continuous,True,Body mass is a measured quantity.
+palmer_penguins,sex,categorical,categorical,True,Sex is represented as a nominal category.
+palmer_penguins,year,temporal,temporal,True,Year is an ordered temporal field.
+uci_bike_sharing_day,dteday,datetime,datetime,True,UCI defines dteday as a date.
+uci_bike_sharing_day,season,categorical,categorical | ordinal,True,Season is category-coded; either categorical or ordinal is acceptable for visualization generation.
+uci_bike_sharing_day,holiday,boolean,boolean,True,Holiday is a binary indicator.
+uci_bike_sharing_day,weekday,categorical,categorical,True,Weekday codes identify nominal day categories.
+uci_bike_sharing_day,workingday,boolean,boolean,True,Working day is a binary indicator.
+uci_bike_sharing_day,weathersit,categorical,categorical | ordinal,True,Weather situation is category-coded and also has an interpretable severity ordering.
+uci_bike_sharing_day,temp,numeric_continuous,numeric_continuous,True,Temperature is a continuous measurement.
+uci_bike_sharing_day,atemp,numeric_continuous,numeric_continuous,True,Feeling temperature is continuous.
+uci_bike_sharing_day,hum,numeric_continuous,numeric_continuous,True,Normalized humidity is continuous.
+uci_bike_sharing_day,windspeed,numeric_continuous,numeric_continuous,True,Normalized wind speed is continuous.
+uci_bike_sharing_day,cnt,numeric_continuous,numeric_continuous | numeric_discrete,True,Total rentals is a numeric count; either numeric treatment is acceptable.

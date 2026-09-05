@@ -1,0 +1,405 @@
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+
+# ==================================================
+# DATA STRUCTURES
+# ==================================================
+
+@dataclass(frozen=True)
+class ExpectedInsight:
+    """
+    One human-curated insight that Visift should ideally
+    surface somewhere near the top of the recommendation list.
+
+    Real-world evaluation is deliberately insight-centric
+    rather than exact-chart-centric. Several chart forms can
+    communicate the same underlying relationship.
+    """
+
+    name: str
+    variables: tuple[str, ...]
+    acceptable_charts: tuple[str, ...]
+    rationale: str
+    aggregation: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ExpectedSemanticType:
+    """
+    Human-reviewed semantic expectation for one column.
+
+    Multiple acceptable types are allowed when the distinction
+    is genuinely debatable within Visift's taxonomy.
+    """
+
+    column: str
+    acceptable_types: tuple[str, ...]
+    rationale: str
+
+
+@dataclass(frozen=True)
+class RealWorldDataset:
+    """
+    Metadata and pre-registered expectations for one real
+    dataset used by the Visift real-world benchmark.
+    """
+
+    name: str
+    filename: str
+    domain: str
+    source: str
+    license_name: str
+    citation: str
+    description: str
+    expected_insights: tuple[ExpectedInsight, ...]
+    expected_semantics: tuple[ExpectedSemanticType, ...]
+    preprocessing_notes: str = ""
+
+
+# ==================================================
+# DATASET DIRECTORY
+# ==================================================
+
+DATASET_DIR = (
+    Path(__file__).resolve().parent
+    / "datasets"
+)
+
+
+# ==================================================
+# PALMER PENGUINS
+# ==================================================
+
+PENGUINS = RealWorldDataset(
+    name="palmer_penguins",
+    filename="penguins.csv",
+    domain="ecology",
+    source=(
+        "https://github.com/"
+        "allisonhorst/palmerpenguins"
+    ),
+    license_name="CC0",
+    citation=(
+        "Gorman KB, Williams TD, Fraser WR (2014). "
+        "Ecological Sexual Dimorphism and Environmental "
+        "Variability within a Community of Antarctic "
+        "Penguins (Genus Pygoscelis). PLOS ONE 9(3): "
+        "e90081."
+    ),
+    description=(
+        "Morphometric measurements for Adelie, Chinstrap, "
+        "and Gentoo penguins observed in the Palmer "
+        "Archipelago."
+    ),
+    expected_insights=(
+        ExpectedInsight(
+            name="body_mass_vs_flipper_length",
+            variables=(
+                "body_mass_g",
+                "flipper_length_mm"
+            ),
+            acceptable_charts=(
+                "scatter",
+            ),
+            rationale=(
+                "Body mass and flipper length have a strong "
+                "morphometric relationship and are a common "
+                "exploratory comparison in the dataset."
+            )
+        ),
+        ExpectedInsight(
+            name="species_vs_body_mass",
+            variables=(
+                "species",
+                "body_mass_g"
+            ),
+            acceptable_charts=(
+                "box",
+                "bar"
+            ),
+            rationale=(
+                "Body mass differs substantially across the "
+                "three penguin species."
+            )
+        ),
+        ExpectedInsight(
+            name="species_vs_flipper_length",
+            variables=(
+                "species",
+                "flipper_length_mm"
+            ),
+            acceptable_charts=(
+                "box",
+                "bar"
+            ),
+            rationale=(
+                "Flipper length differs substantially across "
+                "penguin species."
+            )
+        ),
+        ExpectedInsight(
+            name="species_vs_bill_length",
+            variables=(
+                "species",
+                "bill_length_mm"
+            ),
+            acceptable_charts=(
+                "box",
+                "bar"
+            ),
+            rationale=(
+                "Bill length is one of the morphological "
+                "measurements that distinguishes species."
+            )
+        ),
+    ),
+    expected_semantics=(
+        ExpectedSemanticType(
+            column="species",
+            acceptable_types=("categorical",),
+            rationale="Species is a nominal category."
+        ),
+        ExpectedSemanticType(
+            column="island",
+            acceptable_types=("categorical",),
+            rationale="Island is a nominal location category."
+        ),
+        ExpectedSemanticType(
+            column="bill_length_mm",
+            acceptable_types=("numeric_continuous",),
+            rationale="Bill length is a continuous measurement."
+        ),
+        ExpectedSemanticType(
+            column="bill_depth_mm",
+            acceptable_types=("numeric_continuous",),
+            rationale="Bill depth is a continuous measurement."
+        ),
+        ExpectedSemanticType(
+            column="flipper_length_mm",
+            acceptable_types=("numeric_continuous",),
+            rationale="Flipper length is a measured quantity."
+        ),
+        ExpectedSemanticType(
+            column="body_mass_g",
+            acceptable_types=("numeric_continuous",),
+            rationale="Body mass is a measured quantity."
+        ),
+        ExpectedSemanticType(
+            column="sex",
+            acceptable_types=("categorical",),
+            rationale="Sex is represented as a nominal category."
+        ),
+        ExpectedSemanticType(
+            column="year",
+            acceptable_types=("temporal",),
+            rationale="Year is an ordered temporal field."
+        ),
+    )
+)
+
+
+# ==================================================
+# UCI BIKE SHARING
+# ==================================================
+
+BIKE_SHARING = RealWorldDataset(
+    name="uci_bike_sharing_day",
+    filename="bike_sharing_day.csv",
+    domain="transportation",
+    source=(
+        "https://archive.ics.uci.edu/"
+        "dataset/275/bike+sharing+dataset"
+    ),
+    license_name="CC BY 4.0",
+    citation=(
+        "Fanaee-T, H. (2013). Bike Sharing [Dataset]. "
+        "UCI Machine Learning Repository. "
+        "https://doi.org/10.24432/C5W894."
+    ),
+    description=(
+        "Daily Capital Bikeshare rental demand from 2011 "
+        "through 2012 with weather, calendar, and seasonal "
+        "features."
+    ),
+    expected_insights=(
+        ExpectedInsight(
+            name="date_vs_total_rentals",
+            variables=(
+                "dteday",
+                "cnt"
+            ),
+            acceptable_charts=(
+                "line",
+            ),
+            rationale=(
+                "Daily rental demand changes materially over "
+                "the 731-date observation window, making a "
+                "time-series view useful."
+            )
+        ),
+        ExpectedInsight(
+            name="temperature_vs_total_rentals",
+            variables=(
+                "temp",
+                "cnt"
+            ),
+            acceptable_charts=(
+                "scatter",
+            ),
+            rationale=(
+                "Rental demand is meaningfully associated "
+                "with temperature."
+            )
+        ),
+        ExpectedInsight(
+            name="humidity_vs_total_rentals",
+            variables=(
+                "hum",
+                "cnt"
+            ),
+            acceptable_charts=(
+                "scatter",
+            ),
+            rationale=(
+                "Humidity is a weather variable with a "
+                "meaningful relationship to rental demand."
+            )
+        ),
+        ExpectedInsight(
+            name="season_vs_total_rentals",
+            variables=(
+                "season",
+                "cnt"
+            ),
+            acceptable_charts=(
+                "box",
+                "bar"
+            ),
+            rationale=(
+                "UCI defines season as categorical, and daily "
+                "rental demand differs across seasons."
+            )
+        ),
+        ExpectedInsight(
+            name="weather_situation_vs_total_rentals",
+            variables=(
+                "weathersit",
+                "cnt"
+            ),
+            acceptable_charts=(
+                "box",
+                "bar"
+            ),
+            rationale=(
+                "UCI defines weather situation as categorical, "
+                "and rental demand differs across weather "
+                "conditions."
+            )
+        ),
+    ),
+    expected_semantics=(
+        ExpectedSemanticType(
+            column="dteday",
+            acceptable_types=("datetime",),
+            rationale="UCI defines dteday as a date."
+        ),
+        ExpectedSemanticType(
+            column="season",
+            acceptable_types=("categorical", "ordinal"),
+            rationale=(
+                "Season is category-coded; either categorical "
+                "or ordinal is acceptable for visualization "
+                "generation."
+            )
+        ),
+        ExpectedSemanticType(
+            column="holiday",
+            acceptable_types=("boolean",),
+            rationale="Holiday is a binary indicator."
+        ),
+        ExpectedSemanticType(
+            column="weekday",
+            acceptable_types=("categorical",),
+            rationale="Weekday codes identify nominal day categories."
+        ),
+        ExpectedSemanticType(
+            column="workingday",
+            acceptable_types=("boolean",),
+            rationale="Working day is a binary indicator."
+        ),
+        ExpectedSemanticType(
+            column="weathersit",
+            acceptable_types=("categorical", "ordinal"),
+            rationale=(
+                "Weather situation is category-coded and also "
+                "has an interpretable severity ordering."
+            )
+        ),
+        ExpectedSemanticType(
+            column="temp",
+            acceptable_types=("numeric_continuous",),
+            rationale="Temperature is a continuous measurement."
+        ),
+        ExpectedSemanticType(
+            column="atemp",
+            acceptable_types=("numeric_continuous",),
+            rationale="Feeling temperature is continuous."
+        ),
+        ExpectedSemanticType(
+            column="hum",
+            acceptable_types=("numeric_continuous",),
+            rationale="Normalized humidity is continuous."
+        ),
+        ExpectedSemanticType(
+            column="windspeed",
+            acceptable_types=("numeric_continuous",),
+            rationale="Normalized wind speed is continuous."
+        ),
+        ExpectedSemanticType(
+            column="cnt",
+            acceptable_types=(
+                "numeric_continuous",
+                "numeric_discrete"
+            ),
+            rationale=(
+                "Total rentals is a numeric count; either "
+                "numeric treatment is acceptable."
+            )
+        ),
+    ),
+    preprocessing_notes=(
+        "The benchmark uses UCI day.csv but removes instant "
+        "(record identifier) and casual/registered because "
+        "cnt is defined as their sum. Removing those columns "
+        "prevents trivial identifier and target-component "
+        "relationships from dominating the exploratory ranking. "
+        "All remaining values, including integer-coded "
+        "categories, are otherwise left unchanged."
+    )
+)
+
+
+# ==================================================
+# SUITE
+# ==================================================
+
+REAL_WORLD_DATASETS = (
+    PENGUINS,
+    BIKE_SHARING,
+)
+
+
+def build_real_world_suite():
+    """
+    Return the currently registered real-world datasets.
+
+    Keep expectations pre-registered here before inspecting
+    Visift's benchmark output. This reduces the temptation to
+    redefine the target after seeing the ranking.
+    """
+
+    return list(
+        REAL_WORLD_DATASETS
+    )

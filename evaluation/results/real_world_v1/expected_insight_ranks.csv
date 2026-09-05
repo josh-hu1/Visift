@@ -1,0 +1,10 @@
+dataset,domain,expected_insight,variables,acceptable_charts,rank,score,matched_chart,matched_aggregation,rationale
+palmer_penguins,ecology,body_mass_vs_flipper_length,body_mass_g | flipper_length_mm,scatter,1,91.52,scatter,,Body mass and flipper length have a strong morphometric relationship and are a common exploratory comparison in the dataset.
+palmer_penguins,ecology,species_vs_body_mass,species | body_mass_g,box | bar,8,78.44,bar,mean,Body mass differs substantially across the three penguin species.
+palmer_penguins,ecology,species_vs_flipper_length,species | flipper_length_mm,box | bar,4,85.49,bar,mean,Flipper length differs substantially across penguin species.
+palmer_penguins,ecology,species_vs_bill_length,species | bill_length_mm,box | bar,5,80.91,bar,mean,Bill length is one of the morphological measurements that distinguishes species.
+uci_bike_sharing_day,transportation,date_vs_total_rentals,dteday | cnt,line,5,85.49,line,,"Daily rental demand changes materially over the 731-date observation window, making a time-series view useful."
+uci_bike_sharing_day,transportation,temperature_vs_total_rentals,temp | cnt,scatter,9,78.08,scatter,,Rental demand is meaningfully associated with temperature.
+uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,37,39.82,scatter,,Humidity is a weather variable with a meaningful relationship to rental demand.
+uci_bike_sharing_day,transportation,season_vs_total_rentals,season | cnt,box | bar,16,63.81,box,,"UCI defines season as categorical, and daily rental demand differs across seasons."
+uci_bike_sharing_day,transportation,weather_situation_vs_total_rentals,weathersit | cnt,box | bar,19,54.33,box,,"UCI defines weather situation as categorical, and rental demand differs across weather conditions."
