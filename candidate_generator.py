@@ -255,4 +255,71 @@ def generate_candidates(
                 "aggregation": "mean"
             })
 
-    return candidates
+    return [
+        candidate
+        for candidate in candidates
+        if (
+            candidate.get("chart") != "line"
+            or is_line_eligible_time_axis(
+                candidate.get("x"),
+                get_semantic_type(
+                    profile,
+                    candidate.get("x")
+                )
+            )
+        )
+    ]
+
+
+def is_line_eligible_time_axis(
+    column_name,
+    semantic_type
+):
+    # Datetimes and non-cyclical temporal fields remain eligible.
+    # Standalone cyclical calendar positions do not.
+    if semantic_type == "datetime":
+        return True
+
+    if semantic_type != "temporal":
+        return False
+
+    normalized = (
+        str(column_name)
+        .strip()
+        .lower()
+        .replace("-", "_")
+        .replace(" ", "_")
+    )
+
+    cyclical_names = {
+        "month",
+        "mnth",
+        "month_num",
+        "month_number",
+        "month_of_year",
+        "quarter",
+        "qtr",
+        "quarter_num",
+        "quarter_number",
+        "quarter_of_year",
+        "week",
+        "wk",
+        "week_num",
+        "week_number",
+        "week_of_year",
+        "day",
+        "day_num",
+        "day_number",
+        "day_of_month",
+        "dom",
+        "weekday",
+        "dayofweek",
+        "day_of_week",
+        "dow",
+        "hour",
+        "hr",
+        "hour_of_day"
+    }
+
+    return normalized not in cyclical_names
+
