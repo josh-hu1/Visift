@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 from value_normalization import coerce_numeric_or_boolean
+from scoring.binary_rate import binary_rate_signal_score
 
 from scipy.stats import chisquare
 
@@ -517,16 +518,45 @@ def score_bar_chart(df, candidate, profile):
             [x, y]
         )
 
-        raw_signal = group_separation_score(
-            df,
-            x,
+        y_semantic_type = get_semantic_type(
+            profile,
             y
         )
 
-        signal = adjust_signal_for_support(
-            raw_signal,
-            support
-        )
+        if y_semantic_type == "boolean":
+
+            binary_rate_details = (
+                binary_rate_signal_score(
+                    df,
+                    x,
+                    y
+                )
+            )
+
+            raw_signal = (
+                binary_rate_details[
+                    "effect_signal"
+                ]
+            )
+
+            signal = (
+                binary_rate_details[
+                    "signal"
+                ]
+            )
+
+        else:
+
+            raw_signal = group_separation_score(
+                df,
+                x,
+                y
+            )
+
+            signal = adjust_signal_for_support(
+                raw_signal,
+                support
+            )
 
         final_score, visualization_quality = (
             combine_quality_and_signal(
@@ -545,8 +575,8 @@ def score_bar_chart(df, candidate, profile):
             f"Average group size: {counts.mean():.1f} observations.",
             f"Smallest group: {counts.min()} observations.",
             f"Data completeness: {quality:.1f}%.",
-            f"Raw group separation: {raw_signal:.1f}/100.",
-            f"Sample-adjusted signal: {signal:.1f}/100."
+            f"Raw relationship strength: {raw_signal:.1f}/100.",
+            f"Reliability-adjusted signal: {signal:.1f}/100."
         ]
 
     return {

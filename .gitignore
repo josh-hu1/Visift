@@ -38,3 +38,7 @@ evaluation/real_world/datasets/*.csv
 
 # Generated calibration outputs
 evaluation/results/*_calibration_v*/
+
+printf '\n# Generated binary-rate formula experiment outputs\nevaluation/results/binary_rate_formula_experiment_v1/\n' >> .gitignore
+# Generated binary-rate formula experiment outputs
+evaluation/results/binary_rate_formula_experiment_v1/
