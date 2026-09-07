@@ -1,5 +1,5 @@
 dataset,domain,rows,columns,candidate_count,recommendation_count,expected_insights,found_anywhere,coverage_anywhere,mean_reciprocal_expected_rank,median_found_rank,semantic_expectations,semantic_matches,semantic_accuracy,elapsed_seconds,recall_at_3,recall_at_5,recall_at_10
-palmer_penguins,ecology,344,8,41,29,4,4,1.0,0.39375,4.5,8,8,1.0,0.35408925000001545,0.25,0.75,1.0
-uci_bike_sharing_day,transportation,731,13,91,66,5,5,1.0,0.0802262443438914,17.0,11,11,1.0,0.6970312080002259,0.0,0.0,0.4
-titanic3,passenger survival,1309,8,49,33,5,5,1.0,0.3242424242424242,6.0,8,8,1.0,0.485423874999924,0.4,0.4,0.6
-uci_bank_marketing,marketing,45211,16,154,104,6,6,1.0,0.0349290632461547,37.5,16,16,1.0,1.9676876250000532,0.0,0.0,0.0
+palmer_penguins,ecology,344,8,41,29,4,4,1.0,0.39375,4.5,8,8,1.0,0.3365418339999451,0.25,0.75,1.0
+uci_bike_sharing_day,transportation,731,13,86,61,5,5,1.0,0.08102976041056537,17.0,11,11,1.0,0.6670076670006893,0.0,0.0,0.4
+titanic3,passenger survival,1309,8,49,33,5,5,1.0,0.3242424242424242,6.0,8,8,1.0,0.517863459000182,0.4,0.4,0.6
+uci_bank_marketing,marketing,45211,16,149,99,6,6,1.0,0.04073198737000557,34.5,16,16,1.0,1.964063750000605,0.0,0.0,0.0

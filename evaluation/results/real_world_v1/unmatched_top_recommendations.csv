@@ -34,8 +34,8 @@ uci_bank_marketing,2,94.8,92.0,histogram,,pdays,,histogram | pdays
 uci_bank_marketing,3,94.8,92.0,histogram,,previous,,histogram | previous
 uci_bank_marketing,4,92.75,93.26,bar,count,default,,bar | count | default
 uci_bank_marketing,5,88.71,82.63,histogram,,balance,,histogram | balance
-uci_bank_marketing,6,86.27,81.32,line,,day,campaign,line | day vs campaign
-uci_bank_marketing,7,85.22,77.26,bar,mean,poutcome,pdays,bar | mean | poutcome vs pdays
-uci_bank_marketing,8,83.64,78.4,box,,default,balance,box | default vs balance
-uci_bank_marketing,9,82.39,72.9,bar,count,poutcome,,bar | count | poutcome
-uci_bank_marketing,10,82.14,74.83,line,,day,pdays,line | day vs pdays
+uci_bank_marketing,6,85.22,77.26,bar,mean,poutcome,pdays,bar | mean | poutcome vs pdays
+uci_bank_marketing,7,83.64,78.4,box,,default,balance,box | default vs balance
+uci_bank_marketing,8,82.39,72.9,bar,count,poutcome,,bar | count | poutcome
+uci_bank_marketing,9,77.6,69.24,bar,count,y,,bar | count | y
+uci_bank_marketing,10,77.4,65.23,histogram,,campaign,,histogram | campaign

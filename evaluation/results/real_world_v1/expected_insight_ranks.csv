@@ -5,17 +5,17 @@ palmer_penguins,ecology,species_vs_flipper_length,species | flipper_length_mm,bo
 palmer_penguins,ecology,species_vs_bill_length,species | bill_length_mm,box | bar,,,,5,80.91,bar,mean,Bill length is one of the morphological measurements that distinguishes species.
 uci_bike_sharing_day,transportation,date_vs_total_rentals,dteday | cnt,line,,,,6,85.49,line,,"Daily rental demand changes materially over the 731-date observation window, making a time-series view useful."
 uci_bike_sharing_day,transportation,temperature_vs_total_rentals,temp | cnt,scatter,,,,10,78.08,scatter,,Rental demand is meaningfully associated with temperature.
-uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,,,,39,39.82,scatter,,Humidity is a weather variable with a meaningful relationship to rental demand.
+uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,,,,37,39.82,scatter,,Humidity is a weather variable with a meaningful relationship to rental demand.
 uci_bike_sharing_day,transportation,season_vs_total_rentals,season | cnt,box | bar,,,,17,63.81,box,,"UCI defines season as categorical, and daily rental demand differs across seasons."
-uci_bike_sharing_day,transportation,weather_situation_vs_total_rentals,weathersit | cnt,box | bar,,,,20,54.33,box,,"UCI defines weather situation as categorical, and rental demand differs across weather conditions."
+uci_bike_sharing_day,transportation,weather_situation_vs_total_rentals,weathersit | cnt,box | bar,,,,19,54.33,box,,"UCI defines weather situation as categorical, and rental demand differs across weather conditions."
 titanic3,passenger survival,survival_rate_by_sex,sex | survived,bar,sex,survived,mean,6,73.42,bar,mean,Survival status differs substantially by sex. The intended visualization is survival rate by sex rather than the reverse orientation.
 titanic3,passenger survival,survival_rate_by_passenger_class,pclass | survived,bar,pclass,survived,mean,11,64.56,bar,mean,Passenger class is a core survival-related factor. The intended view is survival rate by passenger class.
 titanic3,passenger survival,age_by_survival_status,survived | age,box,survived,age,,33,32.75,box,,Age distributions are useful to compare between survivors and non-survivors.
 titanic3,passenger survival,fare_by_passenger_class,pclass | fare,box | bar,pclass,fare,,1,96.74,box,,Passenger fares differ strongly across the three passenger classes.
 titanic3,passenger survival,fare_distribution,fare,histogram,fare,,,3,90.61,histogram,,Passenger fare has a distinctly uneven distribution that is useful to inspect.
-uci_bank_marketing,marketing,previous_outcome_vs_subscription_rate,poutcome | y,bar,poutcome,y,mean,15,75.78,bar,mean,The outcome of a previous marketing campaign is a natural and decision-relevant grouping for current term-deposit subscription rate.
-uci_bank_marketing,marketing,job_vs_subscription_rate,job | y,bar,job,y,mean,29,59.42,bar,mean,Occupation is a core customer attribute and subscription rates can meaningfully differ across job categories.
-uci_bank_marketing,marketing,education_vs_subscription_rate,education | y,bar,education,y,mean,58,43.7,bar,mean,Education level is a core customer attribute and is useful to compare against subscription rate.
-uci_bank_marketing,marketing,month_vs_subscription_rate,month | y,bar,month,y,mean,18,70.34,bar,mean,The contact month can capture substantial campaign timing differences in subscription rate.
-uci_bank_marketing,marketing,balance_by_subscription_status,y | balance,box,y,balance,,46,47.07,box,,Average yearly account balance is an important financial measure to compare between clients who did and did not subscribe.
-uci_bank_marketing,marketing,age_by_subscription_status,y | age,box,y,age,,72,38.97,box,,Age distributions are useful to compare between subscribers and non-subscribers.
+uci_bank_marketing,marketing,previous_outcome_vs_subscription_rate,poutcome | y,bar,poutcome,y,mean,12,75.78,bar,mean,The outcome of a previous marketing campaign is a natural and decision-relevant grouping for current term-deposit subscription rate.
+uci_bank_marketing,marketing,job_vs_subscription_rate,job | y,bar,job,y,mean,26,59.42,bar,mean,Occupation is a core customer attribute and subscription rates can meaningfully differ across job categories.
+uci_bank_marketing,marketing,education_vs_subscription_rate,education | y,bar,education,y,mean,55,43.7,bar,mean,Education level is a core customer attribute and is useful to compare against subscription rate.
+uci_bank_marketing,marketing,month_vs_subscription_rate,month | y,bar,month,y,mean,15,70.34,bar,mean,The contact month can capture substantial campaign timing differences in subscription rate.
+uci_bank_marketing,marketing,balance_by_subscription_status,y | balance,box,y,balance,,43,47.07,box,,Average yearly account balance is an important financial measure to compare between clients who did and did not subscribe.
+uci_bank_marketing,marketing,age_by_subscription_status,y | age,box,y,age,,69,38.97,box,,Age distributions are useful to compare between subscribers and non-subscribers.
