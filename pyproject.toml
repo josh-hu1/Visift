@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 app = ["streamlit>=1.57,<2"]
-dev = ["ruff>=0.15", "pytest>=8", "pytest-cov>=5"]
+dev = ["ruff>=0.17,<0.18", "pytest>=8", "pytest-cov>=5"]
 
 [project.urls]
 Homepage = "https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app"

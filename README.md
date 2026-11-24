@@ -1,5 +1,9 @@
 # Visift
 
+[![CI](https://github.com/josh-hu1/Visift/actions/workflows/ci.yml/badge.svg)](https://github.com/josh-hu1/Visift/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 **Visualization recommendations, ranked by insight.**
 
 Visift is an explainable visualization recommendation engine that automatically profiles a CSV dataset, generates semantically valid chart candidates, scores how informative each visualization is likely to be, and ranks the strongest recommendations.
