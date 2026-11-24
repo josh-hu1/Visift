@@ -53,3 +53,17 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["visift", "evaluation"]
 split-on-trailing-comma = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-markers"
+markers = ["slow: tests that take more than a few seconds"]
+
+[tool.coverage.run]
+source = ["visift"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

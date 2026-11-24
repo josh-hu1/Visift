@@ -283,6 +283,8 @@ Visift/
 ├── requirements.txt            # Streamlit Cloud entry point: -e .[app]
 ├── synthetic_sales.csv
 │
+├── tests/                      # pytest suite; fixtures/ holds small CSVs
+│
 ├── src/visift/                 # the recommendation engine (installable package)
 │   ├── profiler.py
 │   ├── semantic_types.py
@@ -349,6 +351,13 @@ Launch the Streamlit application:
 
 ```bash
 streamlit run web_app.py
+```
+
+Run the test suite (about 10 seconds):
+
+```bash
+pip install -e ".[app,dev]"
+pytest --cov
 ```
 
 ---
