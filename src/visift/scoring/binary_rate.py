@@ -1,4 +1,7 @@
+from typing import Any
+
 import numpy as np
+import pandas as pd
 from scipy.stats import chi2
 
 from visift.value_normalization import coerce_numeric_or_boolean
@@ -8,11 +11,11 @@ RELATIVE_SCALE = 2.5
 MINORITY_EVENTS_PER_GROUP_FULL = 15.0
 
 
-def clamp(value, minimum=0.0, maximum=100.0):
+def clamp(value: float, minimum: float = 0.0, maximum: float = 100.0) -> float:
     return max(minimum, min(float(value), maximum))
 
 
-def significance_reliability(p_value):
+def significance_reliability(p_value: float) -> float:
     """
     Convert a chi-square p-value into a smooth 0-1 reliability.
 
@@ -34,7 +37,7 @@ def significance_reliability(p_value):
     return float(np.clip(value, 0.0, 1.0))
 
 
-def binary_rate_signal_score(df, x, y):
+def binary_rate_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     """
     Score a categorical predictor against a Boolean outcome.
 

@@ -1,9 +1,10 @@
 import pandas as pd
 
 from visift.semantic_types import classify_column
+from visift.types import CategorySummary, ColumnProfile, DatasetProfile, NumericSummary
 
 
-def profile_numeric_column(series: pd.Series) -> dict:
+def profile_numeric_column(series: pd.Series) -> NumericSummary:
     """
     Generate additional statistics for numeric columns.
     """
@@ -22,7 +23,7 @@ def profile_numeric_column(series: pd.Series) -> dict:
     }
 
 
-def profile_categorical_column(series: pd.Series) -> dict:
+def profile_categorical_column(series: pd.Series) -> CategorySummary:
     """
     Generate additional statistics for category-like columns.
     """
@@ -37,7 +38,7 @@ def profile_categorical_column(series: pd.Series) -> dict:
     return {"top_values": counts.head(5).to_dict()}
 
 
-def profile_column(series: pd.Series) -> dict:
+def profile_column(series: pd.Series) -> ColumnProfile:
     """
     Profile one DataFrame column.
     """
@@ -48,7 +49,7 @@ def profile_column(series: pd.Series) -> dict:
     missing_count = int(series.isna().sum())
     unique_count = int(series.nunique(dropna=True))
 
-    profile = {
+    profile: ColumnProfile = {
         "name": str(series.name),
         "semantic_type": semantic_type,
         "pandas_dtype": str(series.dtype),
@@ -69,7 +70,7 @@ def profile_column(series: pd.Series) -> dict:
     return profile
 
 
-def profile_dataset(df: pd.DataFrame) -> dict:
+def profile_dataset(df: pd.DataFrame) -> DatasetProfile:
     """
     Profile an entire DataFrame.
     """

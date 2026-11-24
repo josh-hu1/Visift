@@ -1,19 +1,22 @@
 import math
+from typing import Any
 
+import pandas as pd
 from scipy.stats import chisquare
 
 from visift.scoring.binary_rate import binary_rate_signal_score
+from visift.types import Candidate, DatasetProfile, ScoreResult
 from visift.value_normalization import coerce_numeric_or_boolean
 
 
-def clamp(value, minimum=0, maximum=100):
+def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     """
     Keep a score between 0 and 100.
     """
     return max(minimum, min(value, maximum))
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(profile: DatasetProfile, column_name: str) -> str | None:
     """
     Get the semantic type of a column from
     the dataset profile.
@@ -26,18 +29,23 @@ def get_semantic_type(profile, column_name):
     return None
 
 
-def semantic_fit_score(semantic_type):
+def semantic_fit_score(semantic_type: str | None) -> float:
     """
     Score how naturally a semantic type fits
     a bar chart.
     """
 
-    scores = {"categorical": 100, "ordinal": 95, "boolean": 90, "geographic": 65}
+    scores: dict[str | None, float] = {
+        "categorical": 100,
+        "ordinal": 95,
+        "boolean": 90,
+        "geographic": 65,
+    }
 
     return scores.get(semantic_type, 50)
 
 
-def category_readability_score(unique_count):
+def category_readability_score(unique_count: int) -> float:
     """
     Score how readable the number of categories would be
     in a bar chart.
@@ -61,7 +69,7 @@ def category_readability_score(unique_count):
     return 10
 
 
-def adjust_signal_for_support(signal, support):
+def adjust_signal_for_support(signal: float, support: float) -> float:
     """
     Reduce confidence in an apparent statistical
     signal when group sample sizes are small.
@@ -76,7 +84,7 @@ def adjust_signal_for_support(signal, support):
     return signal * reliability
 
 
-def sample_support_score(counts):
+def sample_support_score(counts: pd.Series) -> float:
     """
     Score whether each category has enough observations
     to support comparison.
@@ -97,7 +105,7 @@ def sample_support_score(counts):
     return 0.60 * average_score + 0.40 * minimum_score
 
 
-def data_quality_score(df, columns):
+def data_quality_score(df: pd.DataFrame, columns: list[str]) -> float:
     """
     Penalize missing values in the columns required
     for the visualization.
@@ -119,7 +127,7 @@ COUNT_MIN_RELIABILITY = 0.20
 COUNT_IMBALANCE_EXPONENT = 0.50
 
 
-def count_reliability_score(p_value):
+def count_reliability_score(p_value: float) -> float:
     """
     Convert a goodness-of-fit p-value into a
     0-1 reliability multiplier.
@@ -153,7 +161,7 @@ def count_reliability_score(p_value):
     return COUNT_MIN_RELIABILITY + (1 - COUNT_MIN_RELIABILITY) * position
 
 
-def count_signal_details(counts):
+def count_signal_details(counts: pd.Series) -> dict[str, Any]:
     """
     Estimate category-frequency imbalance and its
     statistical reliability.
@@ -224,7 +232,7 @@ def count_signal_details(counts):
     }
 
 
-def count_signal_score(counts):
+def count_signal_score(counts: pd.Series) -> float:
     """
     Return the calibrated count-bar signal.
 
@@ -235,7 +243,7 @@ def count_signal_score(counts):
     return count_signal_details(counts)["signal"]
 
 
-def group_separation_score(df, x, y):
+def group_separation_score(df: pd.DataFrame, x: str, y: str) -> float:
     """
     Measure how strongly group membership explains
     variation in a numeric variable.
@@ -278,7 +286,9 @@ def group_separation_score(df, x, y):
     return clamp(eta_squared * 100)
 
 
-def score_bar_chart(df, candidate, profile):
+def score_bar_chart(
+    df: pd.DataFrame, candidate: Candidate, profile: DatasetProfile
+) -> ScoreResult:
     """
     Score one bar-chart candidate from 0 to 100.
 
@@ -408,7 +418,13 @@ def score_bar_chart(df, candidate, profile):
     }
 
 
-def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
+def combine_quality_and_signal(
+    semantic_fit: float,
+    readability: float,
+    quality: float,
+    support: float,
+    signal: float,
+) -> tuple[float, float]:
     """
     Combine visualization suitability with insight strength.
 

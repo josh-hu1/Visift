@@ -1,8 +1,12 @@
 import math
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from sklearn.mixture import GaussianMixture
+
+from visift.types import Candidate, DatasetProfile, ScoreResult
 
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
@@ -20,7 +24,7 @@ MULTIMODALITY_SCALE = 0.80
 # ==================================================
 
 
-def clamp(value, minimum=0, maximum=100):
+def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     """
     Keep a score between 0 and 100.
     """
@@ -28,7 +32,7 @@ def clamp(value, minimum=0, maximum=100):
     return max(minimum, min(value, maximum))
 
 
-def piecewise_score(value, points):
+def piecewise_score(value: float, points: Sequence[tuple[float, float]]) -> float:
     """
     Map a numeric statistic onto a calibrated
     0-100 score using linear interpolation between
@@ -57,7 +61,7 @@ def piecewise_score(value, points):
     return float(np.interp(numeric_value, x_values, y_values))
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(profile: DatasetProfile, column_name: str) -> str | None:
     """
     Get the semantic type of a column from
     the dataset profile.
@@ -75,7 +79,7 @@ def get_semantic_type(profile, column_name):
 # ==================================================
 
 
-def semantic_fit_score(semantic_type):
+def semantic_fit_score(semantic_type: str | None) -> float:
     """
     Score how naturally a semantic type fits
     a histogram.
@@ -90,7 +94,7 @@ def semantic_fit_score(semantic_type):
     return 0
 
 
-def data_quality_score(df, column):
+def data_quality_score(df: pd.DataFrame, column: str) -> float:
     """
     Score the percentage of non-missing values
     in the target column.
@@ -106,7 +110,7 @@ def data_quality_score(df, column):
     return completeness * 100
 
 
-def sample_support_score(n):
+def sample_support_score(n: int) -> float:
     """
     Score whether there are enough observations
     for a meaningful histogram.
@@ -133,7 +137,7 @@ def sample_support_score(n):
     return 100
 
 
-def readability_score(unique_count):
+def readability_score(unique_count: int) -> float:
     """
     Score whether the variable has enough distinct
     values to make a histogram informative.
@@ -162,7 +166,7 @@ def readability_score(unique_count):
 # ==================================================
 
 
-def skewness_score(series):
+def skewness_score(series: pd.Series) -> tuple[float, float]:
     """
     Measure conventional moment skewness.
 
@@ -184,7 +188,7 @@ def skewness_score(series):
     if len(clean) < 3:
         return (0, 0)
 
-    skewness = clean.skew()
+    skewness: Any = clean.skew()
 
     if pd.isna(skewness):
         return (0, 0)
@@ -209,7 +213,7 @@ def skewness_score(series):
     return (clamp(score), float(skewness))
 
 
-def outlier_score(series):
+def outlier_score(series: pd.Series) -> tuple[float, float]:
     """
     Detect potential outliers using the IQR rule.
 
@@ -263,7 +267,7 @@ def outlier_score(series):
     return (clamp(score), outlier_rate)
 
 
-def tail_asymmetry_score(series):
+def tail_asymmetry_score(series: pd.Series) -> tuple[float, float]:
     """
     Measure robust distribution asymmetry using
     the median and the 10th/90th percentiles.
@@ -318,7 +322,7 @@ def tail_asymmetry_score(series):
     return (clamp(score), asymmetry)
 
 
-def multimodality_score(series):
+def multimodality_score(series: pd.Series) -> dict[str, Any]:
     """
     Detect strong two-mode structure using a
     one-component versus two-component Gaussian
@@ -477,7 +481,7 @@ def multimodality_score(series):
     }
 
 
-def distribution_signal_score(series):
+def distribution_signal_score(series: pd.Series) -> dict[str, Any]:
     """
     Combine histogram-specific distribution
     evidence into one calibrated signal.
@@ -550,7 +554,13 @@ def distribution_signal_score(series):
 # ==================================================
 
 
-def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
+def combine_quality_and_signal(
+    semantic_fit: float,
+    readability: float,
+    quality: float,
+    support: float,
+    signal: float,
+) -> tuple[float, float]:
     """
     Combine histogram suitability with
     distribution insight strength.
@@ -572,7 +582,9 @@ def combine_quality_and_signal(semantic_fit, readability, quality, support, sign
 # ==================================================
 
 
-def score_histogram(df, candidate, profile):
+def score_histogram(
+    df: pd.DataFrame, candidate: Candidate, profile: DatasetProfile
+) -> ScoreResult:
     """
     Score one histogram candidate from 0 to 100.
     """

@@ -1,8 +1,14 @@
+from collections.abc import Mapping
+from typing import Any, cast
+
+import pandas as pd
+
 from visift.scoring.bar import score_bar_chart
 from visift.scoring.box import score_box_chart
 from visift.scoring.histogram import score_histogram
 from visift.scoring.line import score_line_chart
 from visift.scoring.scatter import score_scatter_chart
+from visift.types import Candidate, DatasetProfile, Recommendation, ScoredCandidate
 
 SCORERS = {
     "bar": score_bar_chart,
@@ -13,7 +19,9 @@ SCORERS = {
 }
 
 
-def score_candidate(df, candidate, profile):
+def score_candidate(
+    df: pd.DataFrame, candidate: Candidate, profile: DatasetProfile
+) -> ScoredCandidate | None:
     """
     Score a single visualization candidate using
     the appropriate chart-specific scoring function.
@@ -31,7 +39,9 @@ def score_candidate(df, candidate, profile):
     return {**candidate, **result}
 
 
-def score_all_candidates(df, candidates, profile):
+def score_all_candidates(
+    df: pd.DataFrame, candidates: list[Candidate], profile: DatasetProfile
+) -> list[ScoredCandidate]:
     """
     Score every supported visualization candidate
     and return one globally ranked list.
@@ -50,7 +60,7 @@ def score_all_candidates(df, candidates, profile):
     return scored
 
 
-def candidate_signature(candidate):
+def candidate_signature(candidate: Mapping[str, Any]) -> tuple[str, ...]:
     """
     Create a signature representing the variables
     involved in a visualization.
@@ -80,7 +90,9 @@ def candidate_signature(candidate):
     return tuple(sorted(variables))
 
 
-def diversify_recommendations(recommendations):
+def diversify_recommendations(
+    recommendations: list[ScoredCandidate],
+) -> list[Recommendation]:
     """
     Remove redundant recommendations involving
     the exact same variable combination.
@@ -92,15 +104,16 @@ def diversify_recommendations(recommendations):
     variables are stored as alternatives.
     """
 
-    diversified = []
+    diversified: list[Recommendation] = []
 
-    signature_to_index = {}
+    signature_to_index: dict[tuple[str, ...], int] = {}
 
     for candidate in recommendations:
         signature = candidate_signature(candidate)
 
         if signature not in signature_to_index:
-            candidate_copy = dict(candidate)
+            # cast() is a no-op; alternative_charts is added on the next line.
+            candidate_copy = cast(Recommendation, dict(candidate))
 
             candidate_copy["alternative_charts"] = []
 
@@ -125,7 +138,7 @@ def diversify_recommendations(recommendations):
     return diversified
 
 
-def visualization_title(candidate):
+def visualization_title(candidate: Mapping[str, Any]) -> str:
     """
     Generate a human-readable title for a
     visualization candidate.
@@ -154,7 +167,7 @@ def visualization_title(candidate):
     return chart
 
 
-def chart_display_name(chart_type):
+def chart_display_name(chart_type: str) -> str:
     """
     Convert internal chart identifiers into
     user-facing chart names.
@@ -171,7 +184,7 @@ def chart_display_name(chart_type):
     return names.get(chart_type, chart_type)
 
 
-def recommendation_strength(score):
+def recommendation_strength(score: float) -> str:
     """
     Convert a numerical recommendation score
     into Visift's calibrated recommendation bands.
@@ -192,7 +205,7 @@ def recommendation_strength(score):
     return "Very weak"
 
 
-def _overall_signal(candidate):
+def _overall_signal(candidate: Mapping[str, Any]) -> float:
     """
     Return the final chart-specific insight signal
     used by Visift's global ranking layer.
@@ -201,7 +214,7 @@ def _overall_signal(candidate):
     return candidate.get("components", {}).get("signal", 0)
 
 
-def _safe_float(mapping, key, default=0):
+def _safe_float(mapping: Mapping[str, Any], key: str, default: float = 0) -> float:
     """
     Read a numeric statistic defensively so the
     explanation layer remains compatible with older
@@ -217,7 +230,7 @@ def _safe_float(mapping, key, default=0):
         return float(default)
 
 
-def _format_pattern_name(pattern):
+def _format_pattern_name(pattern: str) -> str:
     """
     Convert internal pattern identifiers into
     concise user-facing labels.
@@ -233,7 +246,7 @@ def _format_pattern_name(pattern):
     return names.get(pattern, str(pattern).replace("_", " ").title())
 
 
-def summary_reasons(candidate):
+def summary_reasons(candidate: Mapping[str, Any]) -> list[str]:
     """
     Return the most useful explanation lines for
     the global recommendation view.

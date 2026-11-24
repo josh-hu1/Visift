@@ -1,7 +1,11 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 from sklearn.feature_selection import mutual_info_regression
+
+from visift.types import Candidate, DatasetProfile, ScoreResult
 
 # ==================================================
 # CONFIGURATION
@@ -34,7 +38,7 @@ CORRELATION_MIN_RELIABILITY = 0.35
 # ==================================================
 
 
-def clamp(value, minimum=0, maximum=100):
+def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     """
     Keep a score between 0 and 100.
     """
@@ -42,7 +46,7 @@ def clamp(value, minimum=0, maximum=100):
     return max(minimum, min(value, maximum))
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(profile: DatasetProfile, column_name: str) -> str | None:
     """
     Get the semantic type of a column from
     the dataset profile.
@@ -55,7 +59,7 @@ def get_semantic_type(profile, column_name):
     return None
 
 
-def clean_numeric_pairs(df, x, y):
+def clean_numeric_pairs(df: pd.DataFrame, x: str, y: str) -> pd.DataFrame:
     """
     Return finite numeric x/y observations.
     """
@@ -78,7 +82,7 @@ def clean_numeric_pairs(df, x, y):
 # ==================================================
 
 
-def semantic_fit_score(x_type, y_type):
+def semantic_fit_score(x_type: str | None, y_type: str | None) -> float:
     """
     Score how naturally the two semantic types
     fit a scatterplot.
@@ -97,7 +101,7 @@ def semantic_fit_score(x_type, y_type):
     return 0
 
 
-def data_quality_score(df, x, y):
+def data_quality_score(df: pd.DataFrame, x: str, y: str) -> float:
     """
     Score the percentage of rows containing
     finite x/y observations.
@@ -111,7 +115,7 @@ def data_quality_score(df, x, y):
     return (len(clean) / len(df)) * 100
 
 
-def sample_support_score(n):
+def sample_support_score(n: int) -> float:
     """
     Score whether there are enough paired
     observations for a useful scatterplot.
@@ -138,7 +142,7 @@ def sample_support_score(n):
     return 100
 
 
-def variance_score(series):
+def variance_score(series: pd.Series) -> float:
     """
     Penalize variables with little or no variation.
     """
@@ -165,7 +169,7 @@ def variance_score(series):
     return 100
 
 
-def readability_score(df, x, y):
+def readability_score(df: pd.DataFrame, x: str, y: str) -> float:
     """
     Estimate whether the variables provide enough
     distinct values for a useful scatterplot.
@@ -188,7 +192,7 @@ def readability_score(df, x, y):
 # ==================================================
 
 
-def correlation_reliability_score(p_value):
+def correlation_reliability_score(p_value: float) -> float:
     """
     Convert a correlation p-value into a
     0-1 reliability multiplier.
@@ -243,7 +247,7 @@ def correlation_reliability_score(p_value):
 # ==================================================
 
 
-def correlation_signal_score(clean, x, y):
+def correlation_signal_score(clean: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     """
     Measure linear and monotonic relationships while
     accounting for statistical reliability.
@@ -380,7 +384,9 @@ def correlation_signal_score(clean, x, y):
 # ==================================================
 
 
-def calculate_one_way_mutual_information(feature, target, random_state):
+def calculate_one_way_mutual_information(
+    feature: np.ndarray, target: np.ndarray, random_state: int
+) -> float:
     """
     Estimate continuous mutual information for:
 
@@ -401,7 +407,9 @@ def calculate_one_way_mutual_information(feature, target, random_state):
     return float(result[0])
 
 
-def symmetric_mutual_information(x_values, y_values, random_state):
+def symmetric_mutual_information(
+    x_values: np.ndarray, y_values: np.ndarray, random_state: int
+) -> float:
     """
     Estimate MI in both directions and average
     because a scatterplot is symmetric.
@@ -414,7 +422,7 @@ def symmetric_mutual_information(x_values, y_values, random_state):
     return (x_to_y + y_to_x) / 2
 
 
-def nonlinear_signal_score(clean, x, y):
+def nonlinear_signal_score(clean: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     """
     Estimate nonlinear dependence using
     permutation-calibrated mutual information.
@@ -466,7 +474,7 @@ def nonlinear_signal_score(clean, x, y):
 
     rng = np.random.default_rng(MI_RANDOM_STATE)
 
-    null_values = []
+    null_values: list[float] = []
 
     for permutation_index in range(MI_PERMUTATIONS):
         shuffled_y = rng.permutation(y_values)
@@ -477,11 +485,11 @@ def nonlinear_signal_score(clean, x, y):
 
         null_values.append(null_mi)
 
-    null_values = np.asarray(null_values, dtype=float)
+    null_array = np.asarray(null_values, dtype=float)
 
-    null_mean = float(null_values.mean())
+    null_mean = float(null_array.mean())
 
-    null_std = float(null_values.std(ddof=0))
+    null_std = float(null_array.std(ddof=0))
 
     statistical_threshold = null_mean + (MI_NULL_STD_MULTIPLIER * null_std)
 
@@ -492,6 +500,8 @@ def nonlinear_signal_score(clean, x, y):
     # -----------------------------------
     # MI -> correlation-like scale
     # -----------------------------------
+
+    signal: float
 
     if excess_mi <= 0:
         signal = 0
@@ -519,7 +529,7 @@ def nonlinear_signal_score(clean, x, y):
 # ==================================================
 
 
-def relationship_signal_score(df, x, y):
+def relationship_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     """
     Estimate overall relationship strength.
 
@@ -593,7 +603,13 @@ def relationship_signal_score(df, x, y):
 # ==================================================
 
 
-def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
+def combine_quality_and_signal(
+    semantic_fit: float,
+    readability: float,
+    quality: float,
+    support: float,
+    signal: float,
+) -> tuple[float, float]:
     """
     Combine scatterplot suitability with
     relationship strength.
@@ -615,7 +631,9 @@ def combine_quality_and_signal(semantic_fit, readability, quality, support, sign
 # ==================================================
 
 
-def score_scatter_chart(df, candidate, profile):
+def score_scatter_chart(
+    df: pd.DataFrame, candidate: Candidate, profile: DatasetProfile
+) -> ScoreResult:
     """
     Score one scatterplot candidate from 0 to 100.
     """
@@ -710,7 +728,7 @@ def score_scatter_chart(df, candidate, profile):
 # ==================================================
 
 
-def semantic_type_display(score):
+def semantic_type_display(score: float) -> str:
     """
     Format semantic fit for output.
     """
