@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import streamlit as st
 
@@ -1123,15 +1125,20 @@ def profile_data(df):
 
 
 @st.cache_data(show_spinner=False)
-def analyze_dataset(df, target=None):
+def analyze_dataset(df, target=None, _progress=None):
     """
     Run the full recommendation pipeline.
 
     Results are cached so changing interface
-    filters does not rerun the analysis.
+    filters does not rerun the analysis. _progress (excluded from the cache
+    key by its leading underscore) receives (stage, fraction) updates.
     """
 
-    analysis = analyze(df, target=target)
+    start = time.perf_counter()
+
+    analysis = analyze(df, target=target, progress=_progress)
+
+    elapsed = time.perf_counter() - start
 
     return (
         analysis["profile"],
@@ -1139,6 +1146,7 @@ def analyze_dataset(df, target=None):
         analysis["recommendations"],
         analysis["notes"],
         analysis["noted_charts"],
+        elapsed,
     )
 
 
@@ -1180,7 +1188,7 @@ Visift ranks the charts most likely to be informative.**
 # ==================================================
 
 
-def display_dataset_metrics(df, profile, candidates, recommendations):
+def display_dataset_metrics(df, profile, candidates, recommendations, elapsed=None):
     """
     Display high-level dataset and engine metrics.
     """
@@ -1199,7 +1207,12 @@ def display_dataset_metrics(df, profile, candidates, recommendations):
 
     column4.metric("Top score", f"{top_score:.1f}")
 
-    st.caption(f"{missing_values:,} missing values detected across the dataset.")
+    caption = f"{missing_values:,} missing values detected across the dataset."
+
+    if elapsed is not None:
+        caption += f" Analysis took {elapsed:.1f} s."
+
+    st.caption(caption)
 
 
 def build_column_profile_table(profile):
@@ -1843,10 +1856,16 @@ def main():
     try:
         target = target_control(profile_data(df))
 
-        with st.spinner("Analyzing dataset..."):
-            (profile, candidates, recommendations, notes, noted_charts) = (
-                analyze_dataset(df, target)
-            )
+        progress_bar = st.progress(0.0, text="Analyzing dataset...")
+
+        def show_progress(stage, fraction):
+            progress_bar.progress(min(max(fraction, 0.0), 1.0), text=f"{stage}...")
+
+        (profile, candidates, recommendations, notes, noted_charts, elapsed) = (
+            analyze_dataset(df, target, _progress=show_progress)
+        )
+
+        progress_bar.empty()
 
     except Exception as error:
         st.error(
@@ -1864,7 +1883,7 @@ def main():
 
     st.divider()
 
-    display_dataset_metrics(df, profile, candidates, recommendations)
+    display_dataset_metrics(df, profile, candidates, recommendations, elapsed)
 
     display_notes_summary(notes)
 

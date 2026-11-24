@@ -280,6 +280,25 @@ evaluation/results/
 
 ---
 
+## Performance
+
+Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac. Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
+
+| Dataset | Columns × rows | Before | After (serial, default) | After (4 warm workers) |
+|---|---|---|---|---|
+| synthetic | 10 × 2,000 | 1.3 s | 0.6 s | 0.2 s |
+| synthetic | 26 × 2,000 | 11.5 s | 3.7 s | 1.6 s |
+| synthetic | 50 × 2,000 | 38.8 s | 13.6 s | 5.6 s |
+| synthetic | 26 × 10,000 | 11.5 s | 5.5 s | 2.0 s |
+| synthetic | 50 × 10,000 | 49.5 s | 18.3 s | 8.3 s |
+| Bank Marketing | 16 × 45,211 | 3.9 s | 3.1 s | 2.5 s |
+
+What changed: profiling showed 82% of the time in the scatter scorer's permutation test for mutual information (18 estimator calls per pair). When the observed mutual information is already below the minimum effect size, no permutation result can produce a signal, so those permutations are skipped. This is exact: every score, ranking and benchmark result is unchanged.
+
+Parallel scoring is available (`analyze(df, n_jobs=4)` or `VISIFT_N_JOBS=4`) and gives identical results, but the default is serial: starting worker processes costs several seconds the first time, which is slower than a typical upload on its own. It pays off in a long-running process or for very wide tables. Hosted Streamlit apps reportedly get at most ~2 cores, so the live demo runs serially.
+
+---
+
 ## Project Structure
 
 ```text
@@ -293,6 +312,7 @@ Visift/
 ├── synthetic_sales.csv
 │
 ├── tests/                      # pytest suite; fixtures/ holds small CSVs
+├── benchmarks/perf.py          # wall-time benchmark (python -m benchmarks.perf)
 ├── scripts/
 │   └── generate_synthetic_sales.py   # regenerates synthetic_sales.csv
 │
