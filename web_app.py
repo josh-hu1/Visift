@@ -10,6 +10,7 @@ from visift.scoring.engine import (
     score_all_candidates,
     summary_reasons,
 )
+from visift.target import split_by_target, suggest_target
 from visift.value_normalization import coerce_numeric_or_boolean
 from visift.visualization.renderer import (
     humanize_column_name,
@@ -1115,7 +1116,16 @@ def load_data():
 
 
 @st.cache_data(show_spinner=False)
-def analyze_dataset(df):
+def profile_data(df):
+    """
+    Profile the dataset (cached; needed before analysis for the target picker).
+    """
+
+    return profile_dataset(df)
+
+
+@st.cache_data(show_spinner=False)
+def analyze_dataset(df, target=None):
     """
     Run the full recommendation pipeline.
 
@@ -1125,7 +1135,7 @@ def analyze_dataset(df):
 
     profile = profile_dataset(df)
 
-    candidates = generate_candidates(df, profile)
+    candidates = generate_candidates(df, profile, target=target)
 
     scored = score_all_candidates(df, candidates, profile)
 
@@ -1430,6 +1440,40 @@ def display_recommendation(df, candidate, rank):
 # ==================================================
 
 
+NON_TARGET_TYPES = {"identifier", "text", "empty", "unknown"}
+
+
+def target_control(profile):
+    """
+    Optional outcome column. Defaults to none; the suggestion is only a hint.
+    """
+
+    columns = [
+        column["name"]
+        for column in profile["column_profiles"]
+        if column["semantic_type"] not in NON_TARGET_TYPES
+    ]
+
+    suggested, reason = suggest_target(profile)
+
+    with st.sidebar:
+        target = st.selectbox(
+            "Focus on an outcome (optional)",
+            options=[None, *columns],
+            index=0,
+            format_func=lambda column: "None" if column is None else column,
+            help=(
+                "Pick the column you want to explain. Charts involving it are "
+                "listed first as its drivers, ranked by their usual score."
+            ),
+        )
+
+        if suggested is not None:
+            st.caption(f"Suggested: **{suggested}** — {reason}")
+
+    return target
+
+
 def recommendation_controls(recommendations):
     """
     Build recommendation filtering controls.
@@ -1481,11 +1525,43 @@ def recommendation_controls(recommendations):
 
 
 def display_recommendations_tab(
-    df, candidates, recommendations, selected_chart_types, minimum_score, top_n
+    df,
+    candidates,
+    recommendations,
+    selected_chart_types,
+    minimum_score,
+    top_n,
+    target=None,
 ):
     """
     Display globally ranked recommendations.
+
+    With a target, its drivers are shown first in their own section.
     """
+
+    if target is not None:
+        drivers, recommendations = split_by_target(recommendations, target)
+
+        st.subheader(f"Drivers of {humanize_column_name(target)}")
+
+        st.write(
+            f"Charts that involve **{target}**, ranked by the same score as "
+            f"everything else."
+        )
+
+        display_recommendation_list(
+            df, drivers, selected_chart_types, minimum_score, top_n
+        )
+
+        st.divider()
+
+        st.subheader("Other Recommendations")
+
+        display_recommendation_list(
+            df, recommendations, selected_chart_types, minimum_score, top_n
+        )
+
+        return
 
     st.subheader("Recommended Visualizations")
 
@@ -1494,6 +1570,18 @@ def display_recommendations_tab(
         f"visualization candidates** and ranked them by "
         f"chart suitability and pattern strength."
     )
+
+    display_recommendation_list(
+        df, recommendations, selected_chart_types, minimum_score, top_n
+    )
+
+
+def display_recommendation_list(
+    df, recommendations, selected_chart_types, minimum_score, top_n
+):
+    """
+    Filter and render one ranked list of recommendations.
+    """
 
     filtered = [
         candidate
@@ -1689,8 +1777,10 @@ def main():
     # -----------------------------------
 
     try:
+        target = target_control(profile_data(df))
+
         with st.spinner("Analyzing dataset..."):
-            (profile, candidates, recommendations) = analyze_dataset(df)
+            (profile, candidates, recommendations) = analyze_dataset(df, target)
 
     except Exception as error:
         st.error(
@@ -1730,7 +1820,13 @@ def main():
 
     with recommendations_tab:
         display_recommendations_tab(
-            df, candidates, recommendations, selected_chart_types, minimum_score, top_n
+            df,
+            candidates,
+            recommendations,
+            selected_chart_types,
+            minimum_score,
+            top_n,
+            target=target,
         )
 
     with dataset_tab:
