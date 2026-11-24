@@ -3,17 +3,9 @@ import math
 import pandas as pd
 
 
-CATEGORY_TYPES = {
-    "categorical",
-    "ordinal",
-    "boolean",
-    "geographic"
-}
+CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
 
-NUMERIC_TYPES = {
-    "numeric_continuous",
-    "numeric_discrete"
-}
+NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
 
 def clamp(value, minimum=0, maximum=100):
@@ -23,10 +15,7 @@ def clamp(value, minimum=0, maximum=100):
     return max(minimum, min(value, maximum))
 
 
-def piecewise_score(
-    value,
-    points
-):
+def piecewise_score(value, points):
     """
     Map a statistic to a calibrated score using
     linear interpolation between control points.
@@ -36,21 +25,12 @@ def piecewise_score(
         return 0
 
     try:
+        value = float(value)
 
-        value = float(
-            value
-        )
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
+    except (TypeError, ValueError):
         return 0
 
-    if not math.isfinite(
-        value
-    ):
+    if not math.isfinite(value):
         return 0
 
     if value <= points[0][0]:
@@ -59,39 +39,14 @@ def piecewise_score(
     if value >= points[-1][0]:
         return points[-1][1]
 
-    for (
-        x0,
-        y0
-    ), (
-        x1,
-        y1
-    ) in zip(
-        points,
-        points[1:]
-    ):
-
-        if (
-            x0
-            <= value
-            <= x1
-        ):
-
+    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+        if x0 <= value <= x1:
             if x1 == x0:
                 return y1
 
-            fraction = (
-                value - x0
-            ) / (
-                x1 - x0
-            )
+            fraction = (value - x0) / (x1 - x0)
 
-            return (
-                y0
-                + fraction
-                * (
-                    y1 - y0
-                )
-            )
+            return y0 + fraction * (y1 - y0)
 
     return 0
 
@@ -108,12 +63,9 @@ def semantic_fit_score(x_type, y_type):
         "categorical": 100,
         "ordinal": 95,
         "boolean": 85,
-        "geographic": 60
+        "geographic": 60,
     }
-    numeric_scores = {
-        "numeric_continuous": 100,
-        "numeric_discrete": 85
-    }
+    numeric_scores = {"numeric_continuous": 100, "numeric_discrete": 85}
     x_score = category_scores.get(x_type, 0)
     y_score = numeric_scores.get(y_type, 0)
     if x_score == 0 or y_score == 0:
@@ -192,7 +144,7 @@ def grouped_outlier_statistics(df, x, y):
         "rate_disparity": 0.0,
         "score": 0.0,
         "minimum_rate": 0.0,
-        "maximum_rate": 0.0
+        "maximum_rate": 0.0,
     }
     if clean.empty:
         return default
@@ -232,15 +184,15 @@ def grouped_outlier_statistics(df, x, y):
             (0.100, 45),
             (0.200, 65),
             (0.300, 78),
-            (0.400, 88)
-        ]
+            (0.400, 88),
+        ],
     )
     return {
         "overall_rate": weighted_outliers / weighted_observations,
         "rate_disparity": disparity,
         "score": clamp(score),
         "minimum_rate": min_rate,
-        "maximum_rate": max_rate
+        "maximum_rate": max_rate,
     }
 
 
@@ -255,7 +207,7 @@ def dispersion_difference_score(df, x, y):
         "score": 0.0,
         "dispersion_ratio": 1.0,
         "minimum_iqr": 0.0,
-        "maximum_iqr": 0.0
+        "maximum_iqr": 0.0,
     }
     if clean.empty:
         return default
@@ -287,14 +239,14 @@ def dispersion_difference_score(df, x, y):
             (3.00, 65),
             (4.00, 80),
             (6.00, 90),
-            (8.00, 95)
-        ]
+            (8.00, 95),
+        ],
     )
     return {
         "score": clamp(score),
         "dispersion_ratio": ratio,
         "minimum_iqr": minimum_iqr,
-        "maximum_iqr": maximum_iqr
+        "maximum_iqr": maximum_iqr,
     }
 
 
@@ -311,25 +263,14 @@ def distribution_signal_score(df, x, y):
     if group_count <= 4:
         comparison_reliability = 1.0
     else:
-        comparison_reliability = max(
-            0.40,
-            math.sqrt(4 / group_count)
-        )
+        comparison_reliability = max(0.40, math.sqrt(4 / group_count))
 
-    outlier_difference_signal = (
-        outlier_stats["score"]
-        * comparison_reliability
-    )
+    outlier_difference_signal = outlier_stats["score"] * comparison_reliability
 
-    dispersion_difference_signal = (
-        dispersion_stats["score"]
-        * comparison_reliability
-    )
+    dispersion_difference_signal = dispersion_stats["score"] * comparison_reliability
 
     signal = max(
-        location_signal,
-        outlier_difference_signal,
-        dispersion_difference_signal
+        location_signal, outlier_difference_signal, dispersion_difference_signal
     )
 
     return {
@@ -343,7 +284,7 @@ def distribution_signal_score(df, x, y):
         "minimum_group_outlier_rate": outlier_stats["minimum_rate"],
         "maximum_group_outlier_rate": outlier_stats["maximum_rate"],
         "dispersion_score": dispersion_difference_signal,
-        "dispersion_ratio": dispersion_stats["dispersion_ratio"]
+        "dispersion_ratio": dispersion_stats["dispersion_ratio"],
     }
 
 
@@ -354,10 +295,7 @@ def adjust_signal_for_support(signal, support):
 
 def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
     visualization_quality = (
-        0.30 * semantic_fit
-        + 0.20 * readability
-        + 0.20 * quality
-        + 0.30 * support
+        0.30 * semantic_fit + 0.20 * readability + 0.20 * quality + 0.30 * support
     )
     signal_multiplier = 0.35 + 0.65 * (signal / 100)
     final_score = visualization_quality * signal_multiplier
@@ -380,11 +318,7 @@ def score_box_chart(df, candidate, profile):
     raw_signal = distribution["signal"]
     signal = adjust_signal_for_support(raw_signal, support)
     final_score, visualization_quality = combine_quality_and_signal(
-        semantic_fit,
-        readability,
-        quality,
-        support,
-        signal
+        semantic_fit, readability, quality, support, signal
     )
     reasons = [
         f"X semantic type: {x_type}.",
@@ -399,7 +333,7 @@ def score_box_chart(df, candidate, profile):
         f"Dispersion difference signal: {distribution['dispersion_score']:.1f}/100.",
         f"Outlier-pattern difference signal: {distribution['outlier_score']:.1f}/100.",
         f"Raw distribution signal: {raw_signal:.1f}/100.",
-        f"Sample-adjusted signal: {signal:.1f}/100."
+        f"Sample-adjusted signal: {signal:.1f}/100.",
     ]
     return {
         "score": round(final_score, 2),
@@ -409,7 +343,7 @@ def score_box_chart(df, candidate, profile):
             "sample_support": round(support, 2),
             "data_quality": round(quality, 2),
             "signal": round(signal, 2),
-            "visualization_quality": round(visualization_quality, 2)
+            "visualization_quality": round(visualization_quality, 2),
         },
         "statistics": {
             "groups": int(unique_count),
@@ -418,14 +352,20 @@ def score_box_chart(df, candidate, profile):
             "minimum_group_size": int(counts.min()),
             "location_score": round(float(distribution["location_score"]), 2),
             "eta_squared_score": round(float(distribution["eta_squared_score"]), 2),
-            "median_separation_score": round(float(distribution["median_separation_score"]), 2),
+            "median_separation_score": round(
+                float(distribution["median_separation_score"]), 2
+            ),
             "dispersion_score": round(float(distribution["dispersion_score"]), 2),
             "dispersion_ratio": round(float(distribution["dispersion_ratio"]), 4),
             "outlier_score": round(float(distribution["outlier_score"]), 2),
             "outlier_rate": round(float(distribution["outlier_rate"]), 4),
-            "outlier_rate_disparity": round(float(distribution["outlier_rate_disparity"]), 4),
-            "maximum_group_outlier_rate": round(float(distribution["maximum_group_outlier_rate"]), 4),
-            "raw_signal": round(float(raw_signal), 2)
+            "outlier_rate_disparity": round(
+                float(distribution["outlier_rate_disparity"]), 4
+            ),
+            "maximum_group_outlier_rate": round(
+                float(distribution["maximum_group_outlier_rate"]), 4
+            ),
+            "raw_signal": round(float(raw_signal), 2),
         },
-        "reasons": reasons
+        "reasons": reasons,
     }

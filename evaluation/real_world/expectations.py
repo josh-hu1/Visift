@@ -7,6 +7,7 @@ from typing import Optional
 # DATA STRUCTURES
 # ==================================================
 
+
 @dataclass(frozen=True)
 class ExpectedInsight:
     """
@@ -69,10 +70,7 @@ class RealWorldDataset:
 # DATASET DIRECTORY
 # ==================================================
 
-DATASET_DIR = (
-    Path(__file__).resolve().parent
-    / "datasets"
-)
+DATASET_DIR = Path(__file__).resolve().parent / "datasets"
 
 
 # ==================================================
@@ -83,10 +81,7 @@ PENGUINS = RealWorldDataset(
     name="palmer_penguins",
     filename="penguins.csv",
     domain="ecology",
-    source=(
-        "https://github.com/"
-        "allisonhorst/palmerpenguins"
-    ),
+    source=("https://github.com/allisonhorst/palmerpenguins"),
     license_name="CC0",
     citation=(
         "Gorman KB, Williams TD, Fraser WR (2014). "
@@ -103,107 +98,80 @@ PENGUINS = RealWorldDataset(
     expected_insights=(
         ExpectedInsight(
             name="body_mass_vs_flipper_length",
-            variables=(
-                "body_mass_g",
-                "flipper_length_mm"
-            ),
-            acceptable_charts=(
-                "scatter",
-            ),
+            variables=("body_mass_g", "flipper_length_mm"),
+            acceptable_charts=("scatter",),
             rationale=(
                 "Body mass and flipper length have a strong "
                 "morphometric relationship and are a common "
                 "exploratory comparison in the dataset."
-            )
+            ),
         ),
         ExpectedInsight(
             name="species_vs_body_mass",
-            variables=(
-                "species",
-                "body_mass_g"
-            ),
-            acceptable_charts=(
-                "box",
-                "bar"
-            ),
+            variables=("species", "body_mass_g"),
+            acceptable_charts=("box", "bar"),
             rationale=(
-                "Body mass differs substantially across the "
-                "three penguin species."
-            )
+                "Body mass differs substantially across the three penguin species."
+            ),
         ),
         ExpectedInsight(
             name="species_vs_flipper_length",
-            variables=(
-                "species",
-                "flipper_length_mm"
-            ),
-            acceptable_charts=(
-                "box",
-                "bar"
-            ),
-            rationale=(
-                "Flipper length differs substantially across "
-                "penguin species."
-            )
+            variables=("species", "flipper_length_mm"),
+            acceptable_charts=("box", "bar"),
+            rationale=("Flipper length differs substantially across penguin species."),
         ),
         ExpectedInsight(
             name="species_vs_bill_length",
-            variables=(
-                "species",
-                "bill_length_mm"
-            ),
-            acceptable_charts=(
-                "box",
-                "bar"
-            ),
+            variables=("species", "bill_length_mm"),
+            acceptable_charts=("box", "bar"),
             rationale=(
                 "Bill length is one of the morphological "
                 "measurements that distinguishes species."
-            )
+            ),
         ),
     ),
     expected_semantics=(
         ExpectedSemanticType(
             column="species",
             acceptable_types=("categorical",),
-            rationale="Species is a nominal category."
+            rationale="Species is a nominal category.",
         ),
         ExpectedSemanticType(
             column="island",
             acceptable_types=("categorical",),
-            rationale="Island is a nominal location category."
+            rationale="Island is a nominal location category.",
         ),
         ExpectedSemanticType(
             column="bill_length_mm",
             acceptable_types=("numeric_continuous",),
-            rationale="Bill length is a continuous measurement."
+            rationale="Bill length is a continuous measurement.",
         ),
         ExpectedSemanticType(
             column="bill_depth_mm",
             acceptable_types=("numeric_continuous",),
-            rationale="Bill depth is a continuous measurement."
+            rationale="Bill depth is a continuous measurement.",
         ),
         ExpectedSemanticType(
             column="flipper_length_mm",
             acceptable_types=("numeric_continuous",),
-            rationale="Flipper length is a measured quantity."
+            rationale="Flipper length is a measured quantity.",
         ),
         ExpectedSemanticType(
             column="body_mass_g",
             acceptable_types=("numeric_continuous",),
-            rationale="Body mass is a measured quantity."
+            rationale="Body mass is a measured quantity.",
         ),
         ExpectedSemanticType(
             column="sex",
             acceptable_types=("categorical",),
-            rationale="Sex is represented as a nominal category."
+            rationale="Sex is represented as a nominal category.",
         ),
         ExpectedSemanticType(
             column="year",
             acceptable_types=("temporal",),
-            rationale="Year is an ordered temporal field."
+            rationale="Year is an ordered temporal field.",
         ),
-    )
+    ),
 )
 
 
@@ -215,10 +183,7 @@ BIKE_SHARING = RealWorldDataset(
     name="uci_bike_sharing_day",
     filename="bike_sharing_day.csv",
     domain="transportation",
-    source=(
-        "https://archive.ics.uci.edu/"
-        "dataset/275/bike+sharing+dataset"
-    ),
+    source=("https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset"),
     license_name="CC BY 4.0",
     citation=(
         "Fanaee-T, H. (2013). Bike Sharing [Dataset]. "
@@ -233,84 +198,54 @@ BIKE_SHARING = RealWorldDataset(
     expected_insights=(
         ExpectedInsight(
             name="date_vs_total_rentals",
-            variables=(
-                "dteday",
-                "cnt"
-            ),
-            acceptable_charts=(
-                "line",
-            ),
+            variables=("dteday", "cnt"),
+            acceptable_charts=("line",),
             rationale=(
                 "Daily rental demand changes materially over "
                 "the 731-date observation window, making a "
                 "time-series view useful."
-            )
+            ),
         ),
         ExpectedInsight(
             name="temperature_vs_total_rentals",
-            variables=(
-                "temp",
-                "cnt"
-            ),
-            acceptable_charts=(
-                "scatter",
-            ),
-            rationale=(
-                "Rental demand is meaningfully associated "
-                "with temperature."
-            )
+            variables=("temp", "cnt"),
+            acceptable_charts=("scatter",),
+            rationale=("Rental demand is meaningfully associated with temperature."),
         ),
         ExpectedInsight(
             name="humidity_vs_total_rentals",
-            variables=(
-                "hum",
-                "cnt"
-            ),
-            acceptable_charts=(
-                "scatter",
-            ),
+            variables=("hum", "cnt"),
+            acceptable_charts=("scatter",),
             rationale=(
                 "Humidity is a weather variable with a "
                 "meaningful relationship to rental demand."
-            )
+            ),
         ),
         ExpectedInsight(
             name="season_vs_total_rentals",
-            variables=(
-                "season",
-                "cnt"
-            ),
-            acceptable_charts=(
-                "box",
-                "bar"
-            ),
+            variables=("season", "cnt"),
+            acceptable_charts=("box", "bar"),
             rationale=(
                 "UCI defines season as categorical, and daily "
                 "rental demand differs across seasons."
-            )
+            ),
         ),
         ExpectedInsight(
             name="weather_situation_vs_total_rentals",
-            variables=(
-                "weathersit",
-                "cnt"
-            ),
-            acceptable_charts=(
-                "box",
-                "bar"
-            ),
+            variables=("weathersit", "cnt"),
+            acceptable_charts=("box", "bar"),
             rationale=(
                 "UCI defines weather situation as categorical, "
                 "and rental demand differs across weather "
                 "conditions."
-            )
+            ),
         ),
     ),
     expected_semantics=(
         ExpectedSemanticType(
             column="dteday",
             acceptable_types=("datetime",),
-            rationale="UCI defines dteday as a date."
+            rationale="UCI defines dteday as a date.",
         ),
         ExpectedSemanticType(
             column="season",
@@ -319,22 +254,22 @@ BIKE_SHARING = RealWorldDataset(
                 "Season is category-coded; either categorical "
                 "or ordinal is acceptable for visualization "
                 "generation."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="holiday",
             acceptable_types=("boolean",),
-            rationale="Holiday is a binary indicator."
+            rationale="Holiday is a binary indicator.",
         ),
         ExpectedSemanticType(
             column="weekday",
             acceptable_types=("categorical",),
-            rationale="Weekday codes identify nominal day categories."
+            rationale="Weekday codes identify nominal day categories.",
         ),
         ExpectedSemanticType(
             column="workingday",
             acceptable_types=("boolean",),
-            rationale="Working day is a binary indicator."
+            rationale="Working day is a binary indicator.",
         ),
         ExpectedSemanticType(
             column="weathersit",
@@ -342,38 +277,35 @@ BIKE_SHARING = RealWorldDataset(
             rationale=(
                 "Weather situation is category-coded and also "
                 "has an interpretable severity ordering."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="temp",
             acceptable_types=("numeric_continuous",),
-            rationale="Temperature is a continuous measurement."
+            rationale="Temperature is a continuous measurement.",
         ),
         ExpectedSemanticType(
             column="atemp",
             acceptable_types=("numeric_continuous",),
-            rationale="Feeling temperature is continuous."
+            rationale="Feeling temperature is continuous.",
         ),
         ExpectedSemanticType(
             column="hum",
             acceptable_types=("numeric_continuous",),
-            rationale="Normalized humidity is continuous."
+            rationale="Normalized humidity is continuous.",
         ),
         ExpectedSemanticType(
             column="windspeed",
             acceptable_types=("numeric_continuous",),
-            rationale="Normalized wind speed is continuous."
+            rationale="Normalized wind speed is continuous.",
         ),
         ExpectedSemanticType(
             column="cnt",
-            acceptable_types=(
-                "numeric_continuous",
-                "numeric_discrete"
-            ),
+            acceptable_types=("numeric_continuous", "numeric_discrete"),
             rationale=(
                 "Total rentals is a numeric count; either "
                 "numeric treatment is acceptable."
-            )
+            ),
         ),
     ),
     preprocessing_notes=(
@@ -384,7 +316,7 @@ BIKE_SHARING = RealWorldDataset(
         "relationships from dominating the exploratory ranking. "
         "All remaining values, including integer-coded "
         "categories, are otherwise left unchanged."
-    )
+    ),
 )
 
 
@@ -397,10 +329,7 @@ TITANIC = RealWorldDataset(
     filename="titanic3_benchmark.csv",
     domain="passenger survival",
     source="https://hbiostat.org/data/",
-    license_name=(
-        "Use permitted by Vanderbilt University "
-        "Department of Biostatistics"
-    ),
+    license_name=("Use permitted by Vanderbilt University Department of Biostatistics"),
     citation=(
         "Titanic3 data obtained from hbiostat.org/data "
         "courtesy of the Vanderbilt University Department "
@@ -416,13 +345,8 @@ TITANIC = RealWorldDataset(
     expected_insights=(
         ExpectedInsight(
             name="survival_rate_by_sex",
-            variables=(
-                "sex",
-                "survived"
-            ),
-            acceptable_charts=(
-                "bar",
-            ),
+            variables=("sex", "survived"),
+            acceptable_charts=("bar",),
             aggregation="mean",
             required_x="sex",
             required_y="survived",
@@ -430,17 +354,12 @@ TITANIC = RealWorldDataset(
                 "Survival status differs substantially by sex. "
                 "The intended visualization is survival rate "
                 "by sex rather than the reverse orientation."
-            )
+            ),
         ),
         ExpectedInsight(
             name="survival_rate_by_passenger_class",
-            variables=(
-                "pclass",
-                "survived"
-            ),
-            acceptable_charts=(
-                "bar",
-            ),
+            variables=("pclass", "survived"),
+            acceptable_charts=("bar",),
             aggregation="mean",
             required_x="pclass",
             required_y="survived",
@@ -448,54 +367,38 @@ TITANIC = RealWorldDataset(
                 "Passenger class is a core survival-related "
                 "factor. The intended view is survival rate "
                 "by passenger class."
-            )
+            ),
         ),
         ExpectedInsight(
             name="age_by_survival_status",
-            variables=(
-                "survived",
-                "age"
-            ),
-            acceptable_charts=(
-                "box",
-            ),
+            variables=("survived", "age"),
+            acceptable_charts=("box",),
             required_x="survived",
             required_y="age",
             rationale=(
                 "Age distributions are useful to compare "
                 "between survivors and non-survivors."
-            )
+            ),
         ),
         ExpectedInsight(
             name="fare_by_passenger_class",
-            variables=(
-                "pclass",
-                "fare"
-            ),
-            acceptable_charts=(
-                "box",
-                "bar"
-            ),
+            variables=("pclass", "fare"),
+            acceptable_charts=("box", "bar"),
             required_x="pclass",
             required_y="fare",
             rationale=(
-                "Passenger fares differ strongly across the "
-                "three passenger classes."
-            )
+                "Passenger fares differ strongly across the three passenger classes."
+            ),
         ),
         ExpectedInsight(
             name="fare_distribution",
-            variables=(
-                "fare",
-            ),
-            acceptable_charts=(
-                "histogram",
-            ),
+            variables=("fare",),
+            acceptable_charts=("histogram",),
             required_x="fare",
             rationale=(
                 "Passenger fare has a distinctly uneven "
                 "distribution that is useful to inspect."
-            )
+            ),
         ),
     ),
     expected_semantics=(
@@ -503,19 +406,18 @@ TITANIC = RealWorldDataset(
             column="pclass",
             acceptable_types=("categorical", "ordinal"),
             rationale=(
-                "Passenger class is a three-level ordered "
-                "category encoded numerically."
-            )
+                "Passenger class is a three-level ordered category encoded numerically."
+            ),
         ),
         ExpectedSemanticType(
             column="survived",
             acceptable_types=("boolean",),
-            rationale="Survival status is a binary 0/1 outcome."
+            rationale="Survival status is a binary 0/1 outcome.",
         ),
         ExpectedSemanticType(
             column="sex",
             acceptable_types=("categorical",),
-            rationale="Sex is a nominal category."
+            rationale="Sex is a nominal category.",
         ),
         ExpectedSemanticType(
             column="age",
@@ -523,7 +425,7 @@ TITANIC = RealWorldDataset(
             rationale=(
                 "Age is measured in years and includes "
                 "fractional ages for some infants."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="sibsp",
@@ -531,7 +433,7 @@ TITANIC = RealWorldDataset(
             rationale=(
                 "SibSp is a genuine count of siblings/spouses "
                 "aboard, not a category code."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="parch",
@@ -539,17 +441,17 @@ TITANIC = RealWorldDataset(
             rationale=(
                 "Parch is a genuine count of parents/children "
                 "aboard, not a category code."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="fare",
             acceptable_types=("numeric_continuous",),
-            rationale="Fare is a continuous monetary quantity."
+            rationale="Fare is a continuous monetary quantity.",
         ),
         ExpectedSemanticType(
             column="embarked",
             acceptable_types=("categorical",),
-            rationale="Embarkation port is a nominal category."
+            rationale="Embarkation port is a nominal category.",
         ),
     ),
     preprocessing_notes=(
@@ -561,7 +463,7 @@ TITANIC = RealWorldDataset(
         "post-outcome/leakage-like fields that would distort an "
         "exploratory ranking. Source values in the retained "
         "columns are otherwise left unchanged."
-    )
+    ),
 )
 
 
@@ -573,10 +475,7 @@ BANK_MARKETING = RealWorldDataset(
     name="uci_bank_marketing",
     filename="bank_marketing_full.csv",
     domain="marketing",
-    source=(
-        "https://archive.ics.uci.edu/"
-        "dataset/222/bank+marketing"
-    ),
+    source=("https://archive.ics.uci.edu/dataset/222/bank+marketing"),
     license_name="CC BY 4.0",
     citation=(
         "Moro, S., Rita, P., & Cortez, P. (2014). "
@@ -591,13 +490,8 @@ BANK_MARKETING = RealWorldDataset(
     expected_insights=(
         ExpectedInsight(
             name="previous_outcome_vs_subscription_rate",
-            variables=(
-                "poutcome",
-                "y"
-            ),
-            acceptable_charts=(
-                "bar",
-            ),
+            variables=("poutcome", "y"),
+            acceptable_charts=("bar",),
             aggregation="mean",
             required_x="poutcome",
             required_y="y",
@@ -605,17 +499,12 @@ BANK_MARKETING = RealWorldDataset(
                 "The outcome of a previous marketing campaign "
                 "is a natural and decision-relevant grouping "
                 "for current term-deposit subscription rate."
-            )
+            ),
         ),
         ExpectedInsight(
             name="job_vs_subscription_rate",
-            variables=(
-                "job",
-                "y"
-            ),
-            acceptable_charts=(
-                "bar",
-            ),
+            variables=("job", "y"),
+            acceptable_charts=("bar",),
             aggregation="mean",
             required_x="job",
             required_y="y",
@@ -623,17 +512,12 @@ BANK_MARKETING = RealWorldDataset(
                 "Occupation is a core customer attribute and "
                 "subscription rates can meaningfully differ "
                 "across job categories."
-            )
+            ),
         ),
         ExpectedInsight(
             name="education_vs_subscription_rate",
-            variables=(
-                "education",
-                "y"
-            ),
-            acceptable_charts=(
-                "bar",
-            ),
+            variables=("education", "y"),
+            acceptable_charts=("bar",),
             aggregation="mean",
             required_x="education",
             required_y="y",
@@ -641,17 +525,12 @@ BANK_MARKETING = RealWorldDataset(
                 "Education level is a core customer attribute "
                 "and is useful to compare against subscription "
                 "rate."
-            )
+            ),
         ),
         ExpectedInsight(
             name="month_vs_subscription_rate",
-            variables=(
-                "month",
-                "y"
-            ),
-            acceptable_charts=(
-                "bar",
-            ),
+            variables=("month", "y"),
+            acceptable_charts=("bar",),
             aggregation="mean",
             required_x="month",
             required_y="y",
@@ -659,40 +538,30 @@ BANK_MARKETING = RealWorldDataset(
                 "The contact month can capture substantial "
                 "campaign timing differences in subscription "
                 "rate."
-            )
+            ),
         ),
         ExpectedInsight(
             name="balance_by_subscription_status",
-            variables=(
-                "y",
-                "balance"
-            ),
-            acceptable_charts=(
-                "box",
-            ),
+            variables=("y", "balance"),
+            acceptable_charts=("box",),
             required_x="y",
             required_y="balance",
             rationale=(
                 "Average yearly account balance is an important "
                 "financial measure to compare between clients "
                 "who did and did not subscribe."
-            )
+            ),
         ),
         ExpectedInsight(
             name="age_by_subscription_status",
-            variables=(
-                "y",
-                "age"
-            ),
-            acceptable_charts=(
-                "box",
-            ),
+            variables=("y", "age"),
+            acceptable_charts=("box",),
             required_x="y",
             required_y="age",
             rationale=(
                 "Age distributions are useful to compare "
                 "between subscribers and non-subscribers."
-            )
+            ),
         ),
     ),
     expected_semantics=(
@@ -703,17 +572,17 @@ BANK_MARKETING = RealWorldDataset(
                 "Age is an integer-valued measurement that is "
                 "normally treated as a continuous numeric "
                 "feature for exploratory analysis."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="job",
             acceptable_types=("categorical",),
-            rationale="Job is a nominal occupation category."
+            rationale="Job is a nominal occupation category.",
         ),
         ExpectedSemanticType(
             column="marital",
             acceptable_types=("categorical",),
-            rationale="Marital status is categorical."
+            rationale="Marital status is categorical.",
         ),
         ExpectedSemanticType(
             column="education",
@@ -721,107 +590,80 @@ BANK_MARKETING = RealWorldDataset(
             rationale=(
                 "UCI describes education as categorical, though "
                 "an ordinal interpretation is also defensible."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="default",
             acceptable_types=("boolean",),
-            rationale="Credit default is represented as yes/no."
+            rationale="Credit default is represented as yes/no.",
         ),
         ExpectedSemanticType(
             column="balance",
             acceptable_types=("numeric_continuous",),
-            rationale=(
-                "Average yearly balance is a numeric monetary "
-                "quantity."
-            )
+            rationale=("Average yearly balance is a numeric monetary quantity."),
         ),
         ExpectedSemanticType(
             column="housing",
             acceptable_types=("boolean",),
-            rationale="Housing-loan status is represented as yes/no."
+            rationale="Housing-loan status is represented as yes/no.",
         ),
         ExpectedSemanticType(
             column="loan",
             acceptable_types=("boolean",),
-            rationale="Personal-loan status is represented as yes/no."
+            rationale="Personal-loan status is represented as yes/no.",
         ),
         ExpectedSemanticType(
             column="contact",
             acceptable_types=("categorical",),
-            rationale="Contact communication type is categorical."
+            rationale="Contact communication type is categorical.",
         ),
         ExpectedSemanticType(
             column="day",
-            acceptable_types=(
-                "temporal",
-                "numeric_discrete",
-                "ordinal"
-            ),
+            acceptable_types=("temporal", "numeric_discrete", "ordinal"),
             rationale=(
                 "Day of month is a discrete calendar field. "
                 "Temporal or ordered-discrete treatment is "
                 "reasonable within Visift's current taxonomy."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="month",
-            acceptable_types=(
-                "categorical",
-                "temporal",
-                "ordinal"
-            ),
+            acceptable_types=("categorical", "temporal", "ordinal"),
             rationale=(
-                "Month is a cyclical calendar field encoded "
-                "with month abbreviations."
-            )
+                "Month is a cyclical calendar field encoded with month abbreviations."
+            ),
         ),
         ExpectedSemanticType(
             column="campaign",
-            acceptable_types=(
-                "numeric_discrete",
-                "numeric_continuous"
-            ),
+            acceptable_types=("numeric_discrete", "numeric_continuous"),
             rationale=(
                 "Campaign is a count of contacts; both discrete "
                 "and general numeric treatment preserve the "
                 "intended visualization family."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="pdays",
-            acceptable_types=(
-                "numeric_discrete",
-                "numeric_continuous"
-            ),
+            acceptable_types=("numeric_discrete", "numeric_continuous"),
             rationale=(
                 "Pdays is an integer count of elapsed days, "
                 "with -1 indicating no previous contact."
-            )
+            ),
         ),
         ExpectedSemanticType(
             column="previous",
-            acceptable_types=(
-                "numeric_discrete",
-                "numeric_continuous"
-            ),
-            rationale=(
-                "Previous is an integer count of prior campaign "
-                "contacts."
-            )
+            acceptable_types=("numeric_discrete", "numeric_continuous"),
+            rationale=("Previous is an integer count of prior campaign contacts."),
         ),
         ExpectedSemanticType(
             column="poutcome",
             acceptable_types=("categorical",),
-            rationale="Previous campaign outcome is categorical."
+            rationale="Previous campaign outcome is categorical.",
         ),
         ExpectedSemanticType(
             column="y",
             acceptable_types=("boolean",),
-            rationale=(
-                "The target records term-deposit subscription "
-                "as yes/no."
-            )
+            rationale=("The target records term-deposit subscription as yes/no."),
         ),
     ),
     preprocessing_notes=(
@@ -830,7 +672,7 @@ BANK_MARKETING = RealWorldDataset(
         "marketing call and the dataset documentation warns that "
         "it strongly reveals the output target. All other "
         "columns and source values are retained unchanged."
-    )
+    ),
 )
 
 
@@ -838,12 +680,7 @@ BANK_MARKETING = RealWorldDataset(
 # SUITE
 # ==================================================
 
-REAL_WORLD_DATASETS = (
-    PENGUINS,
-    BIKE_SHARING,
-    TITANIC,
-    BANK_MARKETING,
-)
+REAL_WORLD_DATASETS = (PENGUINS, BIKE_SHARING, TITANIC, BANK_MARKETING)
 
 
 def build_real_world_suite():
@@ -855,6 +692,4 @@ def build_real_world_suite():
     redefine the target after seeing the ranking.
     """
 
-    return list(
-        REAL_WORLD_DATASETS
-    )
+    return list(REAL_WORLD_DATASETS)

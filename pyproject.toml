@@ -1,0 +1,33 @@
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = ["evaluation/results"]
+
+[tool.ruff.format]
+# Collapse the one-argument-per-line call style wherever it fits on one line.
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+ignore = [
+    "E501",  # line length is handled by the formatter; long strings are fine
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "candidate_generator",
+    "evaluation",
+    "profiler",
+    "scoring",
+    "semantic_types",
+    "value_normalization",
+    "visualization",
+]
+split-on-trailing-comma = false

@@ -25,31 +25,16 @@ def is_boolean_like_series(series: pd.Series) -> bool:
         return True
 
     if pd.api.types.is_numeric_dtype(series):
-        numeric = pd.to_numeric(
-            non_null,
-            errors="coerce"
-        ).dropna()
+        numeric = pd.to_numeric(non_null, errors="coerce").dropna()
 
         if len(numeric) != len(non_null):
             return False
 
-        return set(
-            numeric.astype(float).unique()
-        ) == {
-            0.0,
-            1.0
-        }
+        return set(numeric.astype(float).unique()) == {0.0, 1.0}
 
-    normalized = (
-        non_null
-        .astype("string")
-        .str.strip()
-        .str.lower()
-    )
+    normalized = non_null.astype("string").str.strip().str.lower()
 
-    observed = set(
-        normalized.dropna().unique()
-    )
+    observed = set(normalized.dropna().unique())
 
     recognized_pairs = (
         {"yes", "no"},
@@ -59,10 +44,7 @@ def is_boolean_like_series(series: pd.Series) -> bool:
         {"1", "0"},
     )
 
-    return any(
-        observed == pair
-        for pair in recognized_pairs
-    )
+    return any(observed == pair for pair in recognized_pairs)
 
 
 def coerce_numeric_or_boolean(series: pd.Series) -> pd.Series:
@@ -70,21 +52,11 @@ def coerce_numeric_or_boolean(series: pd.Series) -> pd.Series:
         return series.astype(float)
 
     if pd.api.types.is_numeric_dtype(series):
-        return pd.to_numeric(
-            series,
-            errors="coerce"
-        )
+        return pd.to_numeric(series, errors="coerce")
 
-    normalized = (
-        series
-        .astype("string")
-        .str.strip()
-        .str.lower()
-    )
+    normalized = series.astype("string").str.strip().str.lower()
 
-    observed = set(
-        normalized.dropna().unique()
-    )
+    observed = set(normalized.dropna().unique())
 
     recognized_pairs = (
         {"yes", "no"},
@@ -94,19 +66,7 @@ def coerce_numeric_or_boolean(series: pd.Series) -> pd.Series:
         {"1", "0"},
     )
 
-    if any(
-        observed == pair
-        for pair in recognized_pairs
-    ):
-        return (
-            normalized
-            .map(
-                BOOLEAN_TEXT_TO_NUMBER
-            )
-            .astype(float)
-        )
+    if any(observed == pair for pair in recognized_pairs):
+        return normalized.map(BOOLEAN_TEXT_TO_NUMBER).astype(float)
 
-    return pd.to_numeric(
-        series,
-        errors="coerce"
-    )
+    return pd.to_numeric(series, errors="coerce")

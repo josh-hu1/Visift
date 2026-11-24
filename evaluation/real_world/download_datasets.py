@@ -10,10 +10,7 @@ import pandas as pd
 # CONFIGURATION
 # ==================================================
 
-DATASET_DIR = (
-    Path(__file__).resolve().parent
-    / "datasets"
-)
+DATASET_DIR = Path(__file__).resolve().parent / "datasets"
 
 PENGUINS_URL = (
     "https://raw.githubusercontent.com/"
@@ -22,18 +19,14 @@ PENGUINS_URL = (
 )
 
 BIKE_SHARING_ZIP_URL = (
-    "https://archive.ics.uci.edu/static/public/275/"
-    "bike%2Bsharing%2Bdataset.zip"
+    "https://archive.ics.uci.edu/static/public/275/bike%2Bsharing%2Bdataset.zip"
 )
 
-TITANIC3_URL = (
-    "https://hbiostat.org/data/repo/titanic3.csv"
-)
+TITANIC3_URL = "https://hbiostat.org/data/repo/titanic3.csv"
 
 
 BANK_MARKETING_ZIP_URL = (
-    "https://archive.ics.uci.edu/static/public/222/"
-    "bank%2Bmarketing.zip"
+    "https://archive.ics.uci.edu/static/public/222/bank%2Bmarketing.zip"
 )
 
 
@@ -41,27 +34,15 @@ BANK_MARKETING_ZIP_URL = (
 # DOWNLOAD HELPERS
 # ==================================================
 
-def download_bytes(
-    url
-):
+
+def download_bytes(url):
     """
     Download raw bytes with a simple user-agent header.
     """
 
-    request = Request(
-        url,
-        headers={
-            "User-Agent": (
-                "Visift real-world benchmark"
-            )
-        }
-    )
+    request = Request(url, headers={"User-Agent": ("Visift real-world benchmark")})
 
-    with urlopen(
-        request,
-        timeout=60
-    ) as response:
-
+    with urlopen(request, timeout=60) as response:
         return response.read()
 
 
@@ -69,37 +50,27 @@ def download_bytes(
 # PALMER PENGUINS
 # ==================================================
 
+
 def download_penguins():
     """
     Download the official Palmer Penguins CSV.
     """
 
-    content = download_bytes(
-        PENGUINS_URL
-    )
+    content = download_bytes(PENGUINS_URL)
 
-    destination = (
-        DATASET_DIR
-        / "penguins.csv"
-    )
+    destination = DATASET_DIR / "penguins.csv"
 
-    destination.write_bytes(
-        content
-    )
+    destination.write_bytes(content)
 
     return destination
 
 
-def validate_penguins(
-    path
-):
+def validate_penguins(path):
     """
     Perform lightweight integrity checks on Palmer Penguins.
     """
 
-    df = pd.read_csv(
-        path
-    )
+    df = pd.read_csv(path)
 
     expected_columns = {
         "species",
@@ -109,27 +80,18 @@ def validate_penguins(
         "flipper_length_mm",
         "body_mass_g",
         "sex",
-        "year"
+        "year",
     }
 
-    missing_columns = (
-        expected_columns
-        - set(df.columns)
-    )
+    missing_columns = expected_columns - set(df.columns)
 
     if missing_columns:
-
         raise ValueError(
-            "Penguins dataset is missing expected columns: "
-            f"{sorted(missing_columns)}"
+            f"Penguins dataset is missing expected columns: {sorted(missing_columns)}"
         )
 
     if len(df) != 344:
-
-        raise ValueError(
-            "Expected 344 Palmer Penguins rows, "
-            f"found {len(df)}."
-        )
+        raise ValueError(f"Expected 344 Palmer Penguins rows, found {len(df)}.")
 
     return df
 
@@ -137,6 +99,7 @@ def validate_penguins(
 # ==================================================
 # UCI BIKE SHARING
 # ==================================================
+
 
 def download_bike_sharing():
     """
@@ -160,45 +123,25 @@ def download_bike_sharing():
     test Visift's semantic inference on realistic CSV input.
     """
 
-    archive_bytes = download_bytes(
-        BIKE_SHARING_ZIP_URL
-    )
+    archive_bytes = download_bytes(BIKE_SHARING_ZIP_URL)
 
-    with zipfile.ZipFile(
-        BytesIO(
-            archive_bytes
-        )
-    ) as archive:
-
+    with zipfile.ZipFile(BytesIO(archive_bytes)) as archive:
         candidates = [
             name
             for name in archive.namelist()
-            if (
-                name == "day.csv"
-                or name.endswith(
-                    "/day.csv"
-                )
-            )
+            if (name == "day.csv" or name.endswith("/day.csv"))
         ]
 
         if not candidates:
-
             raise FileNotFoundError(
-                "Could not find day.csv inside the "
-                "UCI Bike Sharing archive."
+                "Could not find day.csv inside the UCI Bike Sharing archive."
             )
 
         day_member = candidates[0]
 
-        raw_bytes = archive.read(
-            day_member
-        )
+        raw_bytes = archive.read(day_member)
 
-    raw = pd.read_csv(
-        BytesIO(
-            raw_bytes
-        )
-    )
+    raw = pd.read_csv(BytesIO(raw_bytes))
 
     expected_raw_columns = {
         "instant",
@@ -216,66 +159,35 @@ def download_bike_sharing():
         "windspeed",
         "casual",
         "registered",
-        "cnt"
+        "cnt",
     }
 
-    missing_columns = (
-        expected_raw_columns
-        - set(raw.columns)
-    )
+    missing_columns = expected_raw_columns - set(raw.columns)
 
     if missing_columns:
-
         raise ValueError(
             "Bike Sharing day.csv is missing expected "
             f"columns: {sorted(missing_columns)}"
         )
 
     if len(raw) != 731:
+        raise ValueError(f"Expected 731 daily Bike Sharing rows, found {len(raw)}.")
 
-        raise ValueError(
-            "Expected 731 daily Bike Sharing rows, "
-            f"found {len(raw)}."
-        )
+    benchmark_df = raw.drop(columns=["instant", "casual", "registered"]).copy()
 
-    benchmark_df = (
-        raw.drop(
-            columns=[
-                "instant",
-                "casual",
-                "registered"
-            ]
-        )
-        .copy()
-    )
+    destination = DATASET_DIR / "bike_sharing_day.csv"
 
-    destination = (
-        DATASET_DIR
-        / "bike_sharing_day.csv"
-    )
+    benchmark_df.to_csv(destination, index=False)
 
-    benchmark_df.to_csv(
-        destination,
-        index=False
-    )
-
-    return (
-        destination,
-        raw,
-        benchmark_df
-    )
+    return (destination, raw, benchmark_df)
 
 
-def validate_bike_sharing(
-    path
-):
+def validate_bike_sharing(path):
     """
     Validate the benchmark-ready Bike Sharing daily CSV.
     """
 
-    df = pd.read_csv(
-        path
-    )
+    df = pd.read_csv(path)
 
     expected_columns = {
         "dteday",
@@ -290,27 +202,19 @@ def validate_bike_sharing(
         "atemp",
         "hum",
         "windspeed",
-        "cnt"
+        "cnt",
     }
 
-    missing_columns = (
-        expected_columns
-        - set(df.columns)
-    )
+    missing_columns = expected_columns - set(df.columns)
 
     if missing_columns:
-
         raise ValueError(
             "Benchmark-ready Bike Sharing CSV is missing "
             f"columns: {sorted(missing_columns)}"
         )
 
     if len(df) != 731:
-
-        raise ValueError(
-            "Expected 731 benchmark Bike Sharing rows, "
-            f"found {len(df)}."
-        )
+        raise ValueError(f"Expected 731 benchmark Bike Sharing rows, found {len(df)}.")
 
     return df
 
@@ -318,6 +222,7 @@ def validate_bike_sharing(
 # ==================================================
 # TITANIC3
 # ==================================================
+
 
 def download_titanic():
     """
@@ -339,15 +244,9 @@ def download_titanic():
     outcome and would act like leakage in an exploratory ranking.
     """
 
-    content = download_bytes(
-        TITANIC3_URL
-    )
+    content = download_bytes(TITANIC3_URL)
 
-    raw = pd.read_csv(
-        BytesIO(
-            content
-        )
-    )
+    raw = pd.read_csv(BytesIO(content))
 
     expected_raw_columns = {
         "pclass",
@@ -363,27 +262,18 @@ def download_titanic():
         "embarked",
         "boat",
         "body",
-        "home.dest"
+        "home.dest",
     }
 
-    missing_columns = (
-        expected_raw_columns
-        - set(raw.columns)
-    )
+    missing_columns = expected_raw_columns - set(raw.columns)
 
     if missing_columns:
-
         raise ValueError(
-            "Titanic3 CSV is missing expected columns: "
-            f"{sorted(missing_columns)}"
+            f"Titanic3 CSV is missing expected columns: {sorted(missing_columns)}"
         )
 
     if len(raw) != 1309:
-
-        raise ValueError(
-            "Expected 1309 Titanic3 rows, "
-            f"found {len(raw)}."
-        )
+        raise ValueError(f"Expected 1309 Titanic3 rows, found {len(raw)}.")
 
     retained_columns = [
         "pclass",
@@ -393,43 +283,24 @@ def download_titanic():
         "sibsp",
         "parch",
         "fare",
-        "embarked"
+        "embarked",
     ]
 
-    benchmark_df = (
-        raw[
-            retained_columns
-        ]
-        .copy()
-    )
+    benchmark_df = raw[retained_columns].copy()
 
-    destination = (
-        DATASET_DIR
-        / "titanic3_benchmark.csv"
-    )
+    destination = DATASET_DIR / "titanic3_benchmark.csv"
 
-    benchmark_df.to_csv(
-        destination,
-        index=False
-    )
+    benchmark_df.to_csv(destination, index=False)
 
-    return (
-        destination,
-        raw,
-        benchmark_df
-    )
+    return (destination, raw, benchmark_df)
 
 
-def validate_titanic(
-    path
-):
+def validate_titanic(path):
     """
     Validate the benchmark-ready Titanic3 CSV.
     """
 
-    df = pd.read_csv(
-        path
-    )
+    df = pd.read_csv(path)
 
     expected_columns = {
         "pclass",
@@ -439,27 +310,19 @@ def validate_titanic(
         "sibsp",
         "parch",
         "fare",
-        "embarked"
+        "embarked",
     }
 
-    missing_columns = (
-        expected_columns
-        - set(df.columns)
-    )
+    missing_columns = expected_columns - set(df.columns)
 
     if missing_columns:
-
         raise ValueError(
             "Benchmark-ready Titanic3 CSV is missing "
             f"columns: {sorted(missing_columns)}"
         )
 
     if len(df) != 1309:
-
-        raise ValueError(
-            "Expected 1309 benchmark Titanic3 rows, "
-            f"found {len(df)}."
-        )
+        raise ValueError(f"Expected 1309 benchmark Titanic3 rows, found {len(df)}.")
 
     return df
 
@@ -467,6 +330,7 @@ def validate_titanic(
 # ==================================================
 # UCI BANK MARKETING
 # ==================================================
+
 
 def download_bank_marketing():
     """
@@ -483,94 +347,52 @@ def download_bank_marketing():
     left unchanged.
     """
 
-    archive_bytes = download_bytes(
-        BANK_MARKETING_ZIP_URL
-    )
+    archive_bytes = download_bytes(BANK_MARKETING_ZIP_URL)
 
     raw_bytes = None
 
-    with zipfile.ZipFile(
-        BytesIO(
-            archive_bytes
-        )
-    ) as outer_archive:
-
+    with zipfile.ZipFile(BytesIO(archive_bytes)) as outer_archive:
         direct_candidates = [
             name
             for name in outer_archive.namelist()
-            if (
-                name == "bank-full.csv"
-                or name.endswith(
-                    "/bank-full.csv"
-                )
-            )
+            if (name == "bank-full.csv" or name.endswith("/bank-full.csv"))
         ]
 
         if direct_candidates:
-
-            raw_bytes = outer_archive.read(
-                direct_candidates[0]
-            )
+            raw_bytes = outer_archive.read(direct_candidates[0])
 
         else:
-
             nested_candidates = [
                 name
                 for name in outer_archive.namelist()
-                if (
-                    name == "bank.zip"
-                    or name.endswith(
-                        "/bank.zip"
-                    )
-                )
+                if (name == "bank.zip" or name.endswith("/bank.zip"))
             ]
 
             if not nested_candidates:
-
                 raise FileNotFoundError(
                     "Could not find bank-full.csv or nested "
                     "bank.zip inside the UCI Bank Marketing "
                     "archive."
                 )
 
-            nested_bytes = outer_archive.read(
-                nested_candidates[0]
-            )
+            nested_bytes = outer_archive.read(nested_candidates[0])
 
-            with zipfile.ZipFile(
-                BytesIO(
-                    nested_bytes
-                )
-            ) as bank_archive:
-
+            with zipfile.ZipFile(BytesIO(nested_bytes)) as bank_archive:
                 bank_full_candidates = [
                     name
                     for name in bank_archive.namelist()
-                    if (
-                        name == "bank-full.csv"
-                        or name.endswith(
-                            "/bank-full.csv"
-                        )
-                    )
+                    if (name == "bank-full.csv" or name.endswith("/bank-full.csv"))
                 ]
 
                 if not bank_full_candidates:
-
                     raise FileNotFoundError(
                         "Could not find bank-full.csv inside "
                         "the nested UCI bank.zip archive."
                     )
 
-                raw_bytes = bank_archive.read(
-                    bank_full_candidates[0]
-                )
+                raw_bytes = bank_archive.read(bank_full_candidates[0])
 
-    raw = pd.read_csv(
-        BytesIO(
-            raw_bytes
-        ),
-        sep=";"
-    )
+    raw = pd.read_csv(BytesIO(raw_bytes), sep=";")
 
     expected_raw_columns = {
         "age",
@@ -589,64 +411,35 @@ def download_bank_marketing():
         "pdays",
         "previous",
         "poutcome",
-        "y"
+        "y",
     }
 
-    missing_columns = (
-        expected_raw_columns
-        - set(raw.columns)
-    )
+    missing_columns = expected_raw_columns - set(raw.columns)
 
     if missing_columns:
-
         raise ValueError(
             "Bank Marketing bank-full.csv is missing expected "
             f"columns: {sorted(missing_columns)}"
         )
 
     if len(raw) != 45211:
+        raise ValueError(f"Expected 45211 UCI Bank Marketing rows, found {len(raw)}.")
 
-        raise ValueError(
-            "Expected 45211 UCI Bank Marketing rows, "
-            f"found {len(raw)}."
-        )
+    benchmark_df = raw.drop(columns=["duration"]).copy()
 
-    benchmark_df = (
-        raw.drop(
-            columns=[
-                "duration"
-            ]
-        )
-        .copy()
-    )
+    destination = DATASET_DIR / "bank_marketing_full.csv"
 
-    destination = (
-        DATASET_DIR
-        / "bank_marketing_full.csv"
-    )
+    benchmark_df.to_csv(destination, index=False)
 
-    benchmark_df.to_csv(
-        destination,
-        index=False
-    )
-
-    return (
-        destination,
-        raw,
-        benchmark_df
-    )
+    return (destination, raw, benchmark_df)
 
 
-def validate_bank_marketing(
-    path
-):
+def validate_bank_marketing(path):
     """
     Validate the benchmark-ready UCI Bank Marketing CSV.
     """
 
-    df = pd.read_csv(
-        path
-    )
+    df = pd.read_csv(path)
 
     expected_columns = {
         "age",
@@ -664,33 +457,25 @@ def validate_bank_marketing(
         "pdays",
         "previous",
         "poutcome",
-        "y"
+        "y",
     }
 
-    missing_columns = (
-        expected_columns
-        - set(df.columns)
-    )
+    missing_columns = expected_columns - set(df.columns)
 
     if missing_columns:
-
         raise ValueError(
             "Benchmark-ready Bank Marketing CSV is missing "
             f"columns: {sorted(missing_columns)}"
         )
 
     if "duration" in df.columns:
-
         raise ValueError(
-            "Benchmark-ready Bank Marketing CSV should not "
-            "contain duration."
+            "Benchmark-ready Bank Marketing CSV should not contain duration."
         )
 
     if len(df) != 45211:
-
         raise ValueError(
-            "Expected 45211 benchmark Bank Marketing rows, "
-            f"found {len(df)}."
+            f"Expected 45211 benchmark Bank Marketing rows, found {len(df)}."
         )
 
     return df
@@ -700,35 +485,23 @@ def validate_bank_marketing(
 # MAIN
 # ==================================================
 
+
 def main():
     """
     Download every registered real-world benchmark dataset.
     """
 
-    DATASET_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    DATASET_DIR.mkdir(parents=True, exist_ok=True)
 
     print()
-    print(
-        "VISIFT REAL-WORLD DATASET DOWNLOAD"
-    )
-    print(
-        "=" * 64
-    )
+    print("VISIFT REAL-WORLD DATASET DOWNLOAD")
+    print("=" * 64)
 
-    penguins_path = (
-        download_penguins()
-    )
+    penguins_path = download_penguins()
 
-    penguins = validate_penguins(
-        penguins_path
-    )
+    penguins = validate_penguins(penguins_path)
 
-    print(
-        f"Downloaded: {penguins_path}"
-    )
+    print(f"Downloaded: {penguins_path}")
 
     print(
         f"Validated Palmer Penguins: "
@@ -736,21 +509,11 @@ def main():
         f"{len(penguins.columns)} columns"
     )
 
-    (
-        bike_path,
-        bike_raw,
-        bike_benchmark
-    ) = download_bike_sharing()
+    (bike_path, bike_raw, bike_benchmark) = download_bike_sharing()
 
-    bike_validated = (
-        validate_bike_sharing(
-            bike_path
-        )
-    )
+    bike_validated = validate_bike_sharing(bike_path)
 
-    print(
-        f"Downloaded/prepared: {bike_path}"
-    )
+    print(f"Downloaded/prepared: {bike_path}")
 
     print(
         f"Validated UCI Bike Sharing daily data: "
@@ -759,21 +522,11 @@ def main():
         f"({len(bike_raw.columns)} raw columns)"
     )
 
-    (
-        titanic_path,
-        titanic_raw,
-        titanic_benchmark
-    ) = download_titanic()
+    (titanic_path, titanic_raw, titanic_benchmark) = download_titanic()
 
-    titanic_validated = (
-        validate_titanic(
-            titanic_path
-        )
-    )
+    titanic_validated = validate_titanic(titanic_path)
 
-    print(
-        f"Downloaded/prepared: {titanic_path}"
-    )
+    print(f"Downloaded/prepared: {titanic_path}")
 
     print(
         f"Validated Titanic3: "
@@ -782,22 +535,11 @@ def main():
         f"({len(titanic_raw.columns)} raw columns)"
     )
 
+    (bank_path, bank_raw, bank_benchmark) = download_bank_marketing()
 
-    (
-        bank_path,
-        bank_raw,
-        bank_benchmark
-    ) = download_bank_marketing()
+    bank_validated = validate_bank_marketing(bank_path)
 
-    bank_validated = (
-        validate_bank_marketing(
-            bank_path
-        )
-    )
-
-    print(
-        f"Downloaded/prepared: {bank_path}"
-    )
+    print(f"Downloaded/prepared: {bank_path}")
 
     print(
         f"Validated UCI Bank Marketing: "
@@ -807,9 +549,7 @@ def main():
     )
 
     print()
-    print(
-        "Dataset download complete."
-    )
+    print("Dataset download complete.")
     print()
 
 

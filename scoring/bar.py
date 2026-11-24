@@ -32,12 +32,7 @@ def semantic_fit_score(semantic_type):
     a bar chart.
     """
 
-    scores = {
-        "categorical": 100,
-        "ordinal": 95,
-        "boolean": 90,
-        "geographic": 65
-    }
+    scores = {"categorical": 100, "ordinal": 95, "boolean": 90, "geographic": 65}
 
     return scores.get(semantic_type, 50)
 
@@ -94,19 +89,12 @@ def sample_support_score(counts):
     minimum_group_size = counts.min()
 
     # Average group size gets full credit around 10+
-    average_score = clamp(
-        (average_group_size / 10) * 100
-    )
+    average_score = clamp((average_group_size / 10) * 100)
 
     # Smallest group gets full credit around 5+
-    minimum_score = clamp(
-        (minimum_group_size / 5) * 100
-    )
+    minimum_score = clamp((minimum_group_size / 5) * 100)
 
-    return (
-        0.60 * average_score
-        + 0.40 * minimum_score
-    )
+    return 0.60 * average_score + 0.40 * minimum_score
 
 
 def data_quality_score(df, columns):
@@ -143,12 +131,7 @@ def count_reliability_score(p_value):
     partial signal credit.
     """
 
-    if (
-        p_value is None
-        or not math.isfinite(
-            p_value
-        )
-    ):
+    if p_value is None or not math.isfinite(p_value):
         return COUNT_MIN_RELIABILITY
 
     if p_value <= COUNT_STRONG_P:
@@ -157,43 +140,17 @@ def count_reliability_score(p_value):
     if p_value >= COUNT_WEAK_P:
         return COUNT_MIN_RELIABILITY
 
-    log_strong = math.log10(
-        COUNT_STRONG_P
-    )
+    log_strong = math.log10(COUNT_STRONG_P)
 
-    log_weak = math.log10(
-        COUNT_WEAK_P
-    )
+    log_weak = math.log10(COUNT_WEAK_P)
 
-    log_p = math.log10(
-        p_value
-    )
+    log_p = math.log10(p_value)
 
-    position = (
-        (
-            log_weak
-            - log_p
-        )
-        / (
-            log_weak
-            - log_strong
-        )
-    )
+    position = (log_weak - log_p) / (log_weak - log_strong)
 
-    position = clamp(
-        position,
-        0,
-        1
-    )
+    position = clamp(position, 0, 1)
 
-    return (
-        COUNT_MIN_RELIABILITY
-        + (
-            1
-            - COUNT_MIN_RELIABILITY
-        )
-        * position
-    )
+    return COUNT_MIN_RELIABILITY + (1 - COUNT_MIN_RELIABILITY) * position
 
 
 def count_signal_details(counts):
@@ -219,7 +176,7 @@ def count_signal_details(counts):
         "entropy_imbalance": 0,
         "effect_signal": 0,
         "p_value": 1,
-        "reliability": 0
+        "reliability": 0,
     }
 
     if len(counts) <= 1:
@@ -230,91 +187,40 @@ def count_signal_details(counts):
     if total <= 0:
         return default_result
 
-    probabilities = (
-        counts
-        / total
-    )
+    probabilities = counts / total
 
-    entropy = -sum(
-        p * math.log(p)
-        for p in probabilities
-        if p > 0
-    )
+    entropy = -sum(p * math.log(p) for p in probabilities if p > 0)
 
-    max_entropy = math.log(
-        len(counts)
-    )
+    max_entropy = math.log(len(counts))
 
-    normalized_entropy = (
-        entropy
-        / max_entropy
-        if max_entropy > 0
-        else 1
-    )
+    normalized_entropy = entropy / max_entropy if max_entropy > 0 else 1
 
-    entropy_imbalance = clamp(
-        1
-        - normalized_entropy,
-        0,
-        1
-    )
+    entropy_imbalance = clamp(1 - normalized_entropy, 0, 1)
 
-    effect_signal = (
-        entropy_imbalance
-        ** COUNT_IMBALANCE_EXPONENT
-        * 100
-    )
+    effect_signal = entropy_imbalance**COUNT_IMBALANCE_EXPONENT * 100
 
-    expected_count = (
-        total
-        / len(counts)
-    )
+    expected_count = total / len(counts)
 
     try:
         result = chisquare(
-            counts.to_numpy(
-                dtype=float
-            ),
-            f_exp=[
-                expected_count
-            ]
-            * len(counts)
+            counts.to_numpy(dtype=float), f_exp=[expected_count] * len(counts)
         )
 
-        p_value = float(
-            result.pvalue
-        )
+        p_value = float(result.pvalue)
 
     except Exception:
         p_value = 1
 
-    reliability = (
-        count_reliability_score(
-            p_value
-        )
-    )
+    reliability = count_reliability_score(p_value)
 
-    signal = clamp(
-        effect_signal
-        * reliability
-    )
+    signal = clamp(effect_signal * reliability)
 
     return {
-        "signal": float(
-            signal
-        ),
-        "entropy_imbalance": float(
-            entropy_imbalance
-        ),
-        "effect_signal": float(
-            effect_signal
-        ),
-        "p_value": float(
-            p_value
-        ),
-        "reliability": float(
-            reliability
-        )
+        "signal": float(signal),
+        "entropy_imbalance": float(entropy_imbalance),
+        "effect_signal": float(effect_signal),
+        "p_value": float(p_value),
+        "reliability": float(reliability),
     }
 
 
@@ -326,11 +232,7 @@ def count_signal_score(counts):
     function name used by evaluation code.
     """
 
-    return count_signal_details(
-        counts
-    )[
-        "signal"
-    ]
+    return count_signal_details(counts)["signal"]
 
 
 def group_separation_score(df, x, y):
@@ -347,13 +249,9 @@ def group_separation_score(df, x, y):
 
     clean = df[[x, y]].copy()
 
-    clean[y] = coerce_numeric_or_boolean(
-        clean[y]
-    )
+    clean[y] = coerce_numeric_or_boolean(clean[y])
 
-    clean = clean.dropna(
-        subset=[x, y]
-    )
+    clean = clean.dropna(subset=[x, y])
 
     if clean.empty:
         return 0
@@ -363,9 +261,7 @@ def group_separation_score(df, x, y):
 
     overall_mean = clean[y].mean()
 
-    total_variation = (
-        (clean[y] - overall_mean) ** 2
-    ).sum()
+    total_variation = ((clean[y] - overall_mean) ** 2).sum()
 
     if total_variation == 0:
         return 0
@@ -373,18 +269,11 @@ def group_separation_score(df, x, y):
     between_group_variation = 0
 
     for _, group in clean.groupby(x):
-
         group_mean = group[y].mean()
 
-        between_group_variation += (
-            len(group)
-            * (group_mean - overall_mean) ** 2
-        )
+        between_group_variation += len(group) * (group_mean - overall_mean) ** 2
 
-    eta_squared = (
-        between_group_variation
-        / total_variation
-    )
+    eta_squared = between_group_variation / total_variation
 
     return clamp(eta_squared * 100)
 
@@ -409,63 +298,35 @@ def score_bar_chart(df, candidate, profile):
 
     x = candidate["x"]
 
-    aggregation = candidate.get(
-        "aggregation",
-        "count"
-    )
+    aggregation = candidate.get("aggregation", "count")
 
-    semantic_type = get_semantic_type(
-        profile,
-        x
-    )
+    semantic_type = get_semantic_type(profile, x)
 
-    semantic_fit = semantic_fit_score(
-        semantic_type
-    )
+    semantic_fit = semantic_fit_score(semantic_type)
 
     # -----------------------------------
     # Count bar chart
     # -----------------------------------
 
     if aggregation == "count":
-
         clean = df[[x]].dropna()
 
         counts = clean[x].value_counts()
 
         unique_count = clean[x].nunique()
 
-        readability = category_readability_score(
-            unique_count
-        )
+        readability = category_readability_score(unique_count)
 
-        support = sample_support_score(
-            counts
-        )
+        support = sample_support_score(counts)
 
-        quality = data_quality_score(
-            df,
-            [x]
-        )
+        quality = data_quality_score(df, [x])
 
-        count_signal = (
-            count_signal_details(
-                counts
-            )
-        )
+        count_signal = count_signal_details(counts)
 
-        signal = count_signal[
-            "signal"
-        ]
+        signal = count_signal["signal"]
 
-        final_score, visualization_quality = (
-            combine_quality_and_signal(
-                semantic_fit,
-                readability,
-                quality,
-                support,
-                signal
-            )
+        final_score, visualization_quality = combine_quality_and_signal(
+            semantic_fit, readability, quality, support, signal
         )
 
         reasons = [
@@ -475,20 +336,14 @@ def score_bar_chart(df, candidate, profile):
             f"Average category size: {counts.mean():.1f} observations.",
             f"Smallest category: {counts.min()} observations.",
             f"Data completeness: {quality:.1f}%.",
-            (
-                "Normalized entropy imbalance: "
-                f"{count_signal['entropy_imbalance']:.3f}."
-            ),
-            (
-                "Frequency-imbalance effect: "
-                f"{count_signal['effect_signal']:.1f}/100."
-            ),
+            (f"Normalized entropy imbalance: {count_signal['entropy_imbalance']:.3f}."),
+            (f"Frequency-imbalance effect: {count_signal['effect_signal']:.1f}/100."),
             (
                 "Imbalance reliability: "
                 f"{count_signal['reliability']:.2f} "
                 f"(p={count_signal['p_value']:.3g})."
             ),
-            f"Category frequency signal: {signal:.1f}/100."
+            f"Category frequency signal: {signal:.1f}/100.",
         ]
 
     # -----------------------------------
@@ -496,7 +351,6 @@ def score_bar_chart(df, candidate, profile):
     # -----------------------------------
 
     else:
-
         y = candidate["y"]
 
         clean = df[[x, y]].dropna()
@@ -505,67 +359,28 @@ def score_bar_chart(df, candidate, profile):
 
         unique_count = clean[x].nunique()
 
-        readability = category_readability_score(
-            unique_count
-        )
+        readability = category_readability_score(unique_count)
 
-        support = sample_support_score(
-            counts
-        )
+        support = sample_support_score(counts)
 
-        quality = data_quality_score(
-            df,
-            [x, y]
-        )
+        quality = data_quality_score(df, [x, y])
 
-        y_semantic_type = get_semantic_type(
-            profile,
-            y
-        )
+        y_semantic_type = get_semantic_type(profile, y)
 
         if y_semantic_type == "boolean":
+            binary_rate_details = binary_rate_signal_score(df, x, y)
 
-            binary_rate_details = (
-                binary_rate_signal_score(
-                    df,
-                    x,
-                    y
-                )
-            )
+            raw_signal = binary_rate_details["effect_signal"]
 
-            raw_signal = (
-                binary_rate_details[
-                    "effect_signal"
-                ]
-            )
-
-            signal = (
-                binary_rate_details[
-                    "signal"
-                ]
-            )
+            signal = binary_rate_details["signal"]
 
         else:
+            raw_signal = group_separation_score(df, x, y)
 
-            raw_signal = group_separation_score(
-                df,
-                x,
-                y
-            )
+            signal = adjust_signal_for_support(raw_signal, support)
 
-            signal = adjust_signal_for_support(
-                raw_signal,
-                support
-            )
-
-        final_score, visualization_quality = (
-            combine_quality_and_signal(
-                semantic_fit,
-                readability,
-                quality,
-                support,
-                signal
-            )
+        final_score, visualization_quality = combine_quality_and_signal(
+            semantic_fit, readability, quality, support, signal
         )
 
         reasons = [
@@ -576,49 +391,24 @@ def score_bar_chart(df, candidate, profile):
             f"Smallest group: {counts.min()} observations.",
             f"Data completeness: {quality:.1f}%.",
             f"Raw relationship strength: {raw_signal:.1f}/100.",
-            f"Reliability-adjusted signal: {signal:.1f}/100."
+            f"Reliability-adjusted signal: {signal:.1f}/100.",
         ]
 
     return {
         "score": round(final_score, 2),
-
         "components": {
-            "semantic_fit": round(
-                semantic_fit,
-                2
-            ),
-            "readability": round(
-                readability,
-                2
-            ),
-            "sample_support": round(
-                support,
-                2
-            ),
-            "data_quality": round(
-                quality,
-                2
-            ),
-            "signal": round(
-                signal,
-                2
-            ), 
-            "visualization_quality": round(
-                visualization_quality,
-                2
-            )
+            "semantic_fit": round(semantic_fit, 2),
+            "readability": round(readability, 2),
+            "sample_support": round(support, 2),
+            "data_quality": round(quality, 2),
+            "signal": round(signal, 2),
+            "visualization_quality": round(visualization_quality, 2),
         },
-
-        "reasons": reasons
+        "reasons": reasons,
     }
 
-def combine_quality_and_signal(
-    semantic_fit,
-    readability,
-    quality,
-    support,
-    signal
-):
+
+def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
     """
     Combine visualization suitability with insight strength.
 
@@ -628,20 +418,11 @@ def combine_quality_and_signal(
     """
 
     visualization_quality = (
-        0.30 * semantic_fit
-        + 0.20 * readability
-        + 0.20 * quality
-        + 0.30 * support
+        0.30 * semantic_fit + 0.20 * readability + 0.20 * quality + 0.30 * support
     )
 
-    signal_multiplier = (
-        0.35
-        + 0.65 * (signal / 100)
-    )
+    signal_multiplier = 0.35 + 0.65 * (signal / 100)
 
-    final_score = (
-        visualization_quality
-        * signal_multiplier
-    )
+    final_score = visualization_quality * signal_multiplier
 
     return final_score, visualization_quality

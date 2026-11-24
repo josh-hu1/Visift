@@ -7,6 +7,7 @@ import pandas as pd
 # NAME / VALUE HELPERS
 # ==================================================
 
+
 def normalize_column_name(series: pd.Series) -> str:
     """
     Normalize a column name for semantic-name heuristics.
@@ -28,11 +29,7 @@ def column_name_tokens(series: pd.Series) -> set[str]:
     if not name:
         return set()
 
-    return {
-        token
-        for token in name.split("_")
-        if token
-    }
+    return {token for token in name.split("_") if token}
 
 
 def values_are_integer_like(series: pd.Series) -> bool:
@@ -41,27 +38,20 @@ def values_are_integer_like(series: pd.Series) -> bool:
     even if pandas stores them as floats because of missing values.
     """
 
-    numeric = pd.to_numeric(
-        series.dropna(),
-        errors="coerce"
-    ).dropna()
+    numeric = pd.to_numeric(series.dropna(), errors="coerce").dropna()
 
     if numeric.empty:
         return False
 
-    fractional = (
-        numeric
-        - numeric.round()
-    ).abs()
+    fractional = (numeric - numeric.round()).abs()
 
-    return bool(
-        (fractional <= 1e-9).all()
-    )
+    return bool((fractional <= 1e-9).all())
 
 
 # ==================================================
 # DATETIME
 # ==================================================
+
 
 def detect_datetime(series: pd.Series) -> bool:
     """
@@ -74,11 +64,7 @@ def detect_datetime(series: pd.Series) -> bool:
         return False
 
     try:
-        converted = pd.to_datetime(
-            non_null,
-            errors="coerce",
-            format="mixed"
-        )
+        converted = pd.to_datetime(non_null, errors="coerce", format="mixed")
 
         success_rate = converted.notna().mean()
 
@@ -92,72 +78,69 @@ def detect_datetime(series: pd.Series) -> bool:
 # CALENDAR LABEL FIELDS
 # ==================================================
 
-def is_calendar_label_text(
-    series: pd.Series
-) -> bool:
+
+def is_calendar_label_text(series: pd.Series) -> bool:
     non_null = series.dropna()
 
     if non_null.empty:
         return False
 
-    column_name = normalize_column_name(
-        series
-    )
+    column_name = normalize_column_name(series)
 
-    normalized_values = {
-        str(value).strip().lower()
-        for value in non_null.unique()
-    }
+    normalized_values = {str(value).strip().lower() for value in non_null.unique()}
 
     month_names = {
-        "jan", "january",
-        "feb", "february",
-        "mar", "march",
-        "apr", "april",
+        "jan",
+        "january",
+        "feb",
+        "february",
+        "mar",
+        "march",
+        "apr",
+        "april",
         "may",
-        "jun", "june",
-        "jul", "july",
-        "aug", "august",
-        "sep", "sept", "september",
-        "oct", "october",
-        "nov", "november",
-        "dec", "december"
+        "jun",
+        "june",
+        "jul",
+        "july",
+        "aug",
+        "august",
+        "sep",
+        "sept",
+        "september",
+        "oct",
+        "october",
+        "nov",
+        "november",
+        "dec",
+        "december",
     }
 
     weekday_names = {
-        "mon", "monday",
-        "tue", "tues", "tuesday",
-        "wed", "wednesday",
-        "thu", "thur", "thurs", "thursday",
-        "fri", "friday",
-        "sat", "saturday",
-        "sun", "sunday"
+        "mon",
+        "monday",
+        "tue",
+        "tues",
+        "tuesday",
+        "wed",
+        "wednesday",
+        "thu",
+        "thur",
+        "thurs",
+        "thursday",
+        "fri",
+        "friday",
+        "sat",
+        "saturday",
+        "sun",
+        "sunday",
     }
 
-    if column_name in {
-        "month",
-        "mnth",
-        "month_name"
-    }:
-        return bool(
-            normalized_values
-            and normalized_values.issubset(
-                month_names
-            )
-        )
+    if column_name in {"month", "mnth", "month_name"}:
+        return bool(normalized_values and normalized_values.issubset(month_names))
 
-    if column_name in {
-        "weekday",
-        "dayofweek",
-        "day_of_week",
-        "dow"
-    }:
-        return bool(
-            normalized_values
-            and normalized_values.issubset(
-                weekday_names
-            )
-        )
+    if column_name in {"weekday", "dayofweek", "day_of_week", "dow"}:
+        return bool(normalized_values and normalized_values.issubset(weekday_names))
 
     return False
 
@@ -165,6 +148,7 @@ def is_calendar_label_text(
 # ==================================================
 # IDENTIFIERS
 # ==================================================
+
 
 def is_identifier(series: pd.Series) -> bool:
     """
@@ -182,10 +166,7 @@ def is_identifier(series: pd.Series) -> bool:
     if non_null.empty:
         return False
 
-    unique_ratio = (
-        non_null.nunique()
-        / len(non_null)
-    )
+    unique_ratio = non_null.nunique() / len(non_null)
 
     column_name = normalize_column_name(series)
 
@@ -200,15 +181,13 @@ def is_identifier(series: pd.Series) -> bool:
     # IDs are usually almost completely unique.
     highly_unique = unique_ratio >= 0.95
 
-    return (
-        name_suggests_id
-        and highly_unique
-    )
+    return name_suggests_id and highly_unique
 
 
 # ==================================================
 # TEMPORAL NUMERIC FIELDS
 # ==================================================
+
 
 def is_temporal_numeric(series: pd.Series) -> bool:
     """
@@ -221,55 +200,25 @@ def is_temporal_numeric(series: pd.Series) -> bool:
 
     non_null = series.dropna()
 
-    if (
-        non_null.empty
-        or not values_are_integer_like(series)
-    ):
+    if non_null.empty or not values_are_integer_like(series):
         return False
 
     column_name = normalize_column_name(series)
 
-    numeric = pd.to_numeric(
-        non_null,
-        errors="coerce"
-    ).dropna()
+    numeric = pd.to_numeric(non_null, errors="coerce").dropna()
 
     if numeric.empty:
         return False
 
-    year_names = {
-        "year",
-        "yr",
-        "calendar_year",
-        "fiscal_year"
-    }
+    year_names = {"year", "yr", "calendar_year", "fiscal_year"}
 
-    month_names = {
-        "month",
-        "mnth",
-        "month_num",
-        "month_number"
-    }
+    month_names = {"month", "mnth", "month_num", "month_number"}
 
-    quarter_names = {
-        "quarter",
-        "qtr",
-        "quarter_num",
-        "quarter_number"
-    }
+    quarter_names = {"quarter", "qtr", "quarter_num", "quarter_number"}
 
-    week_names = {
-        "week",
-        "wk",
-        "week_num",
-        "week_number"
-    }
+    week_names = {"week", "wk", "week_num", "week_number"}
 
-    day_names = {
-        "day",
-        "day_num",
-        "day_number"
-    }
+    day_names = {"day", "day_num", "day_number"}
 
     if column_name in year_names:
         # A strong name hint lets us support both literal years
@@ -277,22 +226,13 @@ def is_temporal_numeric(series: pd.Series) -> bool:
         return numeric.nunique() <= 300
 
     if column_name in month_names:
-        return bool(
-            numeric.between(0, 12).all()
-            and numeric.nunique() <= 13
-        )
+        return bool(numeric.between(0, 12).all() and numeric.nunique() <= 13)
 
     if column_name in quarter_names:
-        return bool(
-            numeric.between(0, 4).all()
-            and numeric.nunique() <= 5
-        )
+        return bool(numeric.between(0, 4).all() and numeric.nunique() <= 5)
 
     if column_name in week_names:
-        return bool(
-            numeric.between(0, 53).all()
-            and numeric.nunique() <= 54
-        )
+        return bool(numeric.between(0, 53).all() and numeric.nunique() <= 54)
 
     if column_name in day_names:
         return True
@@ -303,6 +243,7 @@ def is_temporal_numeric(series: pd.Series) -> bool:
 # ==================================================
 # GEOGRAPHIC FIELDS
 # ==================================================
+
 
 def is_geographic(series: pd.Series) -> bool:
     """
@@ -326,7 +267,7 @@ def is_geographic(series: pd.Series) -> bool:
         "longitude",
         "lat",
         "lon",
-        "lng"
+        "lng",
     }
 
     geographic_tokens = {
@@ -338,18 +279,16 @@ def is_geographic(series: pd.Series) -> bool:
         "longitude",
         "lat",
         "lon",
-        "lng"
+        "lng",
     }
 
-    return (
-        column_name in geographic_names
-        or bool(tokens & geographic_tokens)
-    )
+    return column_name in geographic_names or bool(tokens & geographic_tokens)
 
 
 # ==================================================
 # ORDINAL FIELDS
 # ==================================================
+
 
 def is_ordinal(series: pd.Series) -> bool:
     """
@@ -374,20 +313,14 @@ def is_ordinal(series: pd.Series) -> bool:
         "priority",
         "tier",
         "stage",
-        "likert"
+        "likert",
     }
 
-    name_suggests_ordinal = bool(
-        tokens
-        & ordinal_terms
-    )
+    name_suggests_ordinal = bool(tokens & ordinal_terms)
 
     # Keep the useful existing score heuristic, but only when the
     # score has relatively few distinct levels.
-    if (
-        "score" in tokens
-        and non_null.nunique() <= 20
-    ):
+    if "score" in tokens and non_null.nunique() <= 20:
         name_suggests_ordinal = True
 
     if not name_suggests_ordinal:
@@ -399,6 +332,7 @@ def is_ordinal(series: pd.Series) -> bool:
 # ==================================================
 # BOOLEAN-LIKE FIELDS
 # ==================================================
+
 
 def is_boolean_text(series: pd.Series) -> bool:
     """
@@ -417,10 +351,7 @@ def is_boolean_text(series: pd.Series) -> bool:
     if non_null.empty:
         return False
 
-    normalized_values = {
-        str(value).strip().lower()
-        for value in non_null.unique()
-    }
+    normalized_values = {str(value).strip().lower() for value in non_null.unique()}
 
     recognized_pairs = (
         {"yes", "no"},
@@ -430,10 +361,7 @@ def is_boolean_text(series: pd.Series) -> bool:
         {"1", "0"},
     )
 
-    return any(
-        normalized_values == pair
-        for pair in recognized_pairs
-    )
+    return any(normalized_values == pair for pair in recognized_pairs)
 
 
 def is_boolean_numeric(series: pd.Series) -> bool:
@@ -449,21 +377,12 @@ def is_boolean_numeric(series: pd.Series) -> bool:
 
     non_null = series.dropna()
 
-    if (
-        non_null.empty
-        or not values_are_integer_like(series)
-    ):
+    if non_null.empty or not values_are_integer_like(series):
         return False
 
-    numeric = pd.to_numeric(
-        non_null,
-        errors="coerce"
-    ).dropna()
+    numeric = pd.to_numeric(non_null, errors="coerce").dropna()
 
-    unique_values = {
-        int(value)
-        for value in numeric.unique()
-    }
+    unique_values = {int(value) for value in numeric.unique()}
 
     if unique_values == {0, 1}:
         return True
@@ -483,7 +402,7 @@ def is_boolean_numeric(series: pd.Series) -> bool:
         "member",
         "subscribed",
         "selected",
-        "verified"
+        "verified",
     }
 
     name_suggests_boolean = (
@@ -493,15 +412,14 @@ def is_boolean_numeric(series: pd.Series) -> bool:
     )
 
     return bool(
-        name_suggests_boolean
-        and unique_values
-        and unique_values.issubset({0, 1})
+        name_suggests_boolean and unique_values and unique_values.issubset({0, 1})
     )
 
 
 # ==================================================
 # NUMERIC CATEGORY CODES
 # ==================================================
+
 
 def is_numeric_categorical_code(series: pd.Series) -> bool:
     """
@@ -523,11 +441,7 @@ def is_numeric_categorical_code(series: pd.Series) -> bool:
 
     unique_count = non_null.nunique()
 
-    if (
-        unique_count < 2
-        or unique_count > 30
-        or not values_are_integer_like(series)
-    ):
+    if unique_count < 2 or unique_count > 30 or not values_are_integer_like(series):
         return False
 
     column_name = normalize_column_name(series)
@@ -555,7 +469,7 @@ def is_numeric_categorical_code(series: pd.Series) -> bool:
         "dow",
         "weather",
         "weathersit",
-        "condition"
+        "condition",
     }
 
     exact_category_names = {
@@ -565,7 +479,7 @@ def is_numeric_categorical_code(series: pd.Series) -> bool:
         "day_of_week",
         "dow",
         "weathersit",
-        "weather_situation"
+        "weather_situation",
     }
 
     return (
@@ -583,6 +497,7 @@ def is_numeric_categorical_code(series: pd.Series) -> bool:
 # ==================================================
 # MAIN CLASSIFIER
 # ==================================================
+
 
 def classify_column(series: pd.Series) -> str:
     """
@@ -630,7 +545,6 @@ def classify_column(series: pd.Series) -> str:
     # Numeric
     # --------------------
     if pd.api.types.is_numeric_dtype(series):
-
         unique_count = non_null.nunique()
 
         # Geographic values should not be treated as quantities.
@@ -661,10 +575,7 @@ def classify_column(series: pd.Series) -> str:
 
         # Preserve genuine low-cardinality counts when there is no
         # stronger semantic evidence of a category.
-        if (
-            pd.api.types.is_integer_dtype(series)
-            or values_are_integer_like(series)
-        ):
+        if pd.api.types.is_integer_dtype(series) or values_are_integer_like(series):
             if unique_count <= 20:
                 return "numeric_discrete"
 
@@ -673,11 +584,7 @@ def classify_column(series: pd.Series) -> str:
     # --------------------
     # Strings / object columns
     # --------------------
-    if (
-        pd.api.types.is_object_dtype(series)
-        or pd.api.types.is_string_dtype(series)
-    ):
-
+    if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
         if is_boolean_text(series):
             return "boolean"
 
@@ -690,10 +597,7 @@ def classify_column(series: pd.Series) -> str:
         unique_count = non_null.nunique()
         row_count = len(non_null)
 
-        unique_ratio = (
-            unique_count
-            / row_count
-        )
+        unique_ratio = unique_count / row_count
 
         # Highly unique strings are more likely to be
         # free-form text than categorical data.
@@ -706,10 +610,7 @@ def classify_column(series: pd.Series) -> str:
 
         # Larger sets can still be categorical if
         # values repeat frequently.
-        if (
-            unique_count <= 100
-            and unique_ratio < 0.50
-        ):
+        if unique_count <= 100 and unique_ratio < 0.50:
             return "categorical"
 
         return "text"

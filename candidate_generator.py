@@ -1,17 +1,9 @@
 from itertools import combinations
 
 
-NUMERIC_TYPES = {
-    "numeric_continuous",
-    "numeric_discrete"
-}
+NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
-CATEGORY_TYPES = {
-    "categorical",
-    "ordinal",
-    "boolean",
-    "geographic"
-}
+CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
 
 # Category-like fields that can sensibly define groups for
 # a binary-rate comparison.
@@ -19,46 +11,24 @@ CATEGORY_TYPES = {
 # Boolean is intentionally excluded here. When both variables
 # are boolean, there is no obvious predictor/outcome direction
 # to infer automatically from semantics alone.
-RATE_PREDICTOR_TYPES = {
-    "categorical",
-    "ordinal",
-    "geographic"
-}
+RATE_PREDICTOR_TYPES = {"categorical", "ordinal", "geographic"}
 
-TIME_TYPES = {
-    "datetime",
-    "temporal"
-}
+TIME_TYPES = {"datetime", "temporal"}
 
 
-def get_semantic_type(
-    profile,
-    column_name
-):
+def get_semantic_type(profile, column_name):
     """
     Get semantic type for a column from the dataset profile.
     """
 
-    for column in profile[
-        "column_profiles"
-    ]:
-
-        if (
-            column["name"]
-            == column_name
-        ):
-
-            return column[
-                "semantic_type"
-            ]
+    for column in profile["column_profiles"]:
+        if column["name"] == column_name:
+            return column["semantic_type"]
 
     return None
 
 
-def generate_candidates(
-    df,
-    profile
-):
+def generate_candidates(df, profile):
     """
     Generate valid visualization candidates based on
     semantic column types.
@@ -71,152 +41,66 @@ def generate_candidates(
 
     candidates = []
 
-    columns = list(
-        df.columns
-    )
+    columns = list(df.columns)
 
     # ---------------------------------
     # Single-column visualizations
     # ---------------------------------
 
     for column in columns:
-
-        semantic_type = (
-            get_semantic_type(
-                profile,
-                column
-            )
-        )
+        semantic_type = get_semantic_type(profile, column)
 
         # Numeric distribution
-        if (
-            semantic_type
-            in NUMERIC_TYPES
-        ):
-
-            candidates.append({
-                "chart": "histogram",
-                "x": column
-            })
+        if semantic_type in NUMERIC_TYPES:
+            candidates.append({"chart": "histogram", "x": column})
 
         # Category counts
-        if (
-            semantic_type
-            in CATEGORY_TYPES
-        ):
-
-            candidates.append({
-                "chart": "bar",
-                "x": column,
-                "aggregation": "count"
-            })
+        if semantic_type in CATEGORY_TYPES:
+            candidates.append({"chart": "bar", "x": column, "aggregation": "count"})
 
     # ---------------------------------
     # Two-column visualizations
     # ---------------------------------
 
-    for (
-        col1,
-        col2
-    ) in combinations(
-        columns,
-        2
-    ):
+    for col1, col2 in combinations(columns, 2):
+        type1 = get_semantic_type(profile, col1)
 
-        type1 = (
-            get_semantic_type(
-                profile,
-                col1
-            )
-        )
-
-        type2 = (
-            get_semantic_type(
-                profile,
-                col2
-            )
-        )
+        type2 = get_semantic_type(profile, col2)
 
         # -----------------------------
         # Numeric + Numeric
         # -----------------------------
 
-        if (
-            type1 in NUMERIC_TYPES
-            and type2 in NUMERIC_TYPES
-        ):
-
-            candidates.append({
-                "chart": "scatter",
-                "x": col1,
-                "y": col2
-            })
+        if type1 in NUMERIC_TYPES and type2 in NUMERIC_TYPES:
+            candidates.append({"chart": "scatter", "x": col1, "y": col2})
 
         # -----------------------------
         # Time + Numeric
         # -----------------------------
 
-        if (
-            type1 in TIME_TYPES
-            and type2 in NUMERIC_TYPES
-        ):
+        if type1 in TIME_TYPES and type2 in NUMERIC_TYPES:
+            candidates.append({"chart": "line", "x": col1, "y": col2})
 
-            candidates.append({
-                "chart": "line",
-                "x": col1,
-                "y": col2
-            })
-
-        elif (
-            type2 in TIME_TYPES
-            and type1 in NUMERIC_TYPES
-        ):
-
-            candidates.append({
-                "chart": "line",
-                "x": col2,
-                "y": col1
-            })
+        elif type2 in TIME_TYPES and type1 in NUMERIC_TYPES:
+            candidates.append({"chart": "line", "x": col2, "y": col1})
 
         # -----------------------------
         # Category + Numeric
         # -----------------------------
 
-        if (
-            type1 in CATEGORY_TYPES
-            and type2 in NUMERIC_TYPES
-        ):
+        if type1 in CATEGORY_TYPES and type2 in NUMERIC_TYPES:
+            candidates.append(
+                {"chart": "bar", "x": col1, "y": col2, "aggregation": "mean"}
+            )
 
-            candidates.append({
-                "chart": "bar",
-                "x": col1,
-                "y": col2,
-                "aggregation": "mean"
-            })
+            candidates.append({"chart": "box", "x": col1, "y": col2})
 
-            candidates.append({
-                "chart": "box",
-                "x": col1,
-                "y": col2
-            })
+        elif type2 in CATEGORY_TYPES and type1 in NUMERIC_TYPES:
+            candidates.append(
+                {"chart": "bar", "x": col2, "y": col1, "aggregation": "mean"}
+            )
 
-        elif (
-            type2 in CATEGORY_TYPES
-            and type1 in NUMERIC_TYPES
-        ):
-
-            candidates.append({
-                "chart": "bar",
-                "x": col2,
-                "y": col1,
-                "aggregation": "mean"
-            })
-
-            candidates.append({
-                "chart": "box",
-                "x": col2,
-                "y": col1
-            })
+            candidates.append({"chart": "box", "x": col2, "y": col1})
 
         # -----------------------------
         # Category + Boolean Outcome
@@ -231,29 +115,15 @@ def generate_candidates(
         # This reuses the existing mean-bar scoring path rather
         # than introducing a separate chart/scorer family.
 
-        if (
-            type1 in RATE_PREDICTOR_TYPES
-            and type2 == "boolean"
-        ):
+        if type1 in RATE_PREDICTOR_TYPES and type2 == "boolean":
+            candidates.append(
+                {"chart": "bar", "x": col1, "y": col2, "aggregation": "mean"}
+            )
 
-            candidates.append({
-                "chart": "bar",
-                "x": col1,
-                "y": col2,
-                "aggregation": "mean"
-            })
-
-        elif (
-            type2 in RATE_PREDICTOR_TYPES
-            and type1 == "boolean"
-        ):
-
-            candidates.append({
-                "chart": "bar",
-                "x": col2,
-                "y": col1,
-                "aggregation": "mean"
-            })
+        elif type2 in RATE_PREDICTOR_TYPES and type1 == "boolean":
+            candidates.append(
+                {"chart": "bar", "x": col2, "y": col1, "aggregation": "mean"}
+            )
 
     return [
         candidate
@@ -261,20 +131,13 @@ def generate_candidates(
         if (
             candidate.get("chart") != "line"
             or is_line_eligible_time_axis(
-                candidate.get("x"),
-                get_semantic_type(
-                    profile,
-                    candidate.get("x")
-                )
+                candidate.get("x"), get_semantic_type(profile, candidate.get("x"))
             )
         )
     ]
 
 
-def is_line_eligible_time_axis(
-    column_name,
-    semantic_type
-):
+def is_line_eligible_time_axis(column_name, semantic_type):
     # Datetimes and non-cyclical temporal fields remain eligible.
     # Standalone cyclical calendar positions do not.
     if semantic_type == "datetime":
@@ -283,13 +146,7 @@ def is_line_eligible_time_axis(
     if semantic_type != "temporal":
         return False
 
-    normalized = (
-        str(column_name)
-        .strip()
-        .lower()
-        .replace("-", "_")
-        .replace(" ", "_")
-    )
+    normalized = str(column_name).strip().lower().replace("-", "_").replace(" ", "_")
 
     cyclical_names = {
         "month",
@@ -318,8 +175,7 @@ def is_line_eligible_time_axis(
         "dow",
         "hour",
         "hr",
-        "hour_of_day"
+        "hour_of_day",
     }
 
     return normalized not in cyclical_names
-

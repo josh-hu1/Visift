@@ -47,41 +47,23 @@ def apply_plot_theme(fig):
         template="plotly_dark",
         paper_bgcolor=BG_BLACK,
         plot_bgcolor=BG_BLACK,
-        font=dict(
-            color=TEXT_LIGHT
-        ),
-        title_font=dict(
-            color=NEON_GREEN,
-            size=18
-        ),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            font=dict(
-                color=TEXT_LIGHT
-            )
-        ),
+        font=dict(color=TEXT_LIGHT),
+        title_font=dict(color=NEON_GREEN, size=18),
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_LIGHT)),
         xaxis=dict(
             gridcolor=GRID_COLOR,
             zerolinecolor=GRID_COLOR,
             linecolor=GRID_COLOR,
-            tickfont=dict(
-                color=TEXT_MUTED
-            ),
-            title_font=dict(
-                color=TEXT_LIGHT
-            )
+            tickfont=dict(color=TEXT_MUTED),
+            title_font=dict(color=TEXT_LIGHT),
         ),
         yaxis=dict(
             gridcolor=GRID_COLOR,
             zerolinecolor=GRID_COLOR,
             linecolor=GRID_COLOR,
-            tickfont=dict(
-                color=TEXT_MUTED
-            ),
-            title_font=dict(
-                color=TEXT_LIGHT
-            )
-        )
+            tickfont=dict(color=TEXT_MUTED),
+            title_font=dict(color=TEXT_LIGHT),
+        ),
     )
 
     return fig
@@ -102,7 +84,7 @@ CURRENCY_TERMS = {
     "salary",
     "amount",
     "budget",
-    "expense"
+    "expense",
 }
 
 
@@ -112,12 +94,7 @@ def humanize_column_name(name):
     human-readable label.
     """
 
-    return (
-        str(name)
-        .replace("_", " ")
-        .strip()
-        .title()
-    )
+    return str(name).replace("_", " ").strip().title()
 
 
 def is_currency_column(column_name):
@@ -126,14 +103,9 @@ def is_currency_column(column_name):
     represents currency based on its name.
     """
 
-    name = str(
-        column_name
-    ).lower()
+    name = str(column_name).lower()
 
-    return any(
-        term in name
-        for term in CURRENCY_TERMS
-    )
+    return any(term in name for term in CURRENCY_TERMS)
 
 
 def visualization_title(candidate):
@@ -143,17 +115,9 @@ def visualization_title(candidate):
 
     chart = candidate["chart"]
 
-    x = humanize_column_name(
-        candidate["x"]
-    )
+    x = humanize_column_name(candidate["x"])
 
-    y = (
-        humanize_column_name(
-            candidate["y"]
-        )
-        if "y" in candidate
-        else None
-    )
+    y = humanize_column_name(candidate["y"]) if "y" in candidate else None
 
     if chart == "scatter":
         return f"{y} vs {x}"
@@ -168,7 +132,6 @@ def visualization_title(candidate):
         return f"{y} by {x}"
 
     if chart == "bar":
-
         if "y" in candidate:
             return f"Average {y} by {x}"
 
@@ -181,16 +144,14 @@ def visualization_title(candidate):
 # NUMBER FORMATTING
 # ==================================================
 
+
 def numeric_tick_format(series):
     """
     Choose an axis tick format based on the
     magnitude of the numeric values.
     """
 
-    clean = pd.to_numeric(
-        series,
-        errors="coerce"
-    ).dropna()
+    clean = pd.to_numeric(series, errors="coerce").dropna()
 
     if clean.empty:
         return ",.2f"
@@ -218,23 +179,12 @@ def hover_number_format(series):
     hover tooltips.
     """
 
-    clean = pd.to_numeric(
-        series,
-        errors="coerce"
-    ).dropna()
+    clean = pd.to_numeric(series, errors="coerce").dropna()
 
     if clean.empty:
         return ",.2f"
 
-    integer_like = (
-        (
-            clean
-            - clean.round()
-        )
-        .abs()
-        .max()
-        < 1e-9
-    )
+    integer_like = (clean - clean.round()).abs().max() < 1e-9
 
     if integer_like:
         return ",.0f"
@@ -242,84 +192,44 @@ def hover_number_format(series):
     return ",.2f"
 
 
-def hover_numeric_value(
-    column_name,
-    series,
-    variable
-):
+def hover_numeric_value(column_name, series, variable):
     """
     Construct a Plotly hover-template value
     for a numeric variable.
     """
 
-    number_format = hover_number_format(
-        series
-    )
+    number_format = hover_number_format(series)
 
-    prefix = (
-        "$"
-        if is_currency_column(
-            column_name
-        )
-        else ""
-    )
+    prefix = "$" if is_currency_column(column_name) else ""
 
-    return (
-        f"{prefix}"
-        f"%{{{variable}:{number_format}}}"
-    )
+    return f"{prefix}%{{{variable}:{number_format}}}"
 
 
-def apply_numeric_axis_format(
-    fig,
-    axis,
-    column_name,
-    series
-):
+def apply_numeric_axis_format(fig, axis, column_name, series):
     """
     Apply clean number formatting to one
     Plotly axis.
     """
 
-    tick_format = numeric_tick_format(
-        series
-    )
+    tick_format = numeric_tick_format(series)
 
-    prefix = (
-        "$"
-        if is_currency_column(
-            column_name
-        )
-        else ""
-    )
+    prefix = "$" if is_currency_column(column_name) else ""
 
-    settings = {
-        "tickformat": tick_format,
-        "tickprefix": prefix
-    }
+    settings = {"tickformat": tick_format, "tickprefix": prefix}
 
     if axis == "x":
-
-        fig.update_xaxes(
-            **settings
-        )
+        fig.update_xaxes(**settings)
 
     elif axis == "y":
-
-        fig.update_yaxes(
-            **settings
-        )
+        fig.update_yaxes(**settings)
 
 
 # ==================================================
 # SCATTERPLOT
 # ==================================================
 
-def calculate_linear_trend(
-    data,
-    x,
-    y
-):
+
+def calculate_linear_trend(data, x, y):
     """
     Calculate a simple OLS linear trendline
     and R-squared without requiring statsmodels.
@@ -328,10 +238,7 @@ def calculate_linear_trend(
     if len(data) < 3:
         return None
 
-    if (
-        data[x].nunique() <= 1
-        or data[y].nunique() <= 1
-    ):
+    if data[x].nunique() <= 1 or data[y].nunique() <= 1:
         return None
 
     x_values = data[x]
@@ -340,80 +247,35 @@ def calculate_linear_trend(
     x_mean = x_values.mean()
     y_mean = y_values.mean()
 
-    denominator = (
-        (
-            x_values - x_mean
-        ) ** 2
-    ).sum()
+    denominator = ((x_values - x_mean) ** 2).sum()
 
     if denominator == 0:
         return None
 
-    slope = (
-        (
-            (x_values - x_mean)
-            * (y_values - y_mean)
-        ).sum()
-        / denominator
-    )
+    slope = ((x_values - x_mean) * (y_values - y_mean)).sum() / denominator
 
-    intercept = (
-        y_mean
-        - slope * x_mean
-    )
+    intercept = y_mean - slope * x_mean
 
-    predictions = (
-        slope * x_values
-        + intercept
-    )
+    predictions = slope * x_values + intercept
 
-    total_variation = (
-        (
-            y_values - y_mean
-        ) ** 2
-    ).sum()
+    total_variation = ((y_values - y_mean) ** 2).sum()
 
-    residual_variation = (
-        (
-            y_values - predictions
-        ) ** 2
-    ).sum()
+    residual_variation = ((y_values - predictions) ** 2).sum()
 
     if total_variation == 0:
-
         r_squared = 0
 
     else:
+        r_squared = 1 - residual_variation / total_variation
 
-        r_squared = (
-            1
-            - residual_variation
-            / total_variation
-        )
+    line_x = [x_values.min(), x_values.max()]
 
-    line_x = [
-        x_values.min(),
-        x_values.max()
-    ]
+    line_y = [slope * line_x[0] + intercept, slope * line_x[1] + intercept]
 
-    line_y = [
-        slope * line_x[0]
-        + intercept,
-        slope * line_x[1]
-        + intercept
-    ]
-
-    return {
-        "x": line_x,
-        "y": line_y,
-        "r_squared": r_squared
-    }
+    return {"x": line_x, "y": line_y, "r_squared": r_squared}
 
 
-def prepare_scatter(
-    df,
-    candidate
-):
+def prepare_scatter(df, candidate):
     """
     Build a scatterplot with a linear trendline.
 
@@ -425,20 +287,11 @@ def prepare_scatter(
     x = candidate["x"]
     y = candidate["y"]
 
-    clean = (
-        df[[x, y]]
-        .copy()
-    )
+    clean = df[[x, y]].copy()
 
-    clean[x] = pd.to_numeric(
-        clean[x],
-        errors="coerce"
-    )
+    clean[x] = pd.to_numeric(clean[x], errors="coerce")
 
-    clean[y] = pd.to_numeric(
-        clean[y],
-        errors="coerce"
-    )
+    clean[y] = pd.to_numeric(clean[y], errors="coerce")
 
     clean = clean.dropna()
 
@@ -450,38 +303,24 @@ def prepare_scatter(
     max_display_points = 5000
 
     if len(clean) > max_display_points:
-
-        display_data = clean.sample(
-            n=max_display_points,
-            random_state=42
-        )
+        display_data = clean.sample(n=max_display_points, random_state=42)
 
         sampled = True
 
     else:
-
         display_data = clean
 
         sampled = False
 
-    opacity = (
-        0.45
-        if len(display_data) > 1000
-        else 0.72
-    )
+    opacity = 0.45 if len(display_data) > 1000 else 0.72
 
     fig = px.scatter(
         display_data,
         x=x,
         y=y,
-        title=visualization_title(
-            candidate
-        ),
-        labels={
-            x: humanize_column_name(x),
-            y: humanize_column_name(y)
-        },
-        render_mode="auto"
+        title=visualization_title(candidate),
+        labels={x: humanize_column_name(x), y: humanize_column_name(y)},
+        render_mode="auto",
     )
 
     # -----------------------------------
@@ -489,30 +328,13 @@ def prepare_scatter(
     # -----------------------------------
 
     fig.update_traces(
-        marker=dict(
-            color=NEON_GREEN,
-            size=7,
-            opacity=opacity,
-            line=dict(
-                width=0
-            )
-        ),
-        selector=dict(
-            mode="markers"
-        )
+        marker=dict(color=NEON_GREEN, size=7, opacity=opacity, line=dict(width=0)),
+        selector=dict(mode="markers"),
     )
 
-    x_hover = hover_numeric_value(
-        x,
-        clean[x],
-        "x"
-    )
+    x_hover = hover_numeric_value(x, clean[x], "x")
 
-    y_hover = hover_numeric_value(
-        y,
-        clean[y],
-        "y"
-    )
+    y_hover = hover_numeric_value(y, clean[y], "y")
 
     fig.update_traces(
         hovertemplate=(
@@ -523,39 +345,24 @@ def prepare_scatter(
             f"{y_hover}"
             "<extra></extra>"
         ),
-        selector=dict(
-            mode="markers"
-        )
+        selector=dict(mode="markers"),
     )
 
     # -----------------------------------
     # Linear trendline
     # -----------------------------------
 
-    trend = calculate_linear_trend(
-        clean,
-        x,
-        y
-    )
+    trend = calculate_linear_trend(clean, x, y)
 
     if trend is not None:
-
         fig.add_trace(
             go.Scatter(
                 x=trend["x"],
                 y=trend["y"],
                 mode="lines",
-                name=(
-                    "Linear trend "
-                    f"(R² = "
-                    f"{trend['r_squared']:.2f})"
-                ),
-                line=dict(
-                    color=NEON_GREEN_SOFT,
-                    width=2,
-                    dash="dash"
-                ),
-                hoverinfo="skip"
+                name=(f"Linear trend (R² = {trend['r_squared']:.2f})"),
+                line=dict(color=NEON_GREEN_SOFT, width=2, dash="dash"),
+                hoverinfo="skip",
             )
         )
 
@@ -563,22 +370,11 @@ def prepare_scatter(
     # Axis formatting
     # -----------------------------------
 
-    apply_numeric_axis_format(
-        fig,
-        "x",
-        x,
-        clean[x]
-    )
+    apply_numeric_axis_format(fig, "x", x, clean[x])
 
-    apply_numeric_axis_format(
-        fig,
-        "y",
-        y,
-        clean[y]
-    )
+    apply_numeric_axis_format(fig, "y", y, clean[y])
 
     if sampled:
-
         fig.add_annotation(
             x=1,
             y=1.08,
@@ -586,13 +382,8 @@ def prepare_scatter(
             yref="paper",
             xanchor="right",
             showarrow=False,
-            font=dict(
-                color=TEXT_MUTED
-            ),
-            text=(
-                f"Showing {max_display_points:,} "
-                f"of {len(clean):,} observations"
-            )
+            font=dict(color=TEXT_MUTED),
+            text=(f"Showing {max_display_points:,} of {len(clean):,} observations"),
         )
 
     return fig
@@ -602,11 +393,8 @@ def prepare_scatter(
 # LINE CHART
 # ==================================================
 
-def prepare_datetime_line_data(
-    clean,
-    x,
-    y
-):
+
+def prepare_datetime_line_data(clean, x, y):
     """
     Sort and optionally aggregate datetime data
     to make dense line charts easier to read.
@@ -616,18 +404,11 @@ def prepare_datetime_line_data(
         aggregation label
     """
 
-    clean = clean.sort_values(
-        x
-    )
+    clean = clean.sort_values(x)
 
-    unique_points = (
-        clean[x].nunique()
-    )
+    unique_points = clean[x].nunique()
 
-    date_span = (
-        clean[x].max()
-        - clean[x].min()
-    ).days
+    date_span = (clean[x].max() - clean[x].min()).days
 
     # -----------------------------------
     # Sparse time series:
@@ -635,70 +416,31 @@ def prepare_datetime_line_data(
     # -----------------------------------
 
     if unique_points <= 100:
+        result = clean.groupby(x, as_index=False)[y].mean().sort_values(x)
 
-        result = (
-            clean
-            .groupby(
-                x,
-                as_index=False
-            )[y]
-            .mean()
-            .sort_values(x)
-        )
-
-        return (
-            result,
-            None
-        )
+        return (result, None)
 
     # -----------------------------------
     # Long / dense time series:
     # monthly average.
     # -----------------------------------
 
-    if (
-        date_span > 365
-        or unique_points > 180
-    ):
+    if date_span > 365 or unique_points > 180:
+        result = clean.set_index(x)[y].resample("MS").mean().dropna().reset_index()
 
-        result = (
-            clean
-            .set_index(x)[y]
-            .resample("MS")
-            .mean()
-            .dropna()
-            .reset_index()
-        )
-
-        return (
-            result,
-            "Monthly average"
-        )
+        return (result, "Monthly average")
 
     # -----------------------------------
     # Medium-density time series:
     # weekly average.
     # -----------------------------------
 
-    result = (
-        clean
-        .set_index(x)[y]
-        .resample("W")
-        .mean()
-        .dropna()
-        .reset_index()
-    )
+    result = clean.set_index(x)[y].resample("W").mean().dropna().reset_index()
 
-    return (
-        result,
-        "Weekly average"
-    )
+    return (result, "Weekly average")
 
 
-def prepare_line(
-    df,
-    candidate
-):
+def prepare_line(df, candidate):
     """
     Build a temporal line chart.
 
@@ -709,47 +451,22 @@ def prepare_line(
     x = candidate["x"]
     y = candidate["y"]
 
-    clean = (
-        df[[x, y]]
-        .copy()
-    )
+    clean = df[[x, y]].copy()
 
-    clean[y] = pd.to_numeric(
-        clean[y],
-        errors="coerce"
-    )
+    clean[y] = pd.to_numeric(clean[y], errors="coerce")
 
     # -----------------------------------
     # Numeric temporal values such as year.
     # -----------------------------------
 
-    if (
-        pd.api.types.is_numeric_dtype(
-            clean[x]
-        )
-        and not pd.api.types.is_bool_dtype(
-            clean[x]
-        )
+    if pd.api.types.is_numeric_dtype(clean[x]) and not pd.api.types.is_bool_dtype(
+        clean[x]
     ):
+        clean[x] = pd.to_numeric(clean[x], errors="coerce")
 
-        clean[x] = pd.to_numeric(
-            clean[x],
-            errors="coerce"
-        )
+        clean = clean.dropna(subset=[x, y])
 
-        clean = clean.dropna(
-            subset=[x, y]
-        )
-
-        plot_data = (
-            clean
-            .groupby(
-                x,
-                as_index=False
-            )[y]
-            .mean()
-            .sort_values(x)
-        )
+        plot_data = clean.groupby(x, as_index=False)[y].mean().sort_values(x)
 
         aggregation_label = None
         datetime_axis = False
@@ -759,51 +476,26 @@ def prepare_line(
     # -----------------------------------
 
     else:
+        clean[x] = pd.to_datetime(clean[x], errors="coerce")
 
-        clean[x] = pd.to_datetime(
-            clean[x],
-            errors="coerce"
-        )
+        clean = clean.dropna(subset=[x, y])
 
-        clean = clean.dropna(
-            subset=[x, y]
-        )
-
-        (
-            plot_data,
-            aggregation_label
-        ) = prepare_datetime_line_data(
-            clean,
-            x,
-            y
-        )
+        (plot_data, aggregation_label) = prepare_datetime_line_data(clean, x, y)
 
         datetime_axis = True
 
-    title = visualization_title(
-        candidate
-    )
+    title = visualization_title(candidate)
 
     if aggregation_label:
-
-        title = (
-            f"{title}"
-            "<br>"
-            f"<sup>{aggregation_label}</sup>"
-        )
+        title = f"{title}<br><sup>{aggregation_label}</sup>"
 
     fig = px.line(
         plot_data,
         x=x,
         y=y,
         title=title,
-        labels={
-            x: humanize_column_name(x),
-            y: humanize_column_name(y)
-        },
-        markers=(
-            len(plot_data) <= 60
-        )
+        labels={x: humanize_column_name(x), y: humanize_column_name(y)},
+        markers=(len(plot_data) <= 60),
     )
 
     # -----------------------------------
@@ -811,34 +503,19 @@ def prepare_line(
     # -----------------------------------
 
     fig.update_traces(
-        line=dict(
-            color=NEON_GREEN,
-            width=3
-        ),
-        marker=dict(
-            color=NEON_GREEN,
-            size=6
-        )
+        line=dict(color=NEON_GREEN, width=3), marker=dict(color=NEON_GREEN, size=6)
     )
 
-    y_hover = hover_numeric_value(
-        y,
-        plot_data[y],
-        "y"
-    )
+    y_hover = hover_numeric_value(y, plot_data[y], "y")
 
     if datetime_axis:
-
         if aggregation_label == "Monthly average":
-
             x_hover = "%{x|%b %Y}"
 
         else:
-
             x_hover = "%{x|%b %d, %Y}"
 
     else:
-
         x_hover = "%{x}"
 
     fig.update_traces(
@@ -853,21 +530,11 @@ def prepare_line(
     )
 
     if datetime_axis:
+        fig.update_xaxes(type="date")
 
-        fig.update_xaxes(
-            type="date"
-        )
+    apply_numeric_axis_format(fig, "y", y, plot_data[y])
 
-    apply_numeric_axis_format(
-        fig,
-        "y",
-        y,
-        plot_data[y]
-    )
-
-    fig.update_layout(
-        hovermode="x unified"
-    )
+    fig.update_layout(hovermode="x unified")
 
     return fig
 
@@ -875,6 +542,7 @@ def prepare_line(
 # ==================================================
 # HISTOGRAM
 # ==================================================
+
 
 def histogram_bin_count(series):
     """
@@ -884,70 +552,34 @@ def histogram_bin_count(series):
     Falls back to square-root binning when needed.
     """
 
-    clean = pd.to_numeric(
-        series,
-        errors="coerce"
-    ).dropna()
+    clean = pd.to_numeric(series, errors="coerce").dropna()
 
     n = len(clean)
 
     if n < 2:
         return 10
 
-    q1 = clean.quantile(
-        0.25
-    )
+    q1 = clean.quantile(0.25)
 
-    q3 = clean.quantile(
-        0.75
-    )
+    q3 = clean.quantile(0.75)
 
     iqr = q3 - q1
 
-    data_range = (
-        clean.max()
-        - clean.min()
-    )
+    data_range = clean.max() - clean.min()
 
-    if (
-        iqr > 0
-        and data_range > 0
-    ):
-
-        bin_width = (
-            2
-            * iqr
-            * (
-                n ** (-1 / 3)
-            )
-        )
+    if iqr > 0 and data_range > 0:
+        bin_width = 2 * iqr * (n ** (-1 / 3))
 
         if bin_width > 0:
-
-            bins = math.ceil(
-                data_range
-                / bin_width
-            )
+            bins = math.ceil(data_range / bin_width)
 
         else:
-
-            bins = int(
-                math.sqrt(n)
-            )
+            bins = int(math.sqrt(n))
 
     else:
+        bins = int(math.sqrt(n))
 
-        bins = int(
-            math.sqrt(n)
-        )
-
-    return max(
-        10,
-        min(
-            bins,
-            60
-        )
-    )
+    return max(10, min(bins, 60))
 
 
 def prepare_histogram_display_data(series):
@@ -966,10 +598,7 @@ def prepare_histogram_display_data(series):
     central 98% of observations.
     """
 
-    clean = pd.to_numeric(
-        series,
-        errors="coerce"
-    ).dropna()
+    clean = pd.to_numeric(series, errors="coerce").dropna()
 
     info = {
         "trimmed": False,
@@ -979,225 +608,100 @@ def prepare_histogram_display_data(series):
         "upper_bound": None,
         "excluded_below": 0,
         "excluded_above": 0,
-        "excluded_total": 0
+        "excluded_total": 0,
     }
 
-    if (
-        len(clean)
-        < HISTOGRAM_MIN_TRIM_SAMPLE
-        or clean.nunique() < 3
-    ):
-        return (
-            clean,
-            info
-        )
+    if len(clean) < HISTOGRAM_MIN_TRIM_SAMPLE or clean.nunique() < 3:
+        return (clean, info)
 
-    lower_quantile = (
-        HISTOGRAM_TRIM_QUANTILE
-    )
+    lower_quantile = HISTOGRAM_TRIM_QUANTILE
 
-    upper_quantile = (
-        1
-        - HISTOGRAM_TRIM_QUANTILE
-    )
+    upper_quantile = 1 - HISTOGRAM_TRIM_QUANTILE
 
-    lower_bound = clean.quantile(
-        lower_quantile
-    )
+    lower_bound = clean.quantile(lower_quantile)
 
-    upper_bound = clean.quantile(
-        upper_quantile
-    )
+    upper_bound = clean.quantile(upper_quantile)
 
-    central_span = (
-        upper_bound
-        - lower_bound
-    )
+    central_span = upper_bound - lower_bound
 
-    if (
-        not math.isfinite(
-            float(central_span)
-        )
-        or central_span <= 0
-    ):
-        return (
-            clean,
-            info
-        )
+    if not math.isfinite(float(central_span)) or central_span <= 0:
+        return (clean, info)
 
     minimum = clean.min()
     maximum = clean.max()
 
-    lower_tail_distance = (
-        lower_bound
-        - minimum
+    lower_tail_distance = lower_bound - minimum
+
+    upper_tail_distance = maximum - upper_bound
+
+    trim_lower = lower_tail_distance > (
+        HISTOGRAM_EXTREME_TAIL_MULTIPLIER * central_span
     )
 
-    upper_tail_distance = (
-        maximum
-        - upper_bound
+    trim_upper = upper_tail_distance > (
+        HISTOGRAM_EXTREME_TAIL_MULTIPLIER * central_span
     )
 
-    trim_lower = (
-        lower_tail_distance
-        > (
-            HISTOGRAM_EXTREME_TAIL_MULTIPLIER
-            * central_span
-        )
-    )
+    if not (trim_lower or trim_upper):
+        return (clean, info)
 
-    trim_upper = (
-        upper_tail_distance
-        > (
-            HISTOGRAM_EXTREME_TAIL_MULTIPLIER
-            * central_span
-        )
-    )
-
-    if not (
-        trim_lower
-        or trim_upper
-    ):
-        return (
-            clean,
-            info
-        )
-
-    mask = pd.Series(
-        True,
-        index=clean.index
-    )
+    mask = pd.Series(True, index=clean.index)
 
     if trim_lower:
-
-        mask &= (
-            clean
-            >= lower_bound
-        )
+        mask &= clean >= lower_bound
 
     if trim_upper:
+        mask &= clean <= upper_bound
 
-        mask &= (
-            clean
-            <= upper_bound
-        )
-
-    display_data = (
-        clean[
-            mask
-        ]
-    )
+    display_data = clean[mask]
 
     # -----------------------------------
     # Safety fallback:
     # never trim into an unusable plot.
     # -----------------------------------
 
-    if (
-        len(display_data) < 10
-        or display_data.nunique() < 2
-    ):
+    if len(display_data) < 10 or display_data.nunique() < 2:
+        return (clean, info)
 
-        return (
-            clean,
-            info
-        )
+    excluded_below = int((clean < lower_bound).sum()) if trim_lower else 0
 
-    excluded_below = (
-        int(
-            (
-                clean
-                < lower_bound
-            ).sum()
-        )
-        if trim_lower
-        else 0
-    )
-
-    excluded_above = (
-        int(
-            (
-                clean
-                > upper_bound
-            ).sum()
-        )
-        if trim_upper
-        else 0
-    )
+    excluded_above = int((clean > upper_bound).sum()) if trim_upper else 0
 
     info = {
         "trimmed": True,
         "trim_lower": trim_lower,
         "trim_upper": trim_upper,
-        "lower_bound": (
-            float(lower_bound)
-            if trim_lower
-            else None
-        ),
-        "upper_bound": (
-            float(upper_bound)
-            if trim_upper
-            else None
-        ),
+        "lower_bound": (float(lower_bound) if trim_lower else None),
+        "upper_bound": (float(upper_bound) if trim_upper else None),
         "excluded_below": excluded_below,
         "excluded_above": excluded_above,
-        "excluded_total": (
-            excluded_below
-            + excluded_above
-        )
+        "excluded_total": (excluded_below + excluded_above),
     }
 
-    return (
-        display_data,
-        info
-    )
+    return (display_data, info)
 
 
-def format_histogram_bound(
-    column_name,
-    value
-):
+def format_histogram_bound(column_name, value):
     """
     Format a histogram display boundary for
     a user-facing annotation.
     """
 
-    prefix = (
-        "$"
-        if is_currency_column(
-            column_name
-        )
-        else ""
-    )
+    prefix = "$" if is_currency_column(column_name) else ""
 
     if abs(value) >= 100:
-
-        formatted = (
-            f"{value:,.0f}"
-        )
+        formatted = f"{value:,.0f}"
 
     elif abs(value) >= 10:
-
-        formatted = (
-            f"{value:,.1f}"
-        )
+        formatted = f"{value:,.1f}"
 
     else:
+        formatted = f"{value:,.2f}"
 
-        formatted = (
-            f"{value:,.2f}"
-        )
-
-    return (
-        f"{prefix}"
-        f"{formatted}"
-    )
+    return f"{prefix}{formatted}"
 
 
-def histogram_display_note(
-    column_name,
-    info
-):
+def histogram_display_note(column_name, info):
     """
     Generate a transparent explanation when
     extreme observations are omitted only from
@@ -1207,31 +711,16 @@ def histogram_display_note(
     if not info["trimmed"]:
         return None
 
-    excluded = (
-        info["excluded_total"]
-    )
+    excluded = info["excluded_total"]
 
-    observation_word = (
-        "observation"
-        if excluded == 1
-        else "observations"
-    )
+    observation_word = "observation" if excluded == 1 else "observations"
 
     # -----------------------------------
     # Upper tail only
     # -----------------------------------
 
-    if (
-        info["trim_upper"]
-        and not info["trim_lower"]
-    ):
-
-        upper = (
-            format_histogram_bound(
-                column_name,
-                info["upper_bound"]
-            )
-        )
+    if info["trim_upper"] and not info["trim_lower"]:
+        upper = format_histogram_bound(column_name, info["upper_bound"])
 
         return (
             "Display limited to the "
@@ -1245,17 +734,8 @@ def histogram_display_note(
     # Lower tail only
     # -----------------------------------
 
-    if (
-        info["trim_lower"]
-        and not info["trim_upper"]
-    ):
-
-        lower = (
-            format_histogram_bound(
-                column_name,
-                info["lower_bound"]
-            )
-        )
+    if info["trim_lower"] and not info["trim_upper"]:
+        lower = format_histogram_bound(column_name, info["lower_bound"])
 
         return (
             "Display limited from the "
@@ -1269,19 +749,9 @@ def histogram_display_note(
     # Both tails
     # -----------------------------------
 
-    lower = (
-        format_histogram_bound(
-            column_name,
-            info["lower_bound"]
-        )
-    )
+    lower = format_histogram_bound(column_name, info["lower_bound"])
 
-    upper = (
-        format_histogram_bound(
-            column_name,
-            info["upper_bound"]
-        )
-    )
+    upper = format_histogram_bound(column_name, info["upper_bound"])
 
     return (
         "Display limited to the central "
@@ -1292,10 +762,7 @@ def histogram_display_note(
     )
 
 
-def prepare_histogram(
-    df,
-    candidate
-):
+def prepare_histogram(df, candidate):
     """
     Build a histogram with automatic
     distribution-aware binning.
@@ -1310,37 +777,20 @@ def prepare_histogram(
 
     x = candidate["x"]
 
-    full_data = pd.to_numeric(
-        df[x],
-        errors="coerce"
-    ).dropna()
+    full_data = pd.to_numeric(df[x], errors="coerce").dropna()
 
-    (
-        display_data,
-        display_info
-    ) = prepare_histogram_display_data(
-        full_data
-    )
+    (display_data, display_info) = prepare_histogram_display_data(full_data)
 
-    nbins = histogram_bin_count(
-        display_data
-    )
+    nbins = histogram_bin_count(display_data)
 
-    plot_data = pd.DataFrame({
-        x: display_data
-    })
+    plot_data = pd.DataFrame({x: display_data})
 
     fig = px.histogram(
         plot_data,
         x=x,
         nbins=nbins,
-        title=visualization_title(
-            candidate
-        ),
-        labels={
-            x: humanize_column_name(x),
-            "count": "Count"
-        }
+        title=visualization_title(candidate),
+        labels={x: humanize_column_name(x), "count": "Count"},
     )
 
     # -----------------------------------
@@ -1348,21 +798,10 @@ def prepare_histogram(
     # -----------------------------------
 
     fig.update_traces(
-        marker=dict(
-            color=NEON_GREEN,
-            line=dict(
-                color=BG_BLACK,
-                width=1
-            )
-        ),
-        opacity=0.82
+        marker=dict(color=NEON_GREEN, line=dict(color=BG_BLACK, width=1)), opacity=0.82
     )
 
-    x_hover = hover_numeric_value(
-        x,
-        display_data,
-        "x"
-    )
+    x_hover = hover_numeric_value(x, display_data, "x")
 
     fig.update_traces(
         hovertemplate=(
@@ -1374,29 +813,17 @@ def prepare_histogram(
         )
     )
 
-    apply_numeric_axis_format(
-        fig,
-        "x",
-        x,
-        display_data
-    )
+    apply_numeric_axis_format(fig, "x", x, display_data)
 
-    fig.update_yaxes(
-        tickformat=",d",
-        title="Count"
-    )
+    fig.update_yaxes(tickformat=",d", title="Count")
 
     # -----------------------------------
     # Explain display-only trimming
     # -----------------------------------
 
-    note = histogram_display_note(
-        x,
-        display_info
-    )
+    note = histogram_display_note(x, display_info)
 
     if note:
-
         fig.add_annotation(
             x=0,
             y=1.08,
@@ -1407,22 +834,12 @@ def prepare_histogram(
             showarrow=False,
             align="left",
             text=note,
-            font=dict(
-                color=TEXT_MUTED,
-                size=11
-            )
+            font=dict(color=TEXT_MUTED, size=11),
         )
 
     # Store whether additional top spacing
     # is needed by render_candidate().
-    fig.update_layout(
-        meta={
-            "histogram_trimmed":
-                display_info[
-                    "trimmed"
-                ]
-        }
-    )
+    fig.update_layout(meta={"histogram_trimmed": display_info["trimmed"]})
 
     return fig
 
@@ -1431,11 +848,8 @@ def prepare_histogram(
 # BOX PLOT
 # ==================================================
 
-def box_category_order(
-    clean,
-    x,
-    y
-):
+
+def box_category_order(clean, x, y):
     """
     Determine a sensible category order.
 
@@ -1443,46 +857,18 @@ def box_category_order(
     order. Text categories are ordered by median.
     """
 
-    if pd.api.types.is_bool_dtype(
-        clean[x]
-    ):
+    if pd.api.types.is_bool_dtype(clean[x]):
+        return sorted(clean[x].dropna().unique())
 
-        return sorted(
-            clean[x]
-            .dropna()
-            .unique()
-        )
+    if pd.api.types.is_numeric_dtype(clean[x]):
+        return sorted(clean[x].dropna().unique())
 
-    if pd.api.types.is_numeric_dtype(
-        clean[x]
-    ):
+    medians = clean.groupby(x)[y].median().sort_values(ascending=False)
 
-        return sorted(
-            clean[x]
-            .dropna()
-            .unique()
-        )
-
-    medians = (
-        clean
-        .groupby(
-            x
-        )[y]
-        .median()
-        .sort_values(
-            ascending=False
-        )
-    )
-
-    return list(
-        medians.index
-    )
+    return list(medians.index)
 
 
-def prepare_box(
-    df,
-    candidate
-):
+def prepare_box(df, candidate):
     """
     Build a grouped box plot with sensible
     category ordering.
@@ -1491,46 +877,22 @@ def prepare_box(
     x = candidate["x"]
     y = candidate["y"]
 
-    clean = (
-        df[[x, y]]
-        .copy()
-    )
+    clean = df[[x, y]].copy()
 
-    clean[y] = pd.to_numeric(
-        clean[y],
-        errors="coerce"
-    )
+    clean[y] = pd.to_numeric(clean[y], errors="coerce")
 
-    clean = clean.dropna(
-        subset=[
-            x,
-            y
-        ]
-    )
+    clean = clean.dropna(subset=[x, y])
 
-    category_order = (
-        box_category_order(
-            clean,
-            x,
-            y
-        )
-    )
+    category_order = box_category_order(clean, x, y)
 
     fig = px.box(
         clean,
         x=x,
         y=y,
         points="outliers",
-        title=visualization_title(
-            candidate
-        ),
-        labels={
-            x: humanize_column_name(x),
-            y: humanize_column_name(y)
-        },
-        category_orders={
-            x: category_order
-        }
+        title=visualization_title(candidate),
+        labels={x: humanize_column_name(x), y: humanize_column_name(y)},
+        category_orders={x: category_order},
     )
 
     # -----------------------------------
@@ -1538,24 +900,12 @@ def prepare_box(
     # -----------------------------------
 
     fig.update_traces(
-        marker=dict(
-            color=NEON_GREEN
-        ),
-        line=dict(
-            color=NEON_GREEN,
-            width=2
-        ),
-        fillcolor=(
-            "rgba(57,255,20,0.28)"
-        )
+        marker=dict(color=NEON_GREEN),
+        line=dict(color=NEON_GREEN, width=2),
+        fillcolor=("rgba(57,255,20,0.28)"),
     )
 
-    apply_numeric_axis_format(
-        fig,
-        "y",
-        y,
-        clean[y]
-    )
+    apply_numeric_axis_format(fig, "y", y, clean[y])
 
     return fig
 
@@ -1564,10 +914,8 @@ def prepare_box(
 # BAR CHART
 # ==================================================
 
-def prepare_bar(
-    df,
-    candidate
-):
+
+def prepare_bar(df, candidate):
     """
     Build either:
 
@@ -1577,59 +925,29 @@ def prepare_bar(
 
     x = candidate["x"]
 
-    aggregation = candidate.get(
-        "aggregation",
-        "count"
-    )
+    aggregation = candidate.get("aggregation", "count")
 
     # -----------------------------------
     # Count bar chart
     # -----------------------------------
 
     if aggregation == "count":
-
-        counts = (
-            df[x]
-            .dropna()
-            .value_counts()
-            .rename_axis(x)
-            .reset_index(
-                name="count"
-            )
-        )
+        counts = df[x].dropna().value_counts().rename_axis(x).reset_index(name="count")
 
         # Numeric/ordinal categories should
         # preserve natural ordering.
-        if pd.api.types.is_numeric_dtype(
-            counts[x]
-        ):
-
-            counts = (
-                counts.sort_values(
-                    x
-                )
-            )
+        if pd.api.types.is_numeric_dtype(counts[x]):
+            counts = counts.sort_values(x)
 
         else:
-
-            counts = (
-                counts.sort_values(
-                    "count",
-                    ascending=False
-                )
-            )
+            counts = counts.sort_values("count", ascending=False)
 
         fig = px.bar(
             counts,
             x=x,
             y="count",
-            title=visualization_title(
-                candidate
-            ),
-            labels={
-                x: humanize_column_name(x),
-                "count": "Count"
-            }
+            title=visualization_title(candidate),
+            labels={x: humanize_column_name(x), "count": "Count"},
         )
 
         # -----------------------------------
@@ -1637,14 +955,8 @@ def prepare_bar(
         # -----------------------------------
 
         fig.update_traces(
-            marker=dict(
-                color=NEON_GREEN,
-                line=dict(
-                    color=NEON_GREEN_SOFT,
-                    width=1
-                )
-            ),
-            opacity=0.85
+            marker=dict(color=NEON_GREEN, line=dict(color=NEON_GREEN_SOFT, width=1)),
+            opacity=0.85,
         )
 
         fig.update_traces(
@@ -1657,9 +969,7 @@ def prepare_bar(
             )
         )
 
-        fig.update_yaxes(
-            tickformat=",d"
-        )
+        fig.update_yaxes(tickformat=",d")
 
         return fig
 
@@ -1669,68 +979,28 @@ def prepare_bar(
 
     y = candidate["y"]
 
-    clean = (
-        df[[x, y]]
-        .copy()
-    )
+    clean = df[[x, y]].copy()
 
-    clean[y] = coerce_numeric_or_boolean(
-        clean[y]
-    )
+    clean[y] = coerce_numeric_or_boolean(clean[y])
 
-    clean = clean.dropna(
-        subset=[
-            x,
-            y
-        ]
-    )
+    clean = clean.dropna(subset=[x, y])
 
-    grouped = (
-        clean
-        .groupby(
-            x,
-            as_index=False
-        )[y]
-        .mean()
-    )
+    grouped = clean.groupby(x, as_index=False)[y].mean()
 
     # Numeric categories such as ordinal
     # ratings should remain naturally ordered.
-    if pd.api.types.is_numeric_dtype(
-        grouped[x]
-    ):
-
-        grouped = (
-            grouped.sort_values(
-                x
-            )
-        )
+    if pd.api.types.is_numeric_dtype(grouped[x]):
+        grouped = grouped.sort_values(x)
 
     else:
-
-        grouped = (
-            grouped.sort_values(
-                y,
-                ascending=False
-            )
-        )
+        grouped = grouped.sort_values(y, ascending=False)
 
     fig = px.bar(
         grouped,
         x=x,
         y=y,
-        title=visualization_title(
-            candidate
-        ),
-        labels={
-            x: humanize_column_name(
-                x
-            ),
-            y: (
-                f"Average "
-                f"{humanize_column_name(y)}"
-            )
-        }
+        title=visualization_title(candidate),
+        labels={x: humanize_column_name(x), y: (f"Average {humanize_column_name(y)}")},
     )
 
     # -----------------------------------
@@ -1738,21 +1008,11 @@ def prepare_bar(
     # -----------------------------------
 
     fig.update_traces(
-        marker=dict(
-            color=NEON_GREEN,
-            line=dict(
-                color=NEON_GREEN_SOFT,
-                width=1
-            )
-        ),
-        opacity=0.85
+        marker=dict(color=NEON_GREEN, line=dict(color=NEON_GREEN_SOFT, width=1)),
+        opacity=0.85,
     )
 
-    y_hover = hover_numeric_value(
-        y,
-        grouped[y],
-        "y"
-    )
+    y_hover = hover_numeric_value(y, grouped[y], "y")
 
     fig.update_traces(
         hovertemplate=(
@@ -1765,12 +1025,7 @@ def prepare_bar(
         )
     )
 
-    apply_numeric_axis_format(
-        fig,
-        "y",
-        y,
-        grouped[y]
-    )
+    apply_numeric_axis_format(fig, "y", y, grouped[y])
 
     return fig
 
@@ -1779,60 +1034,32 @@ def prepare_bar(
 # COMMON RENDERER
 # ==================================================
 
-def render_candidate(
-    df,
-    candidate
-):
+
+def render_candidate(df, candidate):
     """
     Convert a recommendation into a
     polished Plotly visualization.
     """
 
-    chart = (
-        candidate["chart"]
-    )
+    chart = candidate["chart"]
 
     if chart == "scatter":
-
-        fig = prepare_scatter(
-            df,
-            candidate
-        )
+        fig = prepare_scatter(df, candidate)
 
     elif chart == "line":
-
-        fig = prepare_line(
-            df,
-            candidate
-        )
+        fig = prepare_line(df, candidate)
 
     elif chart == "histogram":
-
-        fig = prepare_histogram(
-            df,
-            candidate
-        )
+        fig = prepare_histogram(df, candidate)
 
     elif chart == "box":
-
-        fig = prepare_box(
-            df,
-            candidate
-        )
+        fig = prepare_box(df, candidate)
 
     elif chart == "bar":
-
-        fig = prepare_bar(
-            df,
-            candidate
-        )
+        fig = prepare_bar(df, candidate)
 
     else:
-
-        raise ValueError(
-            f"Unsupported chart type: "
-            f"{chart}"
-        )
+        raise ValueError(f"Unsupported chart type: {chart}")
 
     # -----------------------------------
     # Histograms with a trimming note
@@ -1842,63 +1069,37 @@ def render_candidate(
 
     histogram_trimmed = False
 
-    if isinstance(
-        fig.layout.meta,
-        dict
-    ):
+    if isinstance(fig.layout.meta, dict):
+        histogram_trimmed = fig.layout.meta.get("histogram_trimmed", False)
 
-        histogram_trimmed = (
-            fig.layout.meta.get(
-                "histogram_trimmed",
-                False
-            )
-        )
-
-    top_margin = (
-        105
-        if histogram_trimmed
-        else 75
-    )
+    top_margin = 105 if histogram_trimmed else 75
 
     # -----------------------------------
     # Shared dimensions / spacing
     # -----------------------------------
 
     fig.update_layout(
-        margin={
-            "l": 25,
-            "r": 25,
-            "t": top_margin,
-            "b": 25
-        },
+        margin={"l": 25, "r": 25, "t": top_margin, "b": 25},
         legend={
             "orientation": "h",
             "yanchor": "bottom",
             "y": 1.02,
             "xanchor": "right",
-            "x": 1
-        }
+            "x": 1,
+        },
     )
 
     # -----------------------------------
     # Apply dark neon theme
     # -----------------------------------
 
-    fig = apply_plot_theme(
-        fig
-    )
+    fig = apply_plot_theme(fig)
 
     # Keep grids subtle rather than
     # overwhelming the neon data.
 
-    fig.update_xaxes(
-        showgrid=False
-    )
+    fig.update_xaxes(showgrid=False)
 
-    fig.update_yaxes(
-        showgrid=True,
-        gridcolor=GRID_COLOR,
-        zeroline=False
-    )
+    fig.update_yaxes(showgrid=True, gridcolor=GRID_COLOR, zeroline=False)
 
     return fig
