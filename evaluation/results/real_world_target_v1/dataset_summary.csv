@@ -1,0 +1,5 @@
+dataset,domain,rows,columns,candidate_count,recommendation_count,expected_insights,found_anywhere,coverage_anywhere,mean_reciprocal_expected_rank,median_found_rank,semantic_expectations,semantic_matches,semantic_accuracy,elapsed_seconds,recall_at_3,recall_at_5,recall_at_10,target
+palmer_penguins,ecology,344,8,41,29,4,4,1.0,0.4875,3.0,8,8,1.0,0.607754875003593,0.5,1.0,1.0,species
+uci_bike_sharing_day,transportation,731,13,86,61,5,5,1.0,0.3788888888888889,4.0,11,11,1.0,1.0045907919993624,0.4,0.8,1.0,cnt
+titanic3,passenger survival,1309,8,49,33,5,5,1.0,0.34023809523809523,7.0,8,8,1.0,0.5819404579960974,0.4,0.4,1.0,survived
+uci_bank_marketing,marketing,45211,16,152,102,6,6,1.0,0.3861832611832612,3.5,16,16,1.0,2.4060628749866737,0.5,0.6666666666666666,0.8333333333333334,y

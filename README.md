@@ -51,6 +51,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Global 0–100 recommendation scores** calibrated across visualization types
 - **Pattern-aware explanations** describing why a chart was recommended
 - **Alternative-view detection** to avoid ranking redundant charts separately
+- **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 45% to 95% with pre-registered targets
 - **Missing-data and sample-size reliability adjustments**
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts
 
@@ -300,6 +301,7 @@ Visift/
 │   ├── semantic_types.py
 │   ├── value_normalization.py
 │   ├── candidate_generator.py
+│   ├── target.py               # target suggestion and drivers-first ranking
 │   ├── scoring/
 │   │   ├── engine.py
 │   │   ├── bar.py
