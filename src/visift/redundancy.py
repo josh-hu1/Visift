@@ -24,6 +24,10 @@ benchmark rankings; chosen on principle, not to catch particular columns):
   synthetic suites (r ~ 0.9, Spearman ~ 0.89) stay well below it.
 - Near-duplicate categorical: bias-corrected Cramer's V >= 0.95 (Bergsma
   2013 correction, so small tables with many levels are not inflated).
+  Because V also reaches 1 for a coarsening (quarter from month), a pair is
+  labeled a near-duplicate only if each column also determines the other
+  under the conditional-entropy threshold below; a one-way coarsening is
+  reported as near-deterministic instead.
 - Near-deterministic categorical -> categorical: normalized conditional
   entropy H(Y|X) / H(Y) <= 0.05, i.e. knowing X leaves at most 5% of Y's
   uncertainty.
@@ -211,6 +215,12 @@ def find_redundancies(df: pd.DataFrame, profile: DatasetProfile) -> list[Redunda
             flagged_pairs.add(frozenset((a, b)))
 
     # Near-duplicate categorical columns
+    #
+    # Cramer's V reaches 1 whenever the coarser column is a function of the
+    # finer one (quarter from month), so V alone cannot tell a twin from a
+    # coarsening. A pair with V >= threshold is a near-duplicate only if each
+    # column determines the other (same conditional-entropy threshold as
+    # below); otherwise it is left to the one-way determinism check.
     for a, b in itertools.combinations(categorical, 2):
         pair = df[[a, b]].dropna()
 
@@ -219,7 +229,13 @@ def find_redundancies(df: pd.DataFrame, profile: DatasetProfile) -> list[Redunda
 
         v = bias_corrected_cramers_v(pair[a], pair[b])
 
-        if v >= CRAMERS_V_NEAR_DUPLICATE:
+        mutual = (
+            normalized_conditional_entropy(pair[a], pair[b]) <= CONDITIONAL_ENTROPY_MAX
+            and normalized_conditional_entropy(pair[b], pair[a])
+            <= CONDITIONAL_ENTROPY_MAX
+        )
+
+        if v >= CRAMERS_V_NEAR_DUPLICATE and mutual:
             found.append(
                 {
                     "kind": "near_duplicate_categorical",
