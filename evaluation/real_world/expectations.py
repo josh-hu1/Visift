@@ -62,6 +62,11 @@ class RealWorldDataset:
     expected_insights: tuple[ExpectedInsight, ...]
     expected_semantics: tuple[ExpectedSemanticType, ...]
     preprocessing_notes: str = ""
+    # Pre-registered outcome column for target-aware evaluation. Chosen from
+    # each dataset's own documentation before target-aware ranking existed,
+    # never from Visift's output.
+    target: str | None = None
+    target_source: str = ""
 
 
 # ==================================================
@@ -77,6 +82,10 @@ DATASET_DIR = Path(__file__).resolve().parent / "datasets"
 
 PENGUINS = RealWorldDataset(
     name="palmer_penguins",
+    target="species",
+    target_source=(
+        "palmerpenguins documents species as the classification label for the morphometric measurements."
+    ),
     filename="penguins.csv",
     domain="ecology",
     source=("https://github.com/allisonhorst/palmerpenguins"),
@@ -179,6 +188,8 @@ PENGUINS = RealWorldDataset(
 
 BIKE_SHARING = RealWorldDataset(
     name="uci_bike_sharing_day",
+    target="cnt",
+    target_source=("UCI defines cnt (total rentals) as the regression target."),
     filename="bike_sharing_day.csv",
     domain="transportation",
     source=("https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset"),
@@ -324,6 +335,8 @@ BIKE_SHARING = RealWorldDataset(
 
 TITANIC = RealWorldDataset(
     name="titanic3",
+    target="survived",
+    target_source=("The Titanic passenger data's standard outcome is survival."),
     filename="titanic3_benchmark.csv",
     domain="passenger survival",
     source="https://hbiostat.org/data/",
@@ -471,6 +484,8 @@ TITANIC = RealWorldDataset(
 
 BANK_MARKETING = RealWorldDataset(
     name="uci_bank_marketing",
+    target="y",
+    target_source=("UCI defines y (term-deposit subscription) as the target variable."),
     filename="bank_marketing_full.csv",
     domain="marketing",
     source=("https://archive.ics.uci.edu/dataset/222/bank+marketing"),
