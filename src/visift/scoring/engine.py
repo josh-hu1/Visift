@@ -1,7 +1,9 @@
-from collections.abc import Mapping
+import os
+from collections.abc import Callable, Mapping
 from typing import Any, cast
 
 import pandas as pd
+from joblib import Parallel, cpu_count, delayed
 
 from visift.scoring.bar import score_bar_chart
 from visift.scoring.box import score_box_chart
@@ -45,21 +47,94 @@ def score_candidate(
     return {**candidate, **result}
 
 
+# Below this many candidates, process start-up (several seconds when the
+# worker pool is cold) costs more than it saves.
+PARALLEL_MIN_CANDIDATES = 1000
+
+MAX_DEFAULT_JOBS = 4
+
+
+def default_n_jobs(candidate_count: int) -> int:
+    """
+    Worker processes for scoring: 1 for small jobs, otherwise one per
+    available CPU (capped). VISIFT_N_JOBS overrides it, e.g. VISIFT_N_JOBS=1
+    to disable. Streamlit Community Cloud reportedly allows up to ~2 cores,
+    so parallelism there is worth at most ~2x.
+    """
+
+    override = os.environ.get("VISIFT_N_JOBS")
+
+    if override:
+        return max(1, int(override))
+
+    # joblib's cpu_count respects container CPU quotas (cgroups), unlike
+    # os.cpu_count(), which can report the host's cores on a hosted app.
+    cpus = cpu_count()
+
+    if candidate_count < PARALLEL_MIN_CANDIDATES or cpus < 2:
+        return 1
+
+    return min(cpus, MAX_DEFAULT_JOBS)
+
+
+def _score_chunk(
+    df: pd.DataFrame, chunk: list[Candidate], profile: DatasetProfile
+) -> list[ScoredCandidate | None]:
+    return [score_candidate(df, candidate, profile) for candidate in chunk]
+
+
 def score_all_candidates(
-    df: pd.DataFrame, candidates: list[Candidate], profile: DatasetProfile
+    df: pd.DataFrame,
+    candidates: list[Candidate],
+    profile: DatasetProfile,
+    n_jobs: int | None = 1,
+    progress: Callable[[int, int], None] | None = None,
 ) -> list[ScoredCandidate]:
     """
     Score every supported visualization candidate
     and return one globally ranked list.
+
+    n_jobs > 1 scores contiguous chunks of candidates in worker processes.
+    Every scorer is deterministic (fixed seeds per call) and chunk results
+    are reassembled in the original order, so the output is identical to
+    n_jobs=1. n_jobs=None picks default_n_jobs().
+
+    progress(done, total), if given, is called as candidates finish.
     """
 
-    scored = []
+    if n_jobs is None:
+        n_jobs = default_n_jobs(len(candidates))
 
-    for candidate in candidates:
-        result = score_candidate(df, candidate, profile)
+    total = len(candidates)
+    report_every = max(1, total // 50)
 
-        if result is not None:
-            scored.append(result)
+    if n_jobs <= 1 or total < 2:
+        results = []
+
+        for done, candidate in enumerate(candidates, start=1):
+            results.append(score_candidate(df, candidate, profile))
+
+            if progress is not None and (done % report_every == 0 or done == total):
+                progress(done, total)
+
+    else:
+        # A few chunks per worker balances load; each chunk ships df once.
+        chunk_count = min(len(candidates), n_jobs * 4)
+        size = -(-len(candidates) // chunk_count)
+        chunks = [candidates[i : i + size] for i in range(0, len(candidates), size)]
+
+        results = []
+
+        # return_as="generator" yields chunk results in submission order.
+        for chunk_results in Parallel(
+            n_jobs=n_jobs, backend="loky", return_as="generator"
+        )(delayed(_score_chunk)(df, chunk, profile) for chunk in chunks):
+            results.extend(chunk_results)
+
+            if progress is not None:
+                progress(len(results), total)
+
+    scored = [result for result in results if result is not None]
 
     scored.sort(key=lambda item: item["score"], reverse=True)
 

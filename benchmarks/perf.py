@@ -100,20 +100,25 @@ def stage_timings(df: pd.DataFrame) -> dict[str, float]:
     return dict(timings)
 
 
-def time_case(df: pd.DataFrame, repeats: int = 1) -> dict[str, float]:
+def time_case(df: pd.DataFrame, repeats: int = 1, n_jobs: int = 1) -> float:
     timings = []
 
     for _ in range(repeats):
         start = time.perf_counter()
-        analyze(df)
+        analyze(df, n_jobs=n_jobs)
         timings.append(time.perf_counter() - start)
 
-    return {"seconds": min(timings)}
+    return min(timings)
 
 
-def report(name: str, df: pd.DataFrame, repeats: int, stages: bool) -> None:
-    total = time_case(df, repeats)["seconds"]
+def report(
+    name: str, df: pd.DataFrame, repeats: int, stages: bool, jobs: int | None
+) -> None:
+    total = time_case(df, repeats)
     line = f"{name:<24} {df.shape[1]:>4} {len(df):>7} {total:>8.2f}s"
+
+    if jobs:
+        line += f" {time_case(df, repeats, n_jobs=jobs):>8.2f}s"
 
     if stages:
         st = stage_timings(df)
@@ -138,6 +143,11 @@ def main() -> None:
     parser.add_argument(
         "--real-world", action="store_true", help="also time downloaded datasets"
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        help="also time with this many worker processes (pool warmed first)",
+    )
     args = parser.parse_args()
 
     cases = (
@@ -154,15 +164,31 @@ def main() -> None:
         pstats.Stats(profiler).sort_stats("cumulative").print_stats(35)
         return
 
-    print(f"{'dataset':<24} {'cols':>4} {'rows':>7} {'total':>9}")
+    if args.jobs:
+        # Pay the worker start-up once, outside the timings.
+        analyze(wide_dataset(26, 2_000), n_jobs=args.jobs)
+
+    header = f"{'dataset':<24} {'cols':>4} {'rows':>7} {'serial':>9}"
+    if args.jobs:
+        header += f" {f'{args.jobs} jobs':>9}"
+    print(header)
+
     for columns, rows in cases:
-        report("synthetic", wide_dataset(columns, rows), args.repeats, args.stages)
+        report(
+            "synthetic",
+            wide_dataset(columns, rows),
+            args.repeats,
+            args.stages,
+            args.jobs,
+        )
 
     if args.real_world:
         for spec in REAL_WORLD_DATASETS:
             path = DATASET_DIR / spec.filename
             if path.exists():
-                report(spec.name, pd.read_csv(path), args.repeats, args.stages)
+                report(
+                    spec.name, pd.read_csv(path), args.repeats, args.stages, args.jobs
+                )
 
 
 if __name__ == "__main__":

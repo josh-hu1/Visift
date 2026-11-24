@@ -16,6 +16,7 @@ The end-to-end Visift pipeline in one call.
 6. With a target: drivers of the target first, then everything else.
 """
 
+from collections.abc import Callable
 from typing import TypedDict
 
 import pandas as pd
@@ -74,19 +75,48 @@ def _note(redundancy: Redundancy, target: str | None) -> DatasetNote:
 
 
 def analyze(
-    df: pd.DataFrame, target: str | None = None, profile: DatasetProfile | None = None
+    df: pd.DataFrame,
+    target: str | None = None,
+    profile: DatasetProfile | None = None,
+    n_jobs: int | None = 1,
+    progress: Callable[[str, float], None] | None = None,
 ) -> Analysis:
     """
     Run the full pipeline. Pass profile to fix semantic types instead of
     inferring them (the calibration suites do this).
+
+    n_jobs: worker processes for scoring (1 = serial, the default; None =
+    automatic). The result does not depend on it. Serial is the default
+    because starting worker processes costs several seconds the first time
+    (each imports pandas and scikit-learn), which is slower than scoring a
+    typical upload serially; parallelism pays off for repeated or very large
+    analyses in a long-running process.
+
+    progress(stage, fraction) is called as the pipeline advances (for a
+    progress bar); fraction goes from 0 to 1 over the whole analysis.
     """
+
+    def report(stage: str, fraction: float) -> None:
+        if progress is not None:
+            progress(stage, fraction)
+
+    report("Profiling columns", 0.0)
 
     if profile is None:
         profile = profile_dataset(df)
 
+    report("Generating chart candidates", 0.05)
     candidates = generate_candidates(df, profile, target=target)
-    scored = score_all_candidates(df, candidates, profile)
 
+    # Scoring dominates the runtime: map it onto 10%-90% of the bar.
+    def scoring_progress(done: int, total: int) -> None:
+        report(f"Scoring {done}/{total} chart candidates", 0.1 + 0.8 * done / total)
+
+    scored = score_all_candidates(
+        df, candidates, profile, n_jobs=n_jobs, progress=scoring_progress
+    )
+
+    report("Checking for redundant columns", 0.9)
     redundancies = find_redundancies(df, profile)
     pairs = flagged_pairs(redundancies)
 
@@ -102,6 +132,8 @@ def analyze(
     else:
         drivers, others = split_by_target(recommendations, target)
         recommendations = drivers + others
+
+    report("Done", 1.0)
 
     return {
         "profile": profile,
