@@ -1,13 +1,11 @@
 import pandas as pd
 import streamlit as st
 
-from visift.candidate_generator import generate_candidates
+from visift.pipeline import analyze
 from visift.profiler import profile_dataset
 from visift.scoring.engine import (
     chart_display_name,
-    diversify_recommendations,
     recommendation_strength,
-    score_all_candidates,
     summary_reasons,
 )
 from visift.target import split_by_target, suggest_target
@@ -1133,15 +1131,15 @@ def analyze_dataset(df, target=None):
     filters does not rerun the analysis.
     """
 
-    profile = profile_dataset(df)
+    analysis = analyze(df, target=target)
 
-    candidates = generate_candidates(df, profile, target=target)
-
-    scored = score_all_candidates(df, candidates, profile)
-
-    recommendations = diversify_recommendations(scored)
-
-    return (profile, candidates, recommendations)
+    return (
+        analysis["profile"],
+        analysis["candidates"],
+        analysis["recommendations"],
+        analysis["notes"],
+        analysis["noted_charts"],
+    )
 
 
 # ==================================================
@@ -1612,7 +1610,71 @@ def display_recommendation_list(
 # ==================================================
 
 
-def display_dataset_tab(df, profile, source_name):
+def display_notes_summary(notes):
+    """
+    One line near the top when some relationships were set aside.
+    """
+
+    if not notes:
+        return
+
+    count = len(notes)
+
+    st.info(
+        f"**Dataset notes:** {notes[0]['reason']}"
+        + (f" (+{count - 1} more)" if count > 1 else "")
+        + " See the Dataset tab."
+    )
+
+
+def display_dataset_notes(notes, noted_charts):
+    """
+    Redundant or trivially related columns, with their statistics, and the
+    charts kept out of the ranking because of them.
+    """
+
+    st.markdown("### Dataset notes")
+
+    if not notes:
+        st.caption("No near-duplicate or near-deterministic column pairs found.")
+
+        return
+
+    st.write(
+        "These column pairs are related by construction rather than by "
+        "anything worth discovering. Visift treats near-duplicates as one "
+        "variable and does not rank charts between these pairs; their scores "
+        "are unchanged."
+    )
+
+    for note in notes:
+        st.markdown(
+            f"- {note['reason']} "
+            f"<span style='opacity:0.7'>({note['statistic']} = "
+            f"{note['value']:.3f})</span>",
+            unsafe_allow_html=True,
+        )
+
+    if noted_charts:
+        st.caption("Charts set aside (not ranked):")
+
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Chart": visualization_title(chart),
+                        "Type": chart_display_name(chart["chart"]),
+                        "Score": round(float(chart["score"]), 1),
+                    }
+                    for chart in noted_charts
+                ]
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+
+
+def display_dataset_tab(df, profile, source_name, notes=(), noted_charts=()):
     """
     Display dataset metadata and preview.
     """
@@ -1620,6 +1682,8 @@ def display_dataset_tab(df, profile, source_name):
     st.subheader("Dataset")
 
     st.caption(f"Source: {source_name}")
+
+    display_dataset_notes(list(notes), list(noted_charts))
 
     st.markdown("### Inferred column types")
 
@@ -1780,7 +1844,9 @@ def main():
         target = target_control(profile_data(df))
 
         with st.spinner("Analyzing dataset..."):
-            (profile, candidates, recommendations) = analyze_dataset(df, target)
+            (profile, candidates, recommendations, notes, noted_charts) = (
+                analyze_dataset(df, target)
+            )
 
     except Exception as error:
         st.error(
@@ -1799,6 +1865,8 @@ def main():
     st.divider()
 
     display_dataset_metrics(df, profile, candidates, recommendations)
+
+    display_notes_summary(notes)
 
     # -----------------------------------
     # Controls
@@ -1830,7 +1898,7 @@ def main():
         )
 
     with dataset_tab:
-        display_dataset_tab(df, profile, source_name)
+        display_dataset_tab(df, profile, source_name, notes, noted_charts)
 
     with method_tab:
         display_method_tab()
