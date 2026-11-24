@@ -1,20 +1,24 @@
 import math
+from collections.abc import Sequence
+from typing import Any
 
 import pandas as pd
+
+from visift.types import Candidate, DatasetProfile, ScoreResult
 
 CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
 
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
 
-def clamp(value, minimum=0, maximum=100):
+def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     """
     Keep a score between 0 and 100.
     """
     return max(minimum, min(value, maximum))
 
 
-def piecewise_score(value, points):
+def piecewise_score(value: float, points: Sequence[tuple[float, float]]) -> float:
     """
     Map a statistic to a calibrated score using
     linear interpolation between control points.
@@ -50,21 +54,24 @@ def piecewise_score(value, points):
     return 0
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(profile: DatasetProfile, column_name: str) -> str | None:
     for column in profile["column_profiles"]:
         if column["name"] == column_name:
             return column["semantic_type"]
     return None
 
 
-def semantic_fit_score(x_type, y_type):
-    category_scores = {
+def semantic_fit_score(x_type: str | None, y_type: str | None) -> float:
+    category_scores: dict[str | None, float] = {
         "categorical": 100,
         "ordinal": 95,
         "boolean": 85,
         "geographic": 60,
     }
-    numeric_scores = {"numeric_continuous": 100, "numeric_discrete": 85}
+    numeric_scores: dict[str | None, float] = {
+        "numeric_continuous": 100,
+        "numeric_discrete": 85,
+    }
     x_score = category_scores.get(x_type, 0)
     y_score = numeric_scores.get(y_type, 0)
     if x_score == 0 or y_score == 0:
@@ -72,7 +79,7 @@ def semantic_fit_score(x_type, y_type):
     return 0.60 * x_score + 0.40 * y_score
 
 
-def category_readability_score(unique_count):
+def category_readability_score(unique_count: int) -> float:
     if unique_count <= 1:
         return 0
     if unique_count <= 6:
@@ -86,14 +93,14 @@ def category_readability_score(unique_count):
     return 20
 
 
-def data_quality_score(df, x, y):
+def data_quality_score(df: pd.DataFrame, x: str, y: str) -> float:
     if len(df) == 0:
         return 0
     complete = df[[x, y]].dropna()
     return (len(complete) / len(df)) * 100
 
 
-def sample_support_score(counts):
+def sample_support_score(counts: pd.Series) -> float:
     if counts.empty:
         return 0
     average_group_size = counts.mean()
@@ -103,7 +110,7 @@ def sample_support_score(counts):
     return 0.50 * average_score + 0.50 * minimum_score
 
 
-def eta_squared_score(df, x, y):
+def eta_squared_score(df: pd.DataFrame, x: str, y: str) -> float:
     clean = df[[x, y]].dropna()
     if clean.empty or clean[x].nunique() <= 1:
         return 0
@@ -119,7 +126,7 @@ def eta_squared_score(df, x, y):
     return clamp(eta_squared * 100)
 
 
-def median_separation_score(df, x, y):
+def median_separation_score(df: pd.DataFrame, x: str, y: str) -> float:
     clean = df[[x, y]].dropna()
     if clean.empty:
         return 0
@@ -136,7 +143,7 @@ def median_separation_score(df, x, y):
     return clamp(relative_separation / 2 * 100)
 
 
-def grouped_outlier_statistics(df, x, y):
+def grouped_outlier_statistics(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     clean = df[[x, y]].dropna()
     default = {
         "overall_rate": 0.0,
@@ -195,12 +202,12 @@ def grouped_outlier_statistics(df, x, y):
     }
 
 
-def grouped_outlier_score(df, x, y):
+def grouped_outlier_score(df: pd.DataFrame, x: str, y: str) -> tuple[float, float]:
     stats = grouped_outlier_statistics(df, x, y)
     return stats["score"], stats["overall_rate"]
 
 
-def dispersion_difference_score(df, x, y):
+def dispersion_difference_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     clean = df[[x, y]].dropna()
     default = {
         "score": 0.0,
@@ -249,7 +256,7 @@ def dispersion_difference_score(df, x, y):
     }
 
 
-def distribution_signal_score(df, x, y):
+def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     eta_score = eta_squared_score(df, x, y)
     median_score = median_separation_score(df, x, y)
     location_signal = 0.55 * eta_score + 0.45 * median_score
@@ -287,12 +294,18 @@ def distribution_signal_score(df, x, y):
     }
 
 
-def adjust_signal_for_support(signal, support):
+def adjust_signal_for_support(signal: float, support: float) -> float:
     reliability = (support / 100) ** 0.5
     return signal * reliability
 
 
-def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
+def combine_quality_and_signal(
+    semantic_fit: float,
+    readability: float,
+    quality: float,
+    support: float,
+    signal: float,
+) -> tuple[float, float]:
     visualization_quality = (
         0.30 * semantic_fit + 0.20 * readability + 0.20 * quality + 0.30 * support
     )
@@ -301,7 +314,9 @@ def combine_quality_and_signal(semantic_fit, readability, quality, support, sign
     return final_score, visualization_quality
 
 
-def score_box_chart(df, candidate, profile):
+def score_box_chart(
+    df: pd.DataFrame, candidate: Candidate, profile: DatasetProfile
+) -> ScoreResult:
     x = candidate["x"]
     y = candidate["y"]
     x_type = get_semantic_type(profile, x)

@@ -1,7 +1,12 @@
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from scipy.stats import levene, pearsonr, spearmanr
 from scipy.stats import t as student_t
+
+from visift.types import Candidate, DatasetProfile, ScoreResult
 
 # ==================================================
 # SEMANTIC TYPES
@@ -29,7 +34,7 @@ VOLATILITY_WEAK_P = 0.10
 # ==================================================
 
 
-def clamp(value, minimum=0, maximum=100):
+def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
     """
     Keep a score between 0 and 100.
     """
@@ -37,7 +42,7 @@ def clamp(value, minimum=0, maximum=100):
     return max(minimum, min(value, maximum))
 
 
-def piecewise_score(value, points):
+def piecewise_score(value: float, points: Sequence[tuple[float, float]]) -> float:
     """
     Map a numeric statistic to a calibrated 0-100
     score using linear interpolation.
@@ -69,7 +74,7 @@ def piecewise_score(value, points):
     return 0
 
 
-def correlation_reliability_score(p_value):
+def correlation_reliability_score(p_value: float) -> float:
     """
     Convert a trend-correlation p-value into a
     reliability multiplier.
@@ -105,8 +110,10 @@ def correlation_reliability_score(p_value):
 
 
 def significance_reliability_score(
-    p_value, weak_p=VOLATILITY_WEAK_P, strong_p=VOLATILITY_STRONG_P
-):
+    p_value: float,
+    weak_p: float = VOLATILITY_WEAK_P,
+    strong_p: float = VOLATILITY_STRONG_P,
+) -> float:
     """
     Convert a corrected p-value into a 0-1
     reliability multiplier.
@@ -135,7 +142,7 @@ def significance_reliability_score(
     return float(clamp(position, 0, 1))
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(profile: DatasetProfile, column_name: str) -> str | None:
     """
     Get the semantic type of a column from
     the dataset profile.
@@ -153,7 +160,7 @@ def get_semantic_type(profile, column_name):
 # ==================================================
 
 
-def semantic_fit_score(x_type, y_type):
+def semantic_fit_score(x_type: str | None, y_type: str | None) -> float:
     """
     Score how naturally the semantic types fit
     a line chart.
@@ -173,7 +180,9 @@ def semantic_fit_score(x_type, y_type):
 # ==================================================
 
 
-def prepare_temporal_data(df, x, y, x_type):
+def prepare_temporal_data(
+    df: pd.DataFrame, x: str, y: str, x_type: str | None
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Prepare a temporal/numeric pair for line-chart
     analysis.
@@ -238,7 +247,7 @@ def prepare_temporal_data(df, x, y, x_type):
 # ==================================================
 
 
-def data_quality_score(total_rows, complete_rows):
+def data_quality_score(total_rows: int, complete_rows: int) -> float:
     """
     Score the percentage of usable temporal/numeric
     observations.
@@ -252,7 +261,7 @@ def data_quality_score(total_rows, complete_rows):
     return completeness * 100
 
 
-def observation_support_score(n):
+def observation_support_score(n: int) -> float:
     """
     Score the number of complete observations.
     """
@@ -278,7 +287,7 @@ def observation_support_score(n):
     return 100
 
 
-def time_point_support_score(unique_time_points):
+def time_point_support_score(unique_time_points: int) -> float:
     """
     Score how many distinct temporal positions are
     available for detecting temporal patterns.
@@ -305,7 +314,7 @@ def time_point_support_score(unique_time_points):
     return 100
 
 
-def sample_support_score(observation_count, unique_time_points):
+def sample_support_score(observation_count: int, unique_time_points: int) -> float:
     """
     Combine raw sample size with the number of
     distinct time points.
@@ -321,7 +330,7 @@ def sample_support_score(observation_count, unique_time_points):
     return 0.40 * observation_score + 0.60 * time_score
 
 
-def readability_score(unique_time_points):
+def readability_score(unique_time_points: int) -> float:
     """
     Estimate how readable a line chart would be
     based on the number of distinct time points.
@@ -356,7 +365,7 @@ def readability_score(unique_time_points):
 # ==================================================
 
 
-def detrend_values(trend_data, y):
+def detrend_values(trend_data: pd.DataFrame, y: str) -> np.ndarray:
     """
     Remove the best-fitting linear trend from the
     time series.
@@ -391,7 +400,7 @@ def detrend_values(trend_data, y):
 # ==================================================
 
 
-def trend_signal_score(trend_data, y):
+def trend_signal_score(trend_data: pd.DataFrame, y: str) -> dict[str, Any]:
     """
     Estimate monotonic temporal trend strength.
 
@@ -495,7 +504,7 @@ def trend_signal_score(trend_data, y):
 # ==================================================
 
 
-def temporal_sampling_regularity(trend_data):
+def temporal_sampling_regularity(trend_data: pd.DataFrame) -> dict[str, Any]:
     """
     Estimate whether temporal observations are
     approximately evenly spaced.
@@ -544,7 +553,7 @@ def temporal_sampling_regularity(trend_data):
 # ==================================================
 
 
-def autocorrelation_at_lag(values, lag):
+def autocorrelation_at_lag(values: np.ndarray, lag: int) -> float:
     """
     Calculate correlation between a series and
     itself shifted by a specified lag.
@@ -570,7 +579,9 @@ def autocorrelation_at_lag(values, lag):
     return float(correlation)
 
 
-def seasonality_signal_score(trend_data, residuals):
+def seasonality_signal_score(
+    trend_data: pd.DataFrame, residuals: np.ndarray
+) -> dict[str, Any]:
     """
     Detect repeating temporal behavior using a
     combination of spectral concentration and
@@ -735,7 +746,7 @@ def seasonality_signal_score(trend_data, residuals):
 # ==================================================
 
 
-def pooled_standard_deviation(left, right):
+def pooled_standard_deviation(left: np.ndarray, right: np.ndarray) -> float:
     """
     Calculate pooled standard deviation for two
     temporal segments.
@@ -767,7 +778,7 @@ def pooled_standard_deviation(left, right):
     return float(np.sqrt(pooled_variance))
 
 
-def level_shift_signal_score(trend_data, y):
+def level_shift_signal_score(trend_data: pd.DataFrame, y: str) -> dict[str, Any]:
     """
     Detect an abrupt persistent change in temporal
     level while controlling for a smooth linear
@@ -878,7 +889,7 @@ def level_shift_signal_score(trend_data, y):
 
     comparison_count = len(candidates)
 
-    strongest = None
+    strongest: dict[str, Any] | None = None
 
     for candidate in candidates:
         adjusted_p = min(1.0, candidate["p_value"] * comparison_count)
@@ -904,6 +915,9 @@ def level_shift_signal_score(trend_data, y):
         if strongest is None or enriched["signal"] > strongest["signal"]:
             strongest = enriched
 
+    # The early return above guarantees at least one candidate.
+    assert strongest is not None
+
     return {
         "signal": float(clamp(strongest["signal"])),
         "effect_size": float(strongest["effect_size"]),
@@ -919,7 +933,7 @@ def level_shift_signal_score(trend_data, y):
 # ==================================================
 
 
-def robust_scale(values):
+def robust_scale(values: np.ndarray) -> float:
     """
     Estimate dispersion using the median absolute
     deviation.
@@ -940,7 +954,7 @@ def robust_scale(values):
     return float(1.4826 * mad)
 
 
-def volatility_shift_signal_score(residuals):
+def volatility_shift_signal_score(residuals: np.ndarray) -> dict[str, Any]:
     """
     Detect a sustained change in temporal variance.
 
@@ -1027,7 +1041,7 @@ def volatility_shift_signal_score(residuals):
 
     comparison_count = len(candidates)
 
-    strongest = None
+    strongest: dict[str, Any] | None = None
 
     for candidate in candidates:
         adjusted_p = min(1.0, candidate["p_value"] * comparison_count)
@@ -1045,6 +1059,9 @@ def volatility_shift_signal_score(residuals):
 
         if strongest is None or enriched["signal"] > strongest["signal"]:
             strongest = enriched
+
+    # The early return above guarantees at least one candidate.
+    assert strongest is not None
 
     return {
         "signal": float(clamp(strongest["signal"])),
@@ -1064,7 +1081,7 @@ def volatility_shift_signal_score(residuals):
 # ==================================================
 
 
-def adjust_signal_for_support(signal, support):
+def adjust_signal_for_support(signal: float, support: float) -> float:
     """
     Reduce confidence in temporal patterns when
     sample support is weak.
@@ -1084,7 +1101,9 @@ def adjust_signal_for_support(signal, support):
 # ==================================================
 
 
-def temporal_signal_score(trend_data, y, support):
+def temporal_signal_score(
+    trend_data: pd.DataFrame, y: str, support: float
+) -> dict[str, Any]:
     """
     Detect multiple forms of temporal structure.
 
@@ -1124,7 +1143,9 @@ def temporal_signal_score(trend_data, y, support):
         for (pattern, signal) in raw_signals.items()
     }
 
-    dominant_pattern = max(adjusted_signals, key=adjusted_signals.get)
+    dominant_pattern = max(
+        adjusted_signals, key=lambda pattern: adjusted_signals[pattern]
+    )
 
     final_signal = adjusted_signals[dominant_pattern]
 
@@ -1156,7 +1177,13 @@ def temporal_signal_score(trend_data, y, support):
 # ==================================================
 
 
-def combine_quality_and_signal(semantic_fit, readability, quality, support, signal):
+def combine_quality_and_signal(
+    semantic_fit: float,
+    readability: float,
+    quality: float,
+    support: float,
+    signal: float,
+) -> tuple[float, float]:
     """
     Combine visualization suitability with
     temporal insight strength.
@@ -1178,7 +1205,9 @@ def combine_quality_and_signal(semantic_fit, readability, quality, support, sign
 # ==================================================
 
 
-def score_line_chart(df, candidate, profile):
+def score_line_chart(
+    df: pd.DataFrame, candidate: Candidate, profile: DatasetProfile
+) -> ScoreResult:
     """
     Score one line-chart candidate from 0 to 100.
 

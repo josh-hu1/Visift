@@ -1,4 +1,6 @@
 import math
+from collections.abc import Mapping
+from typing import Any
 
 import pandas as pd
 import plotly.express as px
@@ -37,7 +39,7 @@ HISTOGRAM_EXTREME_TAIL_MULTIPLIER = 4.0
 HISTOGRAM_MIN_TRIM_SAMPLE = 100
 
 
-def apply_plot_theme(fig):
+def apply_plot_theme(fig: go.Figure) -> go.Figure:
     """
     Apply the shared black + neon-green
     Plotly appearance.
@@ -88,7 +90,7 @@ CURRENCY_TERMS = {
 }
 
 
-def humanize_column_name(name):
+def humanize_column_name(name: object) -> str:
     """
     Convert a raw column name into a cleaner
     human-readable label.
@@ -97,7 +99,7 @@ def humanize_column_name(name):
     return str(name).replace("_", " ").strip().title()
 
 
-def is_currency_column(column_name):
+def is_currency_column(column_name: object) -> bool:
     """
     Infer whether a numeric column likely
     represents currency based on its name.
@@ -108,7 +110,7 @@ def is_currency_column(column_name):
     return any(term in name for term in CURRENCY_TERMS)
 
 
-def visualization_title(candidate):
+def visualization_title(candidate: Mapping[str, Any]) -> str:
     """
     Generate a user-facing visualization title.
     """
@@ -145,7 +147,7 @@ def visualization_title(candidate):
 # ==================================================
 
 
-def numeric_tick_format(series):
+def numeric_tick_format(series: pd.Series) -> str:
     """
     Choose an axis tick format based on the
     magnitude of the numeric values.
@@ -173,7 +175,7 @@ def numeric_tick_format(series):
     return ",.2f"
 
 
-def hover_number_format(series):
+def hover_number_format(series: pd.Series) -> str:
     """
     Choose a more precise number format for
     hover tooltips.
@@ -192,7 +194,7 @@ def hover_number_format(series):
     return ",.2f"
 
 
-def hover_numeric_value(column_name, series, variable):
+def hover_numeric_value(column_name: str, series: pd.Series, variable: str) -> str:
     """
     Construct a Plotly hover-template value
     for a numeric variable.
@@ -205,7 +207,9 @@ def hover_numeric_value(column_name, series, variable):
     return f"{prefix}%{{{variable}:{number_format}}}"
 
 
-def apply_numeric_axis_format(fig, axis, column_name, series):
+def apply_numeric_axis_format(
+    fig: go.Figure, axis: str, column_name: str, series: pd.Series
+) -> None:
     """
     Apply clean number formatting to one
     Plotly axis.
@@ -229,7 +233,7 @@ def apply_numeric_axis_format(fig, axis, column_name, series):
 # ==================================================
 
 
-def calculate_linear_trend(data, x, y):
+def calculate_linear_trend(data: pd.DataFrame, x: str, y: str) -> dict[str, Any] | None:
     """
     Calculate a simple OLS linear trendline
     and R-squared without requiring statsmodels.
@@ -262,6 +266,8 @@ def calculate_linear_trend(data, x, y):
 
     residual_variation = ((y_values - predictions) ** 2).sum()
 
+    r_squared: float
+
     if total_variation == 0:
         r_squared = 0
 
@@ -275,7 +281,7 @@ def calculate_linear_trend(data, x, y):
     return {"x": line_x, "y": line_y, "r_squared": r_squared}
 
 
-def prepare_scatter(df, candidate):
+def prepare_scatter(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     """
     Build a scatterplot with a linear trendline.
 
@@ -394,7 +400,9 @@ def prepare_scatter(df, candidate):
 # ==================================================
 
 
-def prepare_datetime_line_data(clean, x, y):
+def prepare_datetime_line_data(
+    clean: pd.DataFrame, x: str, y: str
+) -> tuple[pd.DataFrame, str | None]:
     """
     Sort and optionally aggregate datetime data
     to make dense line charts easier to read.
@@ -416,7 +424,8 @@ def prepare_datetime_line_data(clean, x, y):
     # -----------------------------------
 
     if unique_points <= 100:
-        result = clean.groupby(x, as_index=False)[y].mean().sort_values(x)
+        # groupby(as_index=False)[y].mean() is a DataFrame; the stubs say Series.
+        result = clean.groupby(x, as_index=False)[y].mean().sort_values(x)  # type: ignore[call-overload]
 
         return (result, None)
 
@@ -440,7 +449,7 @@ def prepare_datetime_line_data(clean, x, y):
     return (result, "Weekly average")
 
 
-def prepare_line(df, candidate):
+def prepare_line(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     """
     Build a temporal line chart.
 
@@ -544,7 +553,7 @@ def prepare_line(df, candidate):
 # ==================================================
 
 
-def histogram_bin_count(series):
+def histogram_bin_count(series: pd.Series) -> int:
     """
     Estimate a useful histogram bin count using
     the Freedman-Diaconis rule.
@@ -582,7 +591,9 @@ def histogram_bin_count(series):
     return max(10, min(bins, 60))
 
 
-def prepare_histogram_display_data(series):
+def prepare_histogram_display_data(
+    series: pd.Series,
+) -> tuple[pd.Series, dict[str, Any]]:
     """
     Prepare histogram data for visualization.
 
@@ -600,7 +611,7 @@ def prepare_histogram_display_data(series):
 
     clean = pd.to_numeric(series, errors="coerce").dropna()
 
-    info = {
+    info: dict[str, Any] = {
         "trimmed": False,
         "trim_lower": False,
         "trim_upper": False,
@@ -681,7 +692,7 @@ def prepare_histogram_display_data(series):
     return (display_data, info)
 
 
-def format_histogram_bound(column_name, value):
+def format_histogram_bound(column_name: str, value: float) -> str:
     """
     Format a histogram display boundary for
     a user-facing annotation.
@@ -701,7 +712,7 @@ def format_histogram_bound(column_name, value):
     return f"{prefix}{formatted}"
 
 
-def histogram_display_note(column_name, info):
+def histogram_display_note(column_name: str, info: dict[str, Any]) -> str | None:
     """
     Generate a transparent explanation when
     extreme observations are omitted only from
@@ -762,7 +773,7 @@ def histogram_display_note(column_name, info):
     )
 
 
-def prepare_histogram(df, candidate):
+def prepare_histogram(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     """
     Build a histogram with automatic
     distribution-aware binning.
@@ -849,7 +860,7 @@ def prepare_histogram(df, candidate):
 # ==================================================
 
 
-def box_category_order(clean, x, y):
+def box_category_order(clean: pd.DataFrame, x: str, y: str) -> list[Any]:
     """
     Determine a sensible category order.
 
@@ -868,7 +879,7 @@ def box_category_order(clean, x, y):
     return list(medians.index)
 
 
-def prepare_box(df, candidate):
+def prepare_box(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     """
     Build a grouped box plot with sensible
     category ordering.
@@ -915,7 +926,7 @@ def prepare_box(df, candidate):
 # ==================================================
 
 
-def prepare_bar(df, candidate):
+def prepare_bar(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     """
     Build either:
 
@@ -1035,7 +1046,7 @@ def prepare_bar(df, candidate):
 # ==================================================
 
 
-def render_candidate(df, candidate):
+def render_candidate(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     """
     Convert a recommendation into a
     polished Plotly visualization.

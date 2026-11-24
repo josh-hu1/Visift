@@ -1,5 +1,9 @@
 from itertools import combinations
 
+import pandas as pd
+
+from visift.types import Candidate, DatasetProfile
+
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
 CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
@@ -15,7 +19,7 @@ RATE_PREDICTOR_TYPES = {"categorical", "ordinal", "geographic"}
 TIME_TYPES = {"datetime", "temporal"}
 
 
-def get_semantic_type(profile, column_name):
+def get_semantic_type(profile: DatasetProfile, column_name: str | None) -> str | None:
     """
     Get semantic type for a column from the dataset profile.
     """
@@ -27,7 +31,7 @@ def get_semantic_type(profile, column_name):
     return None
 
 
-def generate_candidates(df, profile):
+def generate_candidates(df: pd.DataFrame, profile: DatasetProfile) -> list[Candidate]:
     """
     Generate valid visualization candidates based on
     semantic column types.
@@ -38,7 +42,7 @@ def generate_candidates(df, profile):
     visualization is actually informative.
     """
 
-    candidates = []
+    candidates: list[Candidate] = []
 
     columns = list(df.columns)
 
@@ -136,7 +140,9 @@ def generate_candidates(df, profile):
     ]
 
 
-def is_line_eligible_time_axis(column_name, semantic_type):
+def is_line_eligible_time_axis(
+    column_name: str | None, semantic_type: str | None
+) -> bool:
     # Datetimes and non-cyclical temporal fields remain eligible.
     # Standalone cyclical calendar positions do not.
     if semantic_type == "datetime":

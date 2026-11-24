@@ -284,10 +284,10 @@ evaluation/results/
 Visift/
 ├── web_app.py                  # Streamlit UI (streamlit run web_app.py)
 ├── app.py                      # command-line demo on synthetic_sales.csv
-├── pyproject.toml              # package metadata, dependencies, ruff config
+├── pyproject.toml              # package metadata, dependencies, ruff/mypy/pytest config
 ├── requirements.txt            # Streamlit Cloud entry point: -e .[app]
 ├── LICENSE                     # MIT
-├── .github/workflows/ci.yml    # ruff + pytest on Python 3.10-3.13
+├── .github/workflows/ci.yml    # ruff + mypy, pytest on Python 3.10-3.13
 ├── synthetic_sales.csv
 │
 ├── tests/                      # pytest suite; fixtures/ holds small CSVs
@@ -295,6 +295,7 @@ Visift/
 │   └── generate_synthetic_sales.py   # regenerates synthetic_sales.csv
 │
 ├── src/visift/                 # the recommendation engine (installable package)
+│   ├── types.py                # TypedDict records passed through the pipeline
 │   ├── profiler.py
 │   ├── semantic_types.py
 │   ├── value_normalization.py
@@ -367,6 +368,8 @@ Run the test suite (about 10 seconds):
 ```bash
 pip install -e ".[app,dev]"
 pytest --cov
+ruff check . && ruff format --check .
+mypy                      # type-checks src/visift
 ```
 
 ---
