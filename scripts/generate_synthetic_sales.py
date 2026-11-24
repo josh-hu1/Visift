@@ -1,8 +1,19 @@
+"""Regenerate synthetic_sales.csv, the demo dataset with planted relationships.
+
+Run from anywhere: python scripts/generate_synthetic_sales.py
+"""
+
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
-def generate_dataset(n_rows=500, seed=42, output_file="synthetic_sales.csv"):
+
+def generate_dataset(
+    n_rows=500, seed=42, output_file=REPO_ROOT / "synthetic_sales.csv"
+):
     """
     Generate a synthetic sales dataset with intentionally
     planted relationships for testing visualization ranking.

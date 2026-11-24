@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/josh-hu1/Visift/actions/workflows/ci.yml/badge.svg)](https://github.com/josh-hu1/Visift/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 **Visualization recommendations, ranked by insight.**
@@ -45,7 +46,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 ## Features
 
 - **Automatic semantic type inference** for numeric, categorical, ordinal, boolean, geographic, identifier, temporal, datetime, text, and empty fields
-- **Five visualization families:** scatterplots, line charts, histograms, bar charts, and box plots
+- **Five chart types:** scatterplots, line charts, histograms, bar charts, and box plots, plus a dedicated **binary-rate scorer** for outcome-rate bar charts (e.g. survival rate by passenger class)
 - **Chart-specific statistical scoring** instead of one generic heuristic
 - **Global 0–100 recommendation scores** calibrated across visualization types
 - **Pattern-aware explanations** describing why a chart was recommended
@@ -285,9 +286,13 @@ Visift/
 ├── app.py                      # command-line demo on synthetic_sales.csv
 ├── pyproject.toml              # package metadata, dependencies, ruff config
 ├── requirements.txt            # Streamlit Cloud entry point: -e .[app]
+├── LICENSE                     # MIT
+├── .github/workflows/ci.yml    # ruff + pytest on Python 3.10-3.13
 ├── synthetic_sales.csv
 │
 ├── tests/                      # pytest suite; fixtures/ holds small CSVs
+├── scripts/
+│   └── generate_synthetic_sales.py   # regenerates synthetic_sales.csv
 │
 ├── src/visift/                 # the recommendation engine (installable package)
 │   ├── profiler.py
@@ -394,12 +399,12 @@ Visift was built around several principles:
 
 ## Current Limitations
 
-Visift currently focuses on tabular CSV data and five visualization families.
+Visift currently focuses on tabular CSV data and five chart types.
 
 Known limitations include:
 
 - irregular temporal sampling can reduce FFT-based seasonality detection
-- synthetic benchmarks do not replace evaluation on diverse real-world datasets
+- the [real-world benchmark](evaluation/real_world/README.md) covers only four datasets so far
 - semantic inference is heuristic and can misclassify ambiguous columns
 - high-cardinality or domain-specific visualizations are outside the current scope
 
@@ -411,7 +416,7 @@ Potential extensions include:
 
 - additional visualization families
 - more robust seasonality detection for irregular time intervals
-- real-world benchmark datasets
+- more datasets in the [real-world benchmark](evaluation/real_world/README.md)
 - user feedback signals for recommendation quality
 - domain-aware semantic inference
 - richer multivariate visualization recommendations
