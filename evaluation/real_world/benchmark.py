@@ -6,10 +6,7 @@ import numpy as np
 import pandas as pd
 
 from evaluation.real_world.expectations import DATASET_DIR, build_real_world_suite
-from visift.candidate_generator import generate_candidates
-from visift.profiler import profile_dataset
-from visift.scoring.engine import diversify_recommendations, score_all_candidates
-from visift.target import rank_with_target
+from visift.pipeline import analyze
 
 # ==================================================
 # CONFIGURATION
@@ -242,16 +239,17 @@ def evaluate_dataset(dataset_spec, target=None):
 
     start = time.perf_counter()
 
-    profile = profile_dataset(df)
+    analysis = analyze(df, target=target)
 
-    candidates = generate_candidates(df, profile, target=target)
+    profile = analysis["profile"]
 
-    scored = score_all_candidates(df, candidates, profile)
+    candidates = analysis["candidates"]
 
-    recommendations = diversify_recommendations(scored)
+    recommendations = analysis["recommendations"]
 
-    if target is not None:
-        recommendations = rank_with_target(recommendations, target)
+    noted_pairs = {
+        frozenset((c["x"], c["y"])) for c in analysis["noted_charts"] if "y" in c
+    }
 
     elapsed = time.perf_counter() - start
 
@@ -284,6 +282,7 @@ def evaluate_dataset(dataset_spec, target=None):
                 "matched_aggregation": (
                     matched.get("aggregation") if matched is not None else None
                 ),
+                "in_dataset_notes": frozenset(expectation.variables) in noted_pairs,
                 "rationale": expectation.rationale,
             }
         )

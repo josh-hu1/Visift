@@ -1,21 +1,21 @@
-dataset,domain,expected_insight,variables,acceptable_charts,required_x,required_y,required_aggregation,rank,score,matched_chart,matched_aggregation,rationale
-palmer_penguins,ecology,body_mass_vs_flipper_length,body_mass_g | flipper_length_mm,scatter,,,,5,91.52,scatter,,Body mass and flipper length have a strong morphometric relationship and are a common exploratory comparison in the dataset.
-palmer_penguins,ecology,species_vs_body_mass,species | body_mass_g,box | bar,,,,4,78.44,bar,mean,Body mass differs substantially across the three penguin species.
-palmer_penguins,ecology,species_vs_flipper_length,species | flipper_length_mm,box | bar,,,,1,85.49,bar,mean,Flipper length differs substantially across penguin species.
-palmer_penguins,ecology,species_vs_bill_length,species | bill_length_mm,box | bar,,,,2,80.91,bar,mean,Bill length is one of the morphological measurements that distinguishes species.
-uci_bike_sharing_day,transportation,date_vs_total_rentals,dteday | cnt,line,,,,1,85.49,line,,"Daily rental demand changes materially over the 731-date observation window, making a time-series view useful."
-uci_bike_sharing_day,transportation,temperature_vs_total_rentals,temp | cnt,scatter,,,,3,78.08,scatter,,Rental demand is meaningfully associated with temperature.
-uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,,,,9,39.82,scatter,,Humidity is a weather variable with a meaningful relationship to rental demand.
-uci_bike_sharing_day,transportation,season_vs_total_rentals,season | cnt,box | bar,,,,4,63.81,box,,"UCI defines season as categorical, and daily rental demand differs across seasons."
-uci_bike_sharing_day,transportation,weather_situation_vs_total_rentals,weathersit | cnt,box | bar,,,,5,54.33,box,,"UCI defines weather situation as categorical, and rental demand differs across weather conditions."
-titanic3,passenger survival,survival_rate_by_sex,sex | survived,bar,sex,survived,mean,1,73.42,bar,mean,Survival status differs substantially by sex. The intended visualization is survival rate by sex rather than the reverse orientation.
-titanic3,passenger survival,survival_rate_by_passenger_class,pclass | survived,bar,pclass,survived,mean,3,64.56,bar,mean,Passenger class is a core survival-related factor. The intended view is survival rate by passenger class.
-titanic3,passenger survival,age_by_survival_status,survived | age,box,survived,age,,7,32.75,box,,Age distributions are useful to compare between survivors and non-survivors.
-titanic3,passenger survival,fare_by_passenger_class,pclass | fare,box | bar,pclass,fare,,8,96.74,box,,Passenger fares differ strongly across the three passenger classes.
-titanic3,passenger survival,fare_distribution,fare,histogram,fare,,,10,90.61,histogram,,Passenger fare has a distinctly uneven distribution that is useful to inspect.
-uci_bank_marketing,marketing,previous_outcome_vs_subscription_rate,poutcome | y,bar,poutcome,y,mean,1,75.78,bar,mean,The outcome of a previous marketing campaign is a natural and decision-relevant grouping for current term-deposit subscription rate.
-uci_bank_marketing,marketing,job_vs_subscription_rate,job | y,bar,job,y,mean,3,59.42,bar,mean,Occupation is a core customer attribute and subscription rates can meaningfully differ across job categories.
-uci_bank_marketing,marketing,education_vs_subscription_rate,education | y,bar,education,y,mean,7,43.7,bar,mean,Education level is a core customer attribute and is useful to compare against subscription rate.
-uci_bank_marketing,marketing,month_vs_subscription_rate,month | y,bar,month,y,mean,2,70.34,bar,mean,The contact month can capture substantial campaign timing differences in subscription rate.
-uci_bank_marketing,marketing,balance_by_subscription_status,y | balance,box,y,balance,,4,47.07,box,,Average yearly account balance is an important financial measure to compare between clients who did and did not subscribe.
-uci_bank_marketing,marketing,age_by_subscription_status,y | age,box,y,age,,11,38.97,box,,Age distributions are useful to compare between subscribers and non-subscribers.
+dataset,domain,expected_insight,variables,acceptable_charts,required_x,required_y,required_aggregation,rank,score,matched_chart,matched_aggregation,in_dataset_notes,rationale
+palmer_penguins,ecology,body_mass_vs_flipper_length,body_mass_g | flipper_length_mm,scatter,,,,5,91.52,scatter,,False,Body mass and flipper length have a strong morphometric relationship and are a common exploratory comparison in the dataset.
+palmer_penguins,ecology,species_vs_body_mass,species | body_mass_g,box | bar,,,,4,78.44,bar,mean,False,Body mass differs substantially across the three penguin species.
+palmer_penguins,ecology,species_vs_flipper_length,species | flipper_length_mm,box | bar,,,,1,85.49,bar,mean,False,Flipper length differs substantially across penguin species.
+palmer_penguins,ecology,species_vs_bill_length,species | bill_length_mm,box | bar,,,,2,80.91,bar,mean,False,Bill length is one of the morphological measurements that distinguishes species.
+uci_bike_sharing_day,transportation,date_vs_total_rentals,dteday | cnt,line,,,,1,85.49,line,,False,"Daily rental demand changes materially over the 731-date observation window, making a time-series view useful."
+uci_bike_sharing_day,transportation,temperature_vs_total_rentals,temp | cnt,scatter,,,,2,78.08,scatter,,False,Rental demand is meaningfully associated with temperature.
+uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,,,,8,39.82,scatter,,False,Humidity is a weather variable with a meaningful relationship to rental demand.
+uci_bike_sharing_day,transportation,season_vs_total_rentals,season | cnt,box | bar,,,,3,63.81,box,,False,"UCI defines season as categorical, and daily rental demand differs across seasons."
+uci_bike_sharing_day,transportation,weather_situation_vs_total_rentals,weathersit | cnt,box | bar,,,,4,54.33,box,,False,"UCI defines weather situation as categorical, and rental demand differs across weather conditions."
+titanic3,passenger survival,survival_rate_by_sex,sex | survived,bar,sex,survived,mean,1,73.42,bar,mean,False,Survival status differs substantially by sex. The intended visualization is survival rate by sex rather than the reverse orientation.
+titanic3,passenger survival,survival_rate_by_passenger_class,pclass | survived,bar,pclass,survived,mean,3,64.56,bar,mean,False,Passenger class is a core survival-related factor. The intended view is survival rate by passenger class.
+titanic3,passenger survival,age_by_survival_status,survived | age,box,survived,age,,7,32.75,box,,False,Age distributions are useful to compare between survivors and non-survivors.
+titanic3,passenger survival,fare_by_passenger_class,pclass | fare,box | bar,pclass,fare,,8,96.74,box,,False,Passenger fares differ strongly across the three passenger classes.
+titanic3,passenger survival,fare_distribution,fare,histogram,fare,,,10,90.61,histogram,,False,Passenger fare has a distinctly uneven distribution that is useful to inspect.
+uci_bank_marketing,marketing,previous_outcome_vs_subscription_rate,poutcome | y,bar,poutcome,y,mean,1,75.78,bar,mean,False,The outcome of a previous marketing campaign is a natural and decision-relevant grouping for current term-deposit subscription rate.
+uci_bank_marketing,marketing,job_vs_subscription_rate,job | y,bar,job,y,mean,3,59.42,bar,mean,False,Occupation is a core customer attribute and subscription rates can meaningfully differ across job categories.
+uci_bank_marketing,marketing,education_vs_subscription_rate,education | y,bar,education,y,mean,7,43.7,bar,mean,False,Education level is a core customer attribute and is useful to compare against subscription rate.
+uci_bank_marketing,marketing,month_vs_subscription_rate,month | y,bar,month,y,mean,2,70.34,bar,mean,False,The contact month can capture substantial campaign timing differences in subscription rate.
+uci_bank_marketing,marketing,balance_by_subscription_status,y | balance,box,y,balance,,4,47.07,box,,False,Average yearly account balance is an important financial measure to compare between clients who did and did not subscribe.
+uci_bank_marketing,marketing,age_by_subscription_status,y | age,box,y,age,,11,38.97,box,,False,Age distributions are useful to compare between subscribers and non-subscribers.

@@ -12,9 +12,7 @@ from evaluation.metrics import (
     summarize_null_results,
     summarize_positive_results,
 )
-from visift.candidate_generator import generate_candidates
-from visift.profiler import profile_dataset
-from visift.scoring.engine import diversify_recommendations, score_all_candidates
+from visift.pipeline import analyze
 
 # ==================================================
 # CONFIGURATION
@@ -38,13 +36,13 @@ def run_scenario(scenario):
 
     df = scenario.dataframe
 
-    profile = profile_dataset(df)
+    analysis = analyze(df)
 
-    candidates = generate_candidates(df, profile)
+    candidates = analysis["candidates"]
 
-    scored = score_all_candidates(df, candidates, profile)
+    scored = analysis["scored"]
 
-    recommendations = diversify_recommendations(scored)
+    recommendations = analysis["recommendations"]
 
     elapsed = time.perf_counter() - start
 

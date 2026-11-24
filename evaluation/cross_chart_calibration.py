@@ -4,12 +4,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from visift.candidate_generator import generate_candidates
-from visift.scoring.engine import (
-    candidate_signature,
-    diversify_recommendations,
-    score_all_candidates,
-)
+from visift.pipeline import analyze
+from visift.scoring.engine import candidate_signature
 
 # ==================================================
 # CONFIGURATION
@@ -383,16 +379,12 @@ def run_pipeline(dataframe, profile):
     global-ranking stages.
     """
 
-    candidates = generate_candidates(dataframe, profile)
-
-    scored = score_all_candidates(dataframe, candidates, profile)
-
-    diversified = diversify_recommendations(scored)
+    analysis = analyze(dataframe, profile=profile)
 
     return {
-        "candidate_count": len(candidates),
-        "scored": scored,
-        "diversified": diversified,
+        "candidate_count": len(analysis["candidates"]),
+        "scored": analysis["scored"],
+        "diversified": analysis["recommendations"],
     }
 
 

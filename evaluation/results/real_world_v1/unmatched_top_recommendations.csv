@@ -9,16 +9,16 @@ palmer_penguins,11,71.52,56.31,histogram,,flipper_length_mm,,histogram | flipper
 palmer_penguins,12,70.54,80.0,line,,year,flipper_length_mm,line | year vs flipper_length_mm
 palmer_penguins,13,70.06,54.06,box,,island,flipper_length_mm,box | island vs flipper_length_mm
 palmer_penguins,14,67.49,50.11,box,,island,bill_length_mm,box | island vs bill_length_mm
-uci_bike_sharing_day,1,99.88,99.82,scatter,,temp,atemp,scatter | temp vs atemp
-uci_bike_sharing_day,2,97.0,100.0,line,,dteday,temp,line | dteday vs temp
-uci_bike_sharing_day,3,97.0,100.0,line,,dteday,atemp,line | dteday vs atemp
-uci_bike_sharing_day,4,90.77,90.11,bar,count,holiday,,bar | count | holiday
-uci_bike_sharing_day,5,87.52,80.81,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
-uci_bike_sharing_day,7,81.77,71.96,scatter,,atemp,cnt,scatter | atemp vs cnt
-uci_bike_sharing_day,8,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
-uci_bike_sharing_day,9,78.98,67.66,box,,season,atemp,box | season vs atemp
-uci_bike_sharing_day,11,76.72,64.18,box,,weathersit,hum,box | weathersit vs hum
-uci_bike_sharing_day,12,71.89,56.76,histogram,,temp,,histogram | temp
+uci_bike_sharing_day,1,97.0,100.0,line,,dteday,temp,line | dteday vs temp
+uci_bike_sharing_day,2,90.77,90.11,bar,count,holiday,,bar | count | holiday
+uci_bike_sharing_day,3,87.52,80.81,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
+uci_bike_sharing_day,5,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
+uci_bike_sharing_day,7,76.72,64.18,box,,weathersit,hum,box | weathersit vs hum
+uci_bike_sharing_day,8,71.89,56.76,histogram,,temp,,histogram | temp
+uci_bike_sharing_day,9,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
+uci_bike_sharing_day,10,66.11,47.87,box,,weathersit,temp,box | weathersit vs temp
+uci_bike_sharing_day,12,60.19,41.61,line,,dteday,hum,line | dteday vs hum
+uci_bike_sharing_day,14,53.89,31.63,bar,count,workingday,,bar | count | workingday
 titanic3,2,96.71,95.0,box,,embarked,fare,box | embarked vs fare
 titanic3,4,81.53,92.0,histogram,,sibsp,,histogram | sibsp
 titanic3,5,81.53,92.0,histogram,,parch,,histogram | parch
@@ -29,13 +29,13 @@ titanic3,10,67.4,60.11,scatter,,sibsp,fare,scatter | sibsp vs fare
 titanic3,12,61.95,50.91,scatter,,parch,fare,scatter | parch vs fare
 titanic3,13,59.9,40.0,box,,pclass,parch,box | pclass vs parch
 titanic3,14,55.87,43.84,scatter,,sibsp,parch,scatter | sibsp vs parch
-uci_bank_marketing,1,99.07,98.56,scatter,,pdays,previous,scatter | pdays vs previous
-uci_bank_marketing,2,94.8,92.0,histogram,,pdays,,histogram | pdays
-uci_bank_marketing,3,94.8,92.0,histogram,,previous,,histogram | previous
-uci_bank_marketing,4,92.75,93.26,bar,count,default,,bar | count | default
-uci_bank_marketing,5,88.71,82.63,histogram,,balance,,histogram | balance
-uci_bank_marketing,6,85.22,77.26,bar,mean,poutcome,pdays,bar | mean | poutcome vs pdays
-uci_bank_marketing,7,83.64,78.4,box,,default,balance,box | default vs balance
-uci_bank_marketing,8,82.39,72.9,bar,count,poutcome,,bar | count | poutcome
-uci_bank_marketing,9,77.6,69.24,bar,count,y,,bar | count | y
-uci_bank_marketing,10,77.4,65.23,histogram,,campaign,,histogram | campaign
+uci_bank_marketing,1,94.8,92.0,histogram,,pdays,,histogram | pdays
+uci_bank_marketing,2,92.75,93.26,bar,count,default,,bar | count | default
+uci_bank_marketing,3,88.71,82.63,histogram,,balance,,histogram | balance
+uci_bank_marketing,4,85.22,77.26,bar,mean,poutcome,pdays,bar | mean | poutcome vs pdays
+uci_bank_marketing,5,83.64,78.4,box,,default,balance,box | default vs balance
+uci_bank_marketing,6,82.39,72.9,bar,count,poutcome,,bar | count | poutcome
+uci_bank_marketing,7,77.6,69.24,bar,count,y,,bar | count | y
+uci_bank_marketing,8,77.4,65.23,histogram,,campaign,,histogram | campaign
+uci_bank_marketing,9,77.39,68.89,bar,mean,month,housing,bar | mean | month vs housing
+uci_bank_marketing,11,75.08,65.23,bar,mean,job,housing,bar | mean | job vs housing

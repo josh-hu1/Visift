@@ -1,12 +1,9 @@
 import pandas as pd
 
-from visift.candidate_generator import generate_candidates
-from visift.profiler import profile_dataset
+from visift.pipeline import analyze
 from visift.scoring.engine import (
     chart_display_name,
-    diversify_recommendations,
     recommendation_strength,
-    score_all_candidates,
     summary_reasons,
     visualization_title,
 )
@@ -125,25 +122,14 @@ def main():
     # Profile dataset
     # -----------------------------------
 
-    profile = profile_dataset(df)
+    # Profile, generate, score, flag redundant pairs, and diversify
+    analysis = analyze(df)
 
-    # -----------------------------------
-    # Generate valid candidates
-    # -----------------------------------
+    profile = analysis["profile"]
 
-    candidates = generate_candidates(df, profile)
+    candidates = analysis["candidates"]
 
-    # -----------------------------------
-    # Score all candidates
-    # -----------------------------------
-
-    scored_recommendations = score_all_candidates(df, candidates, profile)
-
-    # -----------------------------------
-    # Remove redundant recommendations
-    # -----------------------------------
-
-    recommendations = diversify_recommendations(scored_recommendations)
+    recommendations = analysis["recommendations"]
 
     # -----------------------------------
     # Output
