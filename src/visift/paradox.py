@@ -96,12 +96,51 @@ def _p_value(r: float, df: int) -> float:
     return float(2 * stats.t.sf(abs(t), df))
 
 
-def _eta_squared(groups: pd.Series, values: pd.Series) -> float:
-    total = float(((values - values.mean()) ** 2).sum())
+def _eta_squared(codes: np.ndarray, values: np.ndarray, k: int) -> float:
+    """Share of the variance in values explained by the group means."""
+
+    centered = values - values.mean()
+    total = float(centered @ centered)
     if total == 0:
         return 0.0
-    means = values.groupby(groups).transform("mean")
-    return float(((means - values.mean()) ** 2).sum()) / total
+    counts = np.bincount(codes, minlength=k)
+    sums = np.bincount(codes, weights=centered, minlength=k)
+    present = counts > 0
+    return float((sums[present] ** 2 / counts[present]).sum()) / total
+
+
+def _centered_group_ranks(codes: np.ndarray, values: np.ndarray, k: int) -> np.ndarray:
+    """Average ranks within each group, minus the group's mean rank."""
+
+    ranks = np.empty(len(values), dtype=float)
+    for group in range(k):
+        members = codes == group
+        if members.any():
+            group_ranks = stats.rankdata(values[members])
+            ranks[members] = group_ranks - group_ranks.mean()
+    return ranks
+
+
+def _pearson(a: np.ndarray, b: np.ndarray) -> float:
+    a = a - a.mean()
+    b = b - b.mean()
+    denominator = math.sqrt(float(a @ a) * float(b @ b))
+    return float(a @ b) / denominator if denominator > 0 else float("nan")
+
+
+class _Grouping:
+    """A grouping column prepared once: integer codes for its usable levels."""
+
+    def __init__(self, series: pd.Series, levels: list[object]) -> None:
+        # groupby order (sorted levels), as reported in per-group statistics
+        self.levels = list(pd.Index(levels).sort_values())
+        lookup = {level: code for code, level in enumerate(self.levels)}
+        self.codes = np.fromiter(
+            (lookup.get(value, -1) for value in series.to_numpy()),
+            dtype=np.int64,
+            count=len(series),
+        )
+        self.k = len(self.levels)
 
 
 def _within_rank_correlation(frame: pd.DataFrame, x: str, y: str, g: str) -> float:
@@ -173,6 +212,14 @@ def find_paradoxes(
 
     redundant = flagged_pairs(redundancies or [])
 
+    values = {c: df[c].to_numpy(dtype=float) for c in numeric}
+    present = {c: ~np.isnan(values[c]) for c in numeric}
+    prepared = {g: _Grouping(df[g], levels) for g, levels in groupings.items()}
+    usable = {g: grouping.codes >= 0 for g, grouping in prepared.items()}
+
+    def rows(x: str, y: str, g: str) -> np.ndarray:
+        return present[x] & present[y] & usable[g]
+
     # Choose groupings per pair, then count the tests for Bonferroni.
     plan: list[tuple[str, str, str]] = []
 
@@ -181,16 +228,16 @@ def find_paradoxes(
             continue
 
         ranked = []
-        for g, levels in groupings.items():
+        for g, grouping in prepared.items():
             if frozenset((g, x)) in redundant or frozenset((g, y)) in redundant:
                 continue
-            frame = df[[x, y, g]].dropna()
-            frame = frame[frame[g].isin(levels)]
-            if len(frame) < MIN_ROWS_PER_GROUP * MIN_GROUP_LEVELS:
+            mask = rows(x, y, g)
+            if int(mask.sum()) < MIN_ROWS_PER_GROUP * MIN_GROUP_LEVELS:
                 continue
+            codes = grouping.codes[mask]
             strength = min(
-                _eta_squared(frame[g], frame[x].astype(float)),
-                _eta_squared(frame[g], frame[y].astype(float)),
+                _eta_squared(codes, values[x][mask], grouping.k),
+                _eta_squared(codes, values[y][mask], grouping.k),
             )
             ranked.append((strength, g))
 
@@ -203,17 +250,43 @@ def find_paradoxes(
     threshold = ALPHA / len(plan)
     found: list[Paradox] = []
 
-    for x, y, g in plan:
-        frame = df[[x, y, g]].dropna()
-        frame = frame[frame[g].isin(groupings[g])]
-        n = len(frame)
-        k = frame[g].nunique()
+    # Rank caches, valid when a column has no missing values on the rows a
+    # grouping uses (the common case); otherwise ranks are computed per pair.
+    overall_ranks: dict[tuple[str, str], np.ndarray] = {}
+    within_ranks: dict[tuple[str, str], np.ndarray] = {}
 
-        if frame[x].nunique() < 3 or frame[y].nunique() < 3:
+    def ranks_for(
+        column: str, g: str, mask: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        grouping = prepared[g]
+        complete = bool(np.array_equal(mask, usable[g] & present[column])) and bool(
+            np.array_equal(mask, usable[g])
+        )
+        key = (column, g)
+        if complete and key in overall_ranks:
+            return overall_ranks[key], within_ranks[key]
+        subset = values[column][mask]
+        overall = stats.rankdata(subset)
+        within = _centered_group_ranks(grouping.codes[mask], subset, grouping.k)
+        if complete:
+            overall_ranks[key], within_ranks[key] = overall, within
+        return overall, within
+
+    for x, y, g in plan:
+        grouping = prepared[g]
+        mask = rows(x, y, g)
+        codes = grouping.codes[mask]
+        n = int(mask.sum())
+        k = int(np.unique(codes).size)
+
+        if np.unique(values[x][mask]).size < 3 or np.unique(values[y][mask]).size < 3:
             continue
 
-        overall = float(stats.spearmanr(frame[x], frame[y])[0])
-        within = _within_rank_correlation(frame, x, y, g)
+        overall_rx, within_rx = ranks_for(x, g, mask)
+        overall_ry, within_ry = ranks_for(y, g, mask)
+
+        overall = _pearson(overall_rx, overall_ry)
+        within = _pearson(within_rx, within_ry)
 
         if not (np.isfinite(overall) and np.isfinite(within)):
             continue
@@ -221,14 +294,25 @@ def find_paradoxes(
         overall_p = _p_value(overall, n - 2)
         within_p = _p_value(within, n - k - 1)
 
+        # Per-group Spearman = Pearson of the within-group ranks in that group.
+        products = np.bincount(
+            codes, weights=within_rx * within_ry, minlength=grouping.k
+        )
+        squares_x = np.bincount(codes, weights=within_rx**2, minlength=grouping.k)
+        squares_y = np.bincount(codes, weights=within_ry**2, minlength=grouping.k)
+        counts = np.bincount(codes, minlength=grouping.k)
+
         group_stats: list[GroupStat] = []
-        for level, part in frame.groupby(g, observed=True):
+        for code, level in enumerate(grouping.levels):
+            if counts[code] == 0:
+                continue
+            denominator = math.sqrt(float(squares_x[code]) * float(squares_y[code]))
             rho = (
-                float(stats.spearmanr(part[x], part[y])[0])
-                if part[x].nunique() > 1 and part[y].nunique() > 1
-                else float("nan")
+                float(products[code]) / denominator if denominator > 0 else float("nan")
             )
-            group_stats.append({"group": str(level), "n": len(part), "rho": rho})
+            group_stats.append(
+                {"group": str(level), "n": int(counts[code]), "rho": rho}
+            )
 
         agreeing = sum(
             s["n"]

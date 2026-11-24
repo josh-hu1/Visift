@@ -20,6 +20,18 @@ BG_BLACK = "#000000"
 BG_PANEL = "#050505"
 GRID_COLOR = "#1A1A1A"
 
+# Distinct, bright-on-black colors for grouped charts (one per group).
+GROUP_COLORS = (
+    "#39FF14",  # neon green
+    "#FF4FD8",  # magenta
+    "#33C7FF",  # sky blue
+    "#FFB000",  # amber
+    "#B388FF",  # lavender
+    "#FF5C5C",  # coral
+    "#00E5C0",  # teal
+    "#F4F4F4",  # near white
+)
+
 
 # ==================================================
 # HISTOGRAM DISPLAY SETTINGS
@@ -279,6 +291,91 @@ def calculate_linear_trend(data: pd.DataFrame, x: str, y: str) -> dict[str, Any]
     line_y = [slope * line_x[0] + intercept, slope * line_x[1] + intercept]
 
     return {"x": line_x, "y": line_y, "r_squared": r_squared}
+
+
+def prepare_grouped_scatter(
+    df: pd.DataFrame, candidate: Mapping[str, Any]
+) -> go.Figure:
+    """
+    Scatter colored by a grouping column, with an OLS trend line per group
+    and a dashed overall trend line: the Simpson's paradox view.
+    """
+
+    x = candidate["x"]
+    y = candidate["y"]
+    group = candidate["group"]
+
+    clean = df[[x, y, group]].copy()
+    clean[x] = pd.to_numeric(clean[x], errors="coerce")
+    clean[y] = pd.to_numeric(clean[y], errors="coerce")
+    clean = clean.dropna()
+    clean[group] = clean[group].astype(str)
+
+    fig = go.Figure()
+    groups = sorted(clean[group].unique())
+
+    for index, level in enumerate(groups):
+        part = clean[clean[group] == level]
+        color = GROUP_COLORS[index % len(GROUP_COLORS)]
+
+        fig.add_trace(
+            go.Scatter(
+                x=part[x],
+                y=part[y],
+                mode="markers",
+                name=f"{level}",
+                legendgroup=level,
+                marker=dict(color=color, size=7, opacity=0.6, line=dict(width=0)),
+                hovertemplate=(
+                    f"<b>{humanize_column_name(group)}</b>: {level}<br>"
+                    f"<b>{humanize_column_name(x)}</b>: %{{x}}<br>"
+                    f"<b>{humanize_column_name(y)}</b>: %{{y}}<extra></extra>"
+                ),
+            )
+        )
+
+        trend = calculate_linear_trend(part, x, y)
+
+        if trend is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=trend["x"],
+                    y=trend["y"],
+                    mode="lines",
+                    name=f"{level} trend",
+                    legendgroup=level,
+                    showlegend=False,
+                    line=dict(color=color, width=3),
+                    hoverinfo="skip",
+                )
+            )
+
+    overall = calculate_linear_trend(clean, x, y)
+
+    if overall is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=overall["x"],
+                y=overall["y"],
+                mode="lines",
+                name="All rows (overall trend)",
+                line=dict(color=TEXT_LIGHT, width=2, dash="dash"),
+                hoverinfo="skip",
+            )
+        )
+
+    fig.update_layout(
+        title=f"{humanize_column_name(x)} vs {humanize_column_name(y)} "
+        f"by {humanize_column_name(group)}",
+        xaxis_title=humanize_column_name(x),
+        yaxis_title=humanize_column_name(y),
+        legend_title_text=humanize_column_name(group),
+    )
+
+    apply_numeric_axis_format(fig, "x", x, clean[x])
+    apply_numeric_axis_format(fig, "y", y, clean[y])
+
+    return fig
 
 
 def prepare_scatter(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
@@ -1054,7 +1151,10 @@ def render_candidate(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figur
 
     chart = candidate["chart"]
 
-    if chart == "scatter":
+    if chart == "scatter" and candidate.get("group"):
+        fig = prepare_grouped_scatter(df, candidate)
+
+    elif chart == "scatter":
         fig = prepare_scatter(df, candidate)
 
     elif chart == "line":

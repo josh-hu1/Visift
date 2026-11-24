@@ -101,7 +101,12 @@ def print_top_recommendations(recommendations, top_n=15):
 
             for alternative in alternatives:
                 print(
-                    f"      - {alternative['chart_name']} ({alternative['score']}/100)"
+                    f"      - {alternative['chart_name']} "
+                    + (
+                        f"({alternative['score']}/100)"
+                        if "score" in alternative
+                        else "(grouped view, Simpson's paradox)"
+                    )
                 )
 
 
