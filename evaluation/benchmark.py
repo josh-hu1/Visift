@@ -1,24 +1,20 @@
-from pathlib import Path
 import time
+from pathlib import Path
 
 import pandas as pd
 
-from profiler import profile_dataset
 from candidate_generator import generate_candidates
-
-from scoring.engine import score_all_candidates, diversify_recommendations
-
 from evaluation.datasets import build_benchmark_suite
-
 from evaluation.metrics import (
-    evaluate_positive_scenario,
     evaluate_null_scenario,
-    summarize_positive_results,
-    summarize_null_results,
-    relationship_breakdown,
+    evaluate_positive_scenario,
     null_relationship_breakdown,
+    relationship_breakdown,
+    summarize_null_results,
+    summarize_positive_results,
 )
-
+from profiler import profile_dataset
+from scoring.engine import diversify_recommendations, score_all_candidates
 
 # ==================================================
 # CONFIGURATION

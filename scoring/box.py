@@ -2,7 +2,6 @@ import math
 
 import pandas as pd
 
-
 CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
 
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
@@ -39,7 +38,7 @@ def piecewise_score(value, points):
     if value >= points[-1][0]:
         return points[-1][1]
 
-    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+    for (x0, y0), (x1, y1) in zip(points, points[1:], strict=False):
         if x0 <= value <= x1:
             if x1 == x0:
                 return y1

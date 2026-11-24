@@ -1,16 +1,13 @@
-from pathlib import Path
 import time
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from profiler import profile_dataset
 from candidate_generator import generate_candidates
-
-from scoring.engine import score_all_candidates, diversify_recommendations
-
 from evaluation.real_world.expectations import DATASET_DIR, build_real_world_suite
-
+from profiler import profile_dataset
+from scoring.engine import diversify_recommendations, score_all_candidates
 
 # ==================================================
 # CONFIGURATION

@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 BOOLEAN_TEXT_TO_NUMBER = {
     "yes": 1.0,
     "true": 1.0,

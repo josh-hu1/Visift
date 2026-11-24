@@ -5,7 +5,6 @@ import pandas as pd
 
 from scoring.bar import score_bar_chart
 
-
 # ==================================================
 # CONFIGURATION
 # ==================================================
@@ -88,7 +87,7 @@ def make_rate_dataset(seed, rates, n=2000, encoding="yes_no", missing_fraction=0
 
     segment = rng.choice(GROUPS, size=n, replace=True)
 
-    rate_map = {group: rate for group, rate in zip(GROUPS, rates)}
+    rate_map = {group: rate for group, rate in zip(GROUPS, rates, strict=True)}
 
     probabilities = np.array([rate_map[value] for value in segment])
 

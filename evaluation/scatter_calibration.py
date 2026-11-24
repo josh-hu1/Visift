@@ -6,7 +6,6 @@ import pandas as pd
 
 from scoring.scatter import relationship_signal_score, score_scatter_chart
 
-
 # ==================================================
 # CONFIGURATION
 # ==================================================

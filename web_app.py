@@ -1,23 +1,21 @@
 import pandas as pd
 import streamlit as st
-from value_normalization import coerce_numeric_or_boolean
 
-from profiler import profile_dataset
 from candidate_generator import generate_candidates
-
+from profiler import profile_dataset
 from scoring.engine import (
-    score_all_candidates,
-    diversify_recommendations,
     chart_display_name,
+    diversify_recommendations,
     recommendation_strength,
+    score_all_candidates,
     summary_reasons,
 )
-
+from value_normalization import coerce_numeric_or_boolean
 from visualization.renderer import (
-    render_candidate,
-    visualization_title,
     humanize_column_name,
     is_currency_column,
+    render_candidate,
+    visualization_title,
 )
 
 
@@ -391,7 +389,7 @@ def apply_custom_theme():
 
 
         /* =========================
-           ScrollbarsIt 
+           Scrollbars
         ========================= */
 
         ::-webkit-scrollbar {
@@ -519,8 +517,6 @@ def scatter_insight(candidate):
     y = humanize_column_name(candidate["y"])
 
     statistics = candidate.get("statistics", {})
-
-    signal = candidate.get("components", {}).get("signal", 0)
 
     linear_signal = statistics.get("linear_signal", 0)
 
@@ -1017,7 +1013,7 @@ def bar_insight(df, candidate):
     means = clean.groupby(x)[y].mean().sort_values()
 
     if means.empty:
-        return f"No usable values were available for this comparison."
+        return "No usable values were available for this comparison."
 
     lowest_group = means.index[0]
     highest_group = means.index[-1]

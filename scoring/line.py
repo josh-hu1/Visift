@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import levene, pearsonr, spearmanr, t as student_t
-
+from scipy.stats import levene, pearsonr, spearmanr
+from scipy.stats import t as student_t
 
 # ==================================================
 # SEMANTIC TYPES
@@ -57,7 +57,7 @@ def piecewise_score(value, points):
     if value >= points[-1][0]:
         return float(points[-1][1])
 
-    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+    for (x0, y0), (x1, y1) in zip(points, points[1:], strict=False):
         if x0 <= value <= x1:
             if x1 == x0:
                 return float(y1)
@@ -1274,48 +1274,36 @@ def score_line_chart(df, candidate, profile):
 
     if temporal["seasonality"]["signal"] > 0:
         reasons.append(
-            (
-                "Estimated repeating period: "
-                f"{temporal['seasonality']['period_temporal_units']:.1f} "
-                "temporal units."
-            )
+            "Estimated repeating period: "
+            f"{temporal['seasonality']['period_temporal_units']:.1f} "
+            "temporal units."
         )
 
         reasons.append(
-            (
-                "Seasonal autocorrelation: "
-                f"{temporal['seasonality']['autocorrelation']:.3f}."
-            )
+            "Seasonal autocorrelation: "
+            f"{temporal['seasonality']['autocorrelation']:.3f}."
         )
 
     if temporal["level_shift"]["signal"] > 0:
         reasons.append(
-            (
-                "Strongest level-shift effect size: "
-                f"{temporal['level_shift']['effect_size']:.2f}."
-            )
+            "Strongest level-shift effect size: "
+            f"{temporal['level_shift']['effect_size']:.2f}."
         )
 
         reasons.append(
-            (
-                "Level-shift corrected p-value: "
-                f"{temporal['level_shift']['adjusted_p_value']:.4f}."
-            )
+            "Level-shift corrected p-value: "
+            f"{temporal['level_shift']['adjusted_p_value']:.4f}."
         )
 
     if temporal["volatility"]["signal"] > 0:
         reasons.append(
-            (
-                "Strongest temporal dispersion ratio: "
-                f"{temporal['volatility']['dispersion_ratio']:.2f}."
-            )
+            "Strongest temporal dispersion ratio: "
+            f"{temporal['volatility']['dispersion_ratio']:.2f}."
         )
 
         reasons.append(
-            (
-                "Volatility-shift corrected p-value: "
-                f"{temporal['volatility']['adjusted_p_value']:.4f}."
-            )
+            "Volatility-shift corrected p-value: "
+            f"{temporal['volatility']['adjusted_p_value']:.4f}."
         )
 
     return {

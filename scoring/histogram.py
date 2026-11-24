@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from sklearn.mixture import GaussianMixture
 
-
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
 

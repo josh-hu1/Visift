@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import pandas as pd
-
 
 # ==================================================
 # DATA STRUCTURES
@@ -19,8 +17,8 @@ class ExpectedVisualization:
 
     chart: str
     x: str
-    y: Optional[str] = None
-    aggregation: Optional[str] = None
+    y: str | None = None
+    aggregation: str | None = None
     unordered: bool = False
 
 
@@ -48,7 +46,7 @@ class BenchmarkScenario:
     dataframe: pd.DataFrame
     expected: list[ExpectedVisualization]
     is_null: bool = False
-    null_chart_types: Optional[tuple[str, ...]] = None
+    null_chart_types: tuple[str, ...] | None = None
 
 
 # ==================================================

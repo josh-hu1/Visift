@@ -1,10 +1,9 @@
+import zipfile
 from io import BytesIO
 from pathlib import Path
 from urllib.request import Request, urlopen
-import zipfile
 
 import pandas as pd
-
 
 # ==================================================
 # CONFIGURATION

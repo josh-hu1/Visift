@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
-
 
 # ==================================================
 # DATA STRUCTURES
@@ -28,9 +26,9 @@ class ExpectedInsight:
     variables: tuple[str, ...]
     acceptable_charts: tuple[str, ...]
     rationale: str
-    aggregation: Optional[str] = None
-    required_x: Optional[str] = None
-    required_y: Optional[str] = None
+    aggregation: str | None = None
+    required_x: str | None = None
+    required_y: str | None = None
 
 
 @dataclass(frozen=True)

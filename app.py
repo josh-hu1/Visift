@@ -1,15 +1,14 @@
 import pandas as pd
 
-from profiler import profile_dataset
 from candidate_generator import generate_candidates
-
+from profiler import profile_dataset
 from scoring.engine import (
-    score_all_candidates,
-    diversify_recommendations,
-    visualization_title,
     chart_display_name,
+    diversify_recommendations,
     recommendation_strength,
+    score_all_candidates,
     summary_reasons,
+    visualization_title,
 )
 
 

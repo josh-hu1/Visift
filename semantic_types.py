@@ -2,7 +2,6 @@ import re
 
 import pandas as pd
 
-
 # ==================================================
 # NAME / VALUE HELPERS
 # ==================================================
@@ -301,7 +300,6 @@ def is_ordinal(series: pd.Series) -> bool:
     if non_null.empty:
         return False
 
-    column_name = normalize_column_name(series)
     tokens = column_name_tokens(series)
 
     ordinal_terms = {

@@ -3,8 +3,8 @@ import math
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from value_normalization import coerce_numeric_or_boolean
 
+from value_normalization import coerce_numeric_or_boolean
 
 # ==================================================
 # THEME

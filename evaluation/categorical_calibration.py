@@ -5,9 +5,7 @@ import numpy as np
 import pandas as pd
 
 from scoring.bar import count_signal_score, group_separation_score, score_bar_chart
-
 from scoring.box import distribution_signal_score, score_box_chart
-
 
 # ==================================================
 # CONFIGURATION

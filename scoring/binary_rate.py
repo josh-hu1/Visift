@@ -3,7 +3,6 @@ from scipy.stats import chi2
 
 from value_normalization import coerce_numeric_or_boolean
 
-
 ABSOLUTE_SCALE_PP = 60.0
 RELATIVE_SCALE = 2.5
 MINORITY_EVENTS_PER_GROUP_FULL = 15.0
@@ -75,7 +74,7 @@ def binary_rate_signal_score(df, x, y):
 
     unique_outcomes = set(clean[y].unique())
 
-    if not unique_outcomes.issubset({0, 1, 0.0, 1.0}):
+    if not unique_outcomes.issubset({0, 1}):
         return default
 
     grouped = clean.groupby(x)[y].agg(["count", "sum", "mean"])

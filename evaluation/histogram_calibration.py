@@ -6,7 +6,6 @@ import pandas as pd
 
 from scoring.histogram import distribution_signal_score, score_histogram
 
-
 # ==================================================
 # CONFIGURATION
 # ==================================================

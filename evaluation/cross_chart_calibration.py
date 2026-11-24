@@ -5,13 +5,11 @@ import numpy as np
 import pandas as pd
 
 from candidate_generator import generate_candidates
-
 from scoring.engine import (
     candidate_signature,
     diversify_recommendations,
     score_all_candidates,
 )
-
 
 # ==================================================
 # CONFIGURATION
@@ -994,12 +992,7 @@ def print_report(
     print("Targets in top 5:")
 
     print(
-        (
-            aligned_distractors["targets_in_top_5"]
-            .value_counts()
-            .sort_index()
-            .to_string()
-        )
+        aligned_distractors["targets_in_top_5"].value_counts().sort_index().to_string()
     )
 
     print()

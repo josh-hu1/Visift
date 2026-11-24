@@ -1,6 +1,5 @@
 from itertools import combinations
 
-
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 
 CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
