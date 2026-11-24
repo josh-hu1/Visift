@@ -8,7 +8,13 @@ from visift.scoring.box import score_box_chart
 from visift.scoring.histogram import score_histogram
 from visift.scoring.line import score_line_chart
 from visift.scoring.scatter import score_scatter_chart
-from visift.types import Candidate, DatasetProfile, Recommendation, ScoredCandidate
+from visift.types import (
+    AlternativeChart,
+    Candidate,
+    DatasetProfile,
+    Recommendation,
+    ScoredCandidate,
+)
 
 SCORERS = {
     "bar": score_bar_chart,
@@ -60,7 +66,9 @@ def score_all_candidates(
     return scored
 
 
-def candidate_signature(candidate: Mapping[str, Any]) -> tuple[str, ...]:
+def candidate_signature(
+    candidate: Mapping[str, Any], aliases: Mapping[str, str] | None = None
+) -> tuple[str, ...]:
     """
     Create a signature representing the variables
     involved in a visualization.
@@ -77,6 +85,9 @@ def candidate_signature(candidate: Mapping[str, Any]) -> tuple[str, ...]:
     both become:
 
         ('rating', 'revenue')
+
+    With aliases (column -> near-duplicate cluster representative), charts
+    that differ only by swapping a column for its twin share a signature.
     """
 
     variables = []
@@ -87,11 +98,14 @@ def candidate_signature(candidate: Mapping[str, Any]) -> tuple[str, ...]:
     if "y" in candidate:
         variables.append(candidate["y"])
 
+    if aliases:
+        variables = [aliases.get(variable, variable) for variable in variables]
+
     return tuple(sorted(variables))
 
 
 def diversify_recommendations(
-    recommendations: list[ScoredCandidate],
+    recommendations: list[ScoredCandidate], aliases: Mapping[str, str] | None = None
 ) -> list[Recommendation]:
     """
     Remove redundant recommendations involving
@@ -102,7 +116,14 @@ def diversify_recommendations(
 
     Lower-scoring chart types using the same
     variables are stored as alternatives.
+
+    With aliases (see visift.redundancy.duplicate_aliases), near-duplicate
+    columns count as one variable: the chart drawn with the cluster
+    representatives is the primary view and its twins become alternatives.
     """
+
+    if aliases:
+        return _diversify_with_aliases(recommendations, aliases)
 
     diversified: list[Recommendation] = []
 
@@ -134,6 +155,52 @@ def diversify_recommendations(
                     "score": candidate["score"],
                 }
             )
+
+    return diversified
+
+
+def _alternative(candidate: ScoredCandidate) -> AlternativeChart:
+    return {
+        "chart": candidate["chart"],
+        "chart_name": chart_display_name(candidate["chart"]),
+        "title": visualization_title(candidate),
+        "score": candidate["score"],
+    }
+
+
+def _diversify_with_aliases(
+    recommendations: list[ScoredCandidate], aliases: Mapping[str, str]
+) -> list[Recommendation]:
+    groups: dict[tuple[str, ...], list[ScoredCandidate]] = {}
+
+    for candidate in recommendations:
+        groups.setdefault(candidate_signature(candidate, aliases), []).append(candidate)
+
+    diversified: list[Recommendation] = []
+
+    for members in groups.values():
+        canonical = [
+            member
+            for member in members
+            if all(
+                aliases.get(column, column) == column
+                for column in (member["x"], member.get("y"))
+                if column is not None
+            )
+        ]
+
+        primary = canonical[0] if canonical else members[0]
+
+        # cast() is a no-op; alternative_charts is added on the next line.
+        recommendation = cast(Recommendation, dict(primary))
+        recommendation["alternative_charts"] = [
+            _alternative(member) for member in members if member is not primary
+        ]
+
+        diversified.append(recommendation)
+
+    # Each primary keeps its own score; sort is stable for ties.
+    diversified.sort(key=lambda item: item["score"], reverse=True)
 
     return diversified
 
