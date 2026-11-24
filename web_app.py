@@ -1,17 +1,17 @@
 import pandas as pd
 import streamlit as st
 
-from candidate_generator import generate_candidates
-from profiler import profile_dataset
-from scoring.engine import (
+from visift.candidate_generator import generate_candidates
+from visift.profiler import profile_dataset
+from visift.scoring.engine import (
     chart_display_name,
     diversify_recommendations,
     recommendation_strength,
     score_all_candidates,
     summary_reasons,
 )
-from value_normalization import coerce_numeric_or_boolean
-from visualization.renderer import (
+from visift.value_normalization import coerce_numeric_or_boolean
+from visift.visualization.renderer import (
     humanize_column_name,
     is_currency_column,
     render_candidate,

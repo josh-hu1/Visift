@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from candidate_generator import generate_candidates
-from semantic_types import classify_column
+from visift.candidate_generator import generate_candidates
+from visift.semantic_types import classify_column
 
 RESULTS_DIR = Path("evaluation/results/time_semantics_calibration_v1")
 

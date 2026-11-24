@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scoring.bar import score_bar_chart
+from visift.scoring.bar import score_bar_chart
 
 # ==================================================
 # CONFIGURATION

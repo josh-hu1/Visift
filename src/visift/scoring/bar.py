@@ -2,8 +2,8 @@ import math
 
 from scipy.stats import chisquare
 
-from scoring.binary_rate import binary_rate_signal_score
-from value_normalization import coerce_numeric_or_boolean
+from visift.scoring.binary_rate import binary_rate_signal_score
+from visift.value_normalization import coerce_numeric_or_boolean
 
 
 def clamp(value, minimum=0, maximum=100):

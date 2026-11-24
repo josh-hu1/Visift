@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import chi2
 
-from value_normalization import coerce_numeric_or_boolean
+from visift.value_normalization import coerce_numeric_or_boolean
 
 ABSOLUTE_SCALE_PP = 60.0
 RELATIVE_SCALE = 2.5

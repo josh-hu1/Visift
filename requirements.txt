@@ -1,6 +1,5 @@
-numpy
-pandas
-scipy
-scikit-learn
-plotly
-streamlit>=1.57
+# Used by Streamlit Community Cloud. Installs the visift package (src/visift)
+# in editable mode with the Streamlit extra; dependencies live in pyproject.toml.
+# Editable keeps the deployed app in sync with code pushes, since Cloud only
+# reinstalls when this file changes.
+-e .[app]

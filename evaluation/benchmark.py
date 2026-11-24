@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pandas as pd
 
-from candidate_generator import generate_candidates
 from evaluation.datasets import build_benchmark_suite
 from evaluation.metrics import (
     evaluate_null_scenario,
@@ -13,8 +12,9 @@ from evaluation.metrics import (
     summarize_null_results,
     summarize_positive_results,
 )
-from profiler import profile_dataset
-from scoring.engine import diversify_recommendations, score_all_candidates
+from visift.candidate_generator import generate_candidates
+from visift.profiler import profile_dataset
+from visift.scoring.engine import diversify_recommendations, score_all_candidates
 
 # ==================================================
 # CONFIGURATION

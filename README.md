@@ -277,32 +277,35 @@ evaluation/results/
 
 ```text
 Visift/
-├── app.py
-├── web_app.py
-├── candidate_generator.py
-├── profiler.py
-├── semantic_types.py
+├── web_app.py                  # Streamlit UI (streamlit run web_app.py)
+├── app.py                      # command-line demo on synthetic_sales.csv
+├── pyproject.toml              # package metadata, dependencies, ruff config
+├── requirements.txt            # Streamlit Cloud entry point: -e .[app]
 ├── synthetic_sales.csv
-├── requirements.txt
 │
-├── scoring/
-│   ├── engine.py
-│   ├── bar.py
-│   ├── scatter.py
-│   ├── line.py
-│   ├── histogram.py
-│   └── box.py
-│
-├── visualization/
-│   └── renderer.py
+├── src/visift/                 # the recommendation engine (installable package)
+│   ├── profiler.py
+│   ├── semantic_types.py
+│   ├── value_normalization.py
+│   ├── candidate_generator.py
+│   ├── scoring/
+│   │   ├── engine.py
+│   │   ├── bar.py
+│   │   ├── binary_rate.py
+│   │   ├── box.py
+│   │   ├── histogram.py
+│   │   ├── line.py
+│   │   └── scatter.py
+│   └── visualization/
+│       └── renderer.py
 │
 ├── evaluation/
 │   ├── benchmark.py
-│   ├── histogram_calibration.py
-│   ├── scatter_calibration.py
-│   ├── categorical_calibration.py
-│   ├── temporal_calibration.py
-│   ├── cross_chart_calibration.py
+│   ├── *_calibration.py
+│   ├── real_world/
+│   │   ├── benchmark.py
+│   │   ├── download_datasets.py
+│   │   └── expectations.py
 │   └── results/
 │
 └── assets/
@@ -332,11 +335,15 @@ git clone https://github.com/josh-hu1/Visift.git
 cd Visift
 ```
 
-Install dependencies:
+Create a virtual environment and install Visift with the Streamlit extra (Python 3.10+):
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+`requirements.txt` installs the `visift` package from `src/` in editable mode. For development tools (ruff, pytest), use `pip install -e ".[app,dev]"` instead.
 
 Launch the Streamlit application:
 

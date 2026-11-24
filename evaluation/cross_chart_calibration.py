@@ -4,8 +4,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from candidate_generator import generate_candidates
-from scoring.engine import (
+from visift.candidate_generator import generate_candidates
+from visift.scoring.engine import (
     candidate_signature,
     diversify_recommendations,
     score_all_candidates,

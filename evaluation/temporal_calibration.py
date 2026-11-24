@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scoring.line import (
+from visift.scoring.line import (
     prepare_temporal_data,
     sample_support_score,
     score_line_chart,

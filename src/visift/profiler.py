@@ -1,6 +1,6 @@
 import pandas as pd
 
-from semantic_types import classify_column
+from visift.semantic_types import classify_column
 
 
 def profile_numeric_column(series: pd.Series) -> dict:

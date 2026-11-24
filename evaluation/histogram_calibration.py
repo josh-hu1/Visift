@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scoring.histogram import distribution_signal_score, score_histogram
+from visift.scoring.histogram import distribution_signal_score, score_histogram
 
 # ==================================================
 # CONFIGURATION

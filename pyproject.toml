@@ -1,6 +1,36 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visift"
+version = "0.1.0"
+description = "Rank which charts are worth looking at first in a new tabular dataset."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26,<3",
+    "pandas>=2.1,<4",
+    "scipy>=1.11,<2",
+    "scikit-learn>=1.3,<2",
+    "plotly>=5.18,<8",
+]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.57,<2"]
+dev = ["ruff>=0.15", "pytest>=8", "pytest-cov>=5"]
+
+[project.urls]
+Homepage = "https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app"
+Repository = "https://github.com/josh-hu1/Visift"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+src = ["src", "."]
 extend-exclude = ["evaluation/results"]
 
 [tool.ruff.format]
@@ -21,13 +51,5 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = [
-    "candidate_generator",
-    "evaluation",
-    "profiler",
-    "scoring",
-    "semantic_types",
-    "value_normalization",
-    "visualization",
-]
+known-first-party = ["visift", "evaluation"]
 split-on-trailing-comma = false

@@ -1,8 +1,8 @@
-from scoring.bar import score_bar_chart
-from scoring.box import score_box_chart
-from scoring.histogram import score_histogram
-from scoring.line import score_line_chart
-from scoring.scatter import score_scatter_chart
+from visift.scoring.bar import score_bar_chart
+from visift.scoring.box import score_box_chart
+from visift.scoring.histogram import score_histogram
+from visift.scoring.line import score_line_chart
+from visift.scoring.scatter import score_scatter_chart
 
 SCORERS = {
     "bar": score_bar_chart,

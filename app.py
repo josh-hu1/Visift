@@ -1,8 +1,8 @@
 import pandas as pd
 
-from candidate_generator import generate_candidates
-from profiler import profile_dataset
-from scoring.engine import (
+from visift.candidate_generator import generate_candidates
+from visift.profiler import profile_dataset
+from visift.scoring.engine import (
     chart_display_name,
     diversify_recommendations,
     recommendation_strength,

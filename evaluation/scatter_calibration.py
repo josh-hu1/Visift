@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scoring.scatter import relationship_signal_score, score_scatter_chart
+from visift.scoring.scatter import relationship_signal_score, score_scatter_chart
 
 # ==================================================
 # CONFIGURATION
