@@ -31,7 +31,9 @@ def get_semantic_type(profile: DatasetProfile, column_name: str | None) -> str |
     return None
 
 
-def generate_candidates(df: pd.DataFrame, profile: DatasetProfile) -> list[Candidate]:
+def generate_candidates(
+    df: pd.DataFrame, profile: DatasetProfile, target: str | None = None
+) -> list[Candidate]:
     """
     Generate valid visualization candidates based on
     semantic column types.
@@ -40,6 +42,10 @@ def generate_candidates(df: pd.DataFrame, profile: DatasetProfile) -> list[Candi
     it decides whether a visualization can make semantic
     sense. The scoring layer decides whether the resulting
     visualization is actually informative.
+
+    With a target (the outcome column the user wants to explain), the
+    candidate set is the same plus the target-oriented charts that have no
+    direction without one: see target_candidates().
     """
 
     candidates: list[Candidate] = []
@@ -128,7 +134,7 @@ def generate_candidates(df: pd.DataFrame, profile: DatasetProfile) -> list[Candi
                 {"chart": "bar", "x": col2, "y": col1, "aggregation": "mean"}
             )
 
-    return [
+    eligible = [
         candidate
         for candidate in candidates
         if (
@@ -137,6 +143,54 @@ def generate_candidates(df: pd.DataFrame, profile: DatasetProfile) -> list[Candi
                 candidate.get("x"), get_semantic_type(profile, candidate.get("x"))
             )
         )
+    ]
+
+    if target is None:
+        return eligible
+
+    existing = {_candidate_key(candidate) for candidate in eligible}
+
+    return eligible + [
+        candidate
+        for candidate in target_candidates(df, profile, target)
+        if _candidate_key(candidate) not in existing
+    ]
+
+
+def _candidate_key(candidate: Candidate) -> tuple[str, str, str | None, str | None]:
+    return (
+        candidate["chart"],
+        candidate["x"],
+        candidate.get("y"),
+        candidate.get("aggregation"),
+    )
+
+
+def target_candidates(
+    df: pd.DataFrame, profile: DatasetProfile, target: str
+) -> list[Candidate]:
+    """
+    Target-oriented charts that the semantic rules above skip because they
+    have no predictor/outcome direction on their own.
+
+    The base rules already cover a target against most columns (rate bars of
+    a boolean target by categories, box plots of numerics by a boolean or
+    categorical target, scatter/box/line for a numeric target). The one gap
+    is boolean predictor vs boolean target: without a target there is no way
+    to tell which side is the outcome, so that rate bar is only generated
+    once the user names the target.
+    """
+
+    if target not in df.columns:
+        raise ValueError(f"Unknown target column: {target!r}")
+
+    if get_semantic_type(profile, target) != "boolean":
+        return []
+
+    return [
+        {"chart": "bar", "x": column, "y": target, "aggregation": "mean"}
+        for column in df.columns
+        if column != target and get_semantic_type(profile, column) == "boolean"
     ]
 
 
