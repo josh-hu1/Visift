@@ -1147,6 +1147,7 @@ def analyze_dataset(df, target=None, _progress=None):
         analysis["notes"],
         analysis["noted_charts"],
         elapsed,
+        analysis["paradoxes"],
     )
 
 
@@ -1371,7 +1372,12 @@ def display_recommendation(df, candidate, rank):
         with header_left:
             st.markdown(f"### #{rank} — {title}")
 
-            st.markdown(f":{color}-badge[{strength}] :gray-badge[{chart_name}]")
+            badges = f":{color}-badge[{strength}] :gray-badge[{chart_name}]"
+
+            if candidate.get("paradox"):
+                badges += " :orange-badge[Simpson's paradox]"
+
+            st.markdown(badges)
 
         with header_right:
             st.metric("Score", f"{score:.1f}")
@@ -1433,12 +1439,19 @@ def display_recommendation(df, candidate, rank):
                     st.markdown("#### Alternative views")
 
                     for alternative in alternatives:
-                        st.write(
-                            f"• "
-                            f"{alternative['chart_name']} "
-                            f"— "
-                            f"{alternative['score']:.2f}/100"
-                        )
+                        if "score" in alternative:
+                            st.write(
+                                f"• "
+                                f"{alternative['chart_name']} "
+                                f"— "
+                                f"{alternative['score']:.2f}/100"
+                            )
+
+                        else:
+                            st.write(
+                                f"• {alternative['chart_name']} — grouped view "
+                                "(see Worth a closer look)"
+                            )
 
             with scoring_tab:
                 st.markdown("#### Component scores")
@@ -1535,6 +1548,91 @@ def recommendation_controls(recommendations):
 # ==================================================
 
 
+def display_paradoxes(df, paradoxes):
+    """
+    "Worth a closer look": relationships that reverse (or only appear)
+    within groups. Not scored on the 0-100 scale.
+    """
+
+    if not paradoxes:
+        return
+
+    st.subheader("Worth a closer look")
+
+    st.write(
+        "These relationships change direction once you split the data into "
+        "groups (Simpson's paradox), so the overall trend can be misleading. "
+        "They are listed separately and do not affect the scores below."
+    )
+
+    for paradox in paradoxes:
+        with st.container(border=True):
+            label = (
+                "Reversal" if paradox["kind"] == "reversal" else "Hidden within groups"
+            )
+
+            st.markdown(
+                f"### {humanize_column_name(paradox['x'])} vs "
+                f"{humanize_column_name(paradox['y'])} by "
+                f"{humanize_column_name(paradox['group'])}"
+            )
+
+            st.markdown(f":orange-badge[Simpson's paradox] :gray-badge[{label}]")
+
+            st.info(paradox["sentence"], icon="🔀")
+
+            fig = render_candidate(
+                df,
+                {
+                    "chart": "scatter",
+                    "x": paradox["x"],
+                    "y": paradox["y"],
+                    "group": paradox["group"],
+                },
+            )
+
+            st.plotly_chart(
+                fig, width="stretch", config={"displaylogo": False, "responsive": True}
+            )
+
+            with st.expander("Group-level evidence"):
+                st.dataframe(
+                    pd.DataFrame(
+                        [
+                            {
+                                humanize_column_name(paradox["group"]): g["group"],
+                                "Rows": g["n"],
+                                "Spearman ρ": round(g["rho"], 3),
+                            }
+                            for g in paradox["groups"]
+                        ]
+                        + [
+                            {
+                                humanize_column_name(paradox["group"]): "All rows",
+                                "Rows": paradox["n"],
+                                "Spearman ρ": round(paradox["overall"], 3),
+                            }
+                        ]
+                    ),
+                    width="stretch",
+                    hide_index=True,
+                )
+
+                st.caption(
+                    f"Pooled within-group ρ = {paradox['within']:+.3f} "
+                    f"(p = {paradox['within_p']:.1e}); overall ρ = "
+                    f"{paradox['overall']:+.3f} (p = {paradox['overall_p']:.1e}). "
+                    "Both survive a Bonferroni correction over every pair and "
+                    "grouping checked."
+                    if paradox["kind"] == "reversal"
+                    else f"Pooled within-group ρ = {paradox['within']:+.3f} "
+                    f"(p = {paradox['within_p']:.1e}); overall ρ = "
+                    f"{paradox['overall']:+.3f}."
+                )
+
+    st.divider()
+
+
 def display_recommendations_tab(
     df,
     candidates,
@@ -1543,12 +1641,16 @@ def display_recommendations_tab(
     minimum_score,
     top_n,
     target=None,
+    paradoxes=(),
 ):
     """
     Display globally ranked recommendations.
 
-    With a target, its drivers are shown first in their own section.
+    Simpson's paradox findings come first ("Worth a closer look"); with a
+    target, its drivers are shown next in their own section.
     """
+
+    display_paradoxes(df, list(paradoxes))
 
     if target is not None:
         drivers, recommendations = split_by_target(recommendations, target)
@@ -1861,9 +1963,15 @@ def main():
         def show_progress(stage, fraction):
             progress_bar.progress(min(max(fraction, 0.0), 1.0), text=f"{stage}...")
 
-        (profile, candidates, recommendations, notes, noted_charts, elapsed) = (
-            analyze_dataset(df, target, _progress=show_progress)
-        )
+        (
+            profile,
+            candidates,
+            recommendations,
+            notes,
+            noted_charts,
+            elapsed,
+            paradoxes,
+        ) = analyze_dataset(df, target, _progress=show_progress)
 
         progress_bar.empty()
 
@@ -1914,6 +2022,7 @@ def main():
             minimum_score,
             top_n,
             target=target,
+            paradoxes=paradoxes,
         )
 
     with dataset_tab:
