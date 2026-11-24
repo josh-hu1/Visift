@@ -1,3 +1,4 @@
+import argparse
 import time
 from pathlib import Path
 
@@ -8,12 +9,16 @@ from evaluation.real_world.expectations import DATASET_DIR, build_real_world_sui
 from visift.candidate_generator import generate_candidates
 from visift.profiler import profile_dataset
 from visift.scoring.engine import diversify_recommendations, score_all_candidates
+from visift.target import rank_with_target
 
 # ==================================================
 # CONFIGURATION
 # ==================================================
 
 RESULTS_DIR = Path("evaluation/results/real_world_v1")
+
+# Target mode: each dataset's pre-registered target, drivers ranked first.
+TARGET_RESULTS_DIR = Path("evaluation/results/real_world_target_v1")
 
 TOP_K_VALUES = (3, 5, 10)
 
@@ -210,7 +215,7 @@ def evaluate_semantics(dataset_spec, profile):
 # ==================================================
 
 
-def evaluate_dataset(dataset_spec):
+def evaluate_dataset(dataset_spec, target=None):
     """
     Run one real dataset through the complete Visift pipeline.
 
@@ -218,6 +223,10 @@ def evaluate_dataset(dataset_spec):
     are NOT labeled false positives. Real datasets do not have
     exhaustive ground truth. Instead, unmatched high-ranking
     recommendations are saved for manual review.
+
+    With a target, candidates include the target-oriented charts and the
+    ranking is "drivers of target" first, then everything else. Expected
+    insight ranks are measured against that combined list.
     """
 
     path = DATASET_DIR / dataset_spec.filename
@@ -235,11 +244,14 @@ def evaluate_dataset(dataset_spec):
 
     profile = profile_dataset(df)
 
-    candidates = generate_candidates(df, profile)
+    candidates = generate_candidates(df, profile, target=target)
 
     scored = score_all_candidates(df, candidates, profile)
 
     recommendations = diversify_recommendations(scored)
+
+    if target is not None:
+        recommendations = rank_with_target(recommendations, target)
 
     elapsed = time.perf_counter() - start
 
@@ -644,13 +656,18 @@ def print_suite_report(summaries):
 
 
 def save_results(
-    summaries, expectation_frames, unmatched_frames, semantic_frames, profile_records
+    summaries,
+    expectation_frames,
+    unmatched_frames,
+    semantic_frames,
+    profile_records,
+    results_dir=RESULTS_DIR,
 ):
     """
     Save raw real-world benchmark outputs for inspection.
     """
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
 
     summary_df = pd.DataFrame(summaries)
 
@@ -662,15 +679,15 @@ def save_results(
 
     profile_df = pd.DataFrame(profile_records)
 
-    summary_df.to_csv(RESULTS_DIR / "dataset_summary.csv", index=False)
+    summary_df.to_csv(results_dir / "dataset_summary.csv", index=False)
 
-    expectation_df.to_csv(RESULTS_DIR / "expected_insight_ranks.csv", index=False)
+    expectation_df.to_csv(results_dir / "expected_insight_ranks.csv", index=False)
 
-    unmatched_df.to_csv(RESULTS_DIR / "unmatched_top_recommendations.csv", index=False)
+    unmatched_df.to_csv(results_dir / "unmatched_top_recommendations.csv", index=False)
 
-    semantic_df.to_csv(RESULTS_DIR / "semantic_expectations.csv", index=False)
+    semantic_df.to_csv(results_dir / "semantic_expectations.csv", index=False)
 
-    profile_df.to_csv(RESULTS_DIR / "inferred_column_profiles.csv", index=False)
+    profile_df.to_csv(results_dir / "inferred_column_profiles.csv", index=False)
 
     return (summary_df, expectation_df, unmatched_df, semantic_df, profile_df)
 
@@ -680,12 +697,17 @@ def save_results(
 # ==================================================
 
 
-def run_benchmark():
+def run_benchmark(target_mode=False):
     """
     Run the complete registered real-world benchmark suite.
+
+    target_mode=False reproduces the original benchmark exactly.
+    target_mode=True gives each dataset its pre-registered target.
     """
 
     suite = build_real_world_suite()
+
+    results_dir = TARGET_RESULTS_DIR if target_mode else RESULTS_DIR
 
     summaries = []
     expectation_frames = []
@@ -694,14 +716,25 @@ def run_benchmark():
     profile_records = []
 
     print()
-    print("Running Visift real-world benchmark...")
+    print(
+        "Running Visift real-world benchmark"
+        + (" (target mode)..." if target_mode else "...")
+    )
 
     for index, dataset_spec in enumerate(suite, start=1):
-        print(f"[{index:02d}/{len(suite):02d}] {dataset_spec.name}")
+        target = dataset_spec.target if target_mode else None
+
+        print(
+            f"[{index:02d}/{len(suite):02d}] {dataset_spec.name}"
+            + (f" (target: {target})" if target_mode else "")
+        )
 
         (summary, expectation_df, unmatched_df, semantic_df, profile, _) = (
-            evaluate_dataset(dataset_spec)
+            evaluate_dataset(dataset_spec, target=target)
         )
+
+        if target_mode:
+            summary["target"] = target
 
         summaries.append(summary)
 
@@ -723,14 +756,92 @@ def run_benchmark():
         unmatched_frames=unmatched_frames,
         semantic_frames=semantic_frames,
         profile_records=profile_records,
+        results_dir=results_dir,
     )
 
-    print(f"Raw results saved to {RESULTS_DIR}/")
+    print(f"Raw results saved to {results_dir}/")
 
     print()
 
     return summaries
 
 
+def compare_modes():
+    """
+    Side-by-side no-target vs target-mode results from the saved CSVs.
+    """
+
+    metrics = [
+        "recall_at_3",
+        "recall_at_5",
+        "recall_at_10",
+        "mean_reciprocal_expected_rank",
+    ]
+
+    before = pd.read_csv(RESULTS_DIR / "dataset_summary.csv")
+    after = pd.read_csv(TARGET_RESULTS_DIR / "dataset_summary.csv")
+
+    summary = before[["dataset", "expected_insights", *metrics]].merge(
+        after[["dataset", "target", *metrics]],
+        on="dataset",
+        suffixes=("_no_target", "_target"),
+    )
+
+    ranks = pd.read_csv(RESULTS_DIR / "expected_insight_ranks.csv")[
+        ["dataset", "expected_insight", "rank"]
+    ].merge(
+        pd.read_csv(TARGET_RESULTS_DIR / "expected_insight_ranks.csv")[
+            ["dataset", "expected_insight", "rank"]
+        ],
+        on=["dataset", "expected_insight"],
+        suffixes=("_no_target", "_target"),
+    )
+
+    summary.to_csv(TARGET_RESULTS_DIR / "mode_comparison.csv", index=False)
+    ranks.to_csv(TARGET_RESULTS_DIR / "rank_comparison.csv", index=False)
+
+    printable = summary.copy()
+
+    for column in printable.columns:
+        if column.startswith("recall_at_"):
+            printable[column] = printable[column].map(format_pct)
+
+        elif column.startswith("mean_reciprocal"):
+            printable[column] = printable[column].map(lambda value: f"{value:.3f}")
+
+    print("=" * 80)
+    print("NO-TARGET VS TARGET MODE")
+    print("=" * 80)
+    print(printable.to_string(index=False))
+    print()
+    print(ranks.to_string(index=False))
+    print()
+
+    return summary, ranks
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+
+    parser.add_argument(
+        "--mode",
+        choices=("no-target", "target", "both"),
+        default="both",
+        help="no-target: original benchmark; target: pre-registered targets; "
+        "both (default): run both and compare.",
+    )
+
+    mode = parser.parse_args().mode
+
+    if mode in ("no-target", "both"):
+        run_benchmark(target_mode=False)
+
+    if mode in ("target", "both"):
+        run_benchmark(target_mode=True)
+
+    if mode == "both":
+        compare_modes()
+
+
 if __name__ == "__main__":
-    run_benchmark()
+    main()
