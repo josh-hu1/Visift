@@ -1124,23 +1124,39 @@ def profile_data(df):
     return profile_dataset(df)
 
 
-@st.cache_data(show_spinner=False)
-def analyze_dataset(df, target=None, _progress=None):
+ANALYSIS_CACHE_SIZE = 4
+
+
+def analyze_dataset(df, target=None, progress=None):
     """
     Run the full recommendation pipeline.
 
-    Results are cached so changing interface
-    filters does not rerun the analysis. _progress (excluded from the cache
-    key by its leading underscore) receives (stage, fraction) updates.
+    Results are cached per session so changing interface filters does not
+    rerun the analysis. This is a plain session-state cache rather than
+    st.cache_data because the progress callback updates a Streamlit element
+    created outside the function, which st.cache_data forbids
+    (CacheReplayClosureError on a real server).
     """
+
+    key = (
+        int(pd.util.hash_pandas_object(df, index=True).sum()),
+        tuple(map(str, df.columns)),
+        tuple(map(str, df.dtypes)),
+        target,
+    )
+
+    cache = st.session_state.setdefault("_visift_analysis_cache", {})
+
+    if key in cache:
+        return cache[key]
 
     start = time.perf_counter()
 
-    analysis = analyze(df, target=target, progress=_progress)
+    analysis = analyze(df, target=target, progress=progress)
 
     elapsed = time.perf_counter() - start
 
-    return (
+    result = (
         analysis["profile"],
         analysis["candidates"],
         analysis["recommendations"],
@@ -1148,6 +1164,13 @@ def analyze_dataset(df, target=None, _progress=None):
         analysis["noted_charts"],
         elapsed,
     )
+
+    while len(cache) >= ANALYSIS_CACHE_SIZE:
+        cache.pop(next(iter(cache)))
+
+    cache[key] = result
+
+    return result
 
 
 # ==================================================
@@ -1862,7 +1885,7 @@ def main():
             progress_bar.progress(min(max(fraction, 0.0), 1.0), text=f"{stage}...")
 
         (profile, candidates, recommendations, notes, noted_charts, elapsed) = (
-            analyze_dataset(df, target, _progress=show_progress)
+            analyze_dataset(df, target, progress=show_progress)
         )
 
         progress_bar.empty()
