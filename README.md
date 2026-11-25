@@ -280,6 +280,16 @@ evaluation/results/
 
 ---
 
+## Simpson's Paradox: "Worth a Closer Look"
+
+Some relationships reverse once you split the data into groups. In Palmer Penguins, longer bills go with *shallower* bills across all penguins (Spearman ρ = −0.22), but with *deeper* bills within every species (pooled within-species ρ = +0.47). Visift checks every numeric pair against up to three grouping columns and lists reversals above the recommendations, with a grouped scatter (one trend line per group plus the dashed overall trend):
+
+![Simpson's paradox in Palmer Penguins: bill length vs bill depth by species](assets/simpson-penguins.png)
+
+A pair is flagged only when the overall and within-group Spearman correlations have opposite signs, both have magnitude ≥ 0.15, both survive a Bonferroni correction over every pair and grouping checked, and groups holding at least two thirds of the rows agree on the within-group direction. The rule was fixed before it was run on real data (and designed knowing the Penguins example). On synthetic data (`python -m evaluation.simpson_calibration`) it detects 94.5% of planted reversals that are visible in the sample and flags none of 320 null datasets; the misses are groups so far apart that x and y become near-duplicates overall, which the redundancy check sets aside. The findings are not scored and do not change any ranking.
+
+---
+
 ## Performance
 
 Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac. Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
@@ -324,6 +334,7 @@ Visift/
 │   ├── candidate_generator.py
 │   ├── target.py               # target suggestion and drivers-first ranking
 │   ├── redundancy.py           # near-duplicate / near-deterministic column pairs
+│   ├── paradox.py              # Simpson's paradox detection
 │   ├── pipeline.py             # analyze(df, target=None): the whole pipeline in one call
 │   ├── scoring/
 │   │   ├── engine.py
@@ -346,7 +357,8 @@ Visift/
 │   └── results/
 │
 └── assets/
-    └── app-preview.png
+    ├── app-preview.png
+    └── simpson-penguins.png
 ```
 
 ---
