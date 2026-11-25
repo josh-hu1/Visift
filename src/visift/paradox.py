@@ -12,8 +12,9 @@ eligible grouping column g:
 
 - Eligible groupings: categorical, ordinal or boolean columns with 2-8
   levels, using only levels with at least MIN_ROWS_PER_GROUP rows (and at
-  least 2 such levels). Groupings that are near-duplicates of, or near-
-  deterministically linked to, x or y are skipped.
+  least 2 such levels). Groupings that are near-duplicates of x or y are
+  skipped. (Amended after the first real-data run, see below: the original
+  rule also skipped groupings that near-deterministically explain x or y.)
 - Cap: per pair, at most MAX_GROUPINGS_PER_PAIR groupings, chosen by
   min(eta^2(g -> x), eta^2(g -> y)). A reversal needs the groups to shift
   both x and y, so groupings that shift neither cannot produce one.
@@ -36,6 +37,15 @@ significant after correction, and the same 2/3 consistency rule.
 
 Findings are not put on the calibrated 0-100 scale and do not change any
 existing score or rank.
+
+Amendment (after the first real-data run, before any threshold change):
+the pre-registered version also skipped a grouping when redundancy
+detection said it near-deterministically explains x or y (eta^2 >= 0.95).
+Running the synthetic validation through the pipeline showed this hides
+the clearest reversals: well-separated groups explain most of x's variance
+by construction, so with 8 separated groups detection fell to 0%. Only
+near-duplicate groupings are skipped now, as originally specified.
+Thresholds are unchanged.
 """
 
 import itertools
@@ -46,7 +56,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from visift.redundancy import Redundancy, flagged_pairs
+from visift.redundancy import NEAR_DUPLICATE_KINDS, Redundancy, flagged_pairs
 from visift.types import DatasetProfile
 
 MIN_ROWS_PER_GROUP = 20
@@ -211,6 +221,9 @@ def find_paradoxes(
         return []
 
     redundant = flagged_pairs(redundancies or [])
+    duplicate_groupings = flagged_pairs(
+        [r for r in redundancies or [] if r["kind"] in NEAR_DUPLICATE_KINDS]
+    )
 
     values = {c: df[c].to_numpy(dtype=float) for c in numeric}
     present = {c: ~np.isnan(values[c]) for c in numeric}
@@ -229,7 +242,10 @@ def find_paradoxes(
 
         ranked = []
         for g, grouping in prepared.items():
-            if frozenset((g, x)) in redundant or frozenset((g, y)) in redundant:
+            if (
+                frozenset((g, x)) in duplicate_groupings
+                or frozenset((g, y)) in duplicate_groupings
+            ):
                 continue
             mask = rows(x, y, g)
             if int(mask.sum()) < MIN_ROWS_PER_GROUP * MIN_GROUP_LEVELS:

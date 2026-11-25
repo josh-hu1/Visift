@@ -24,6 +24,7 @@ from scipy import stats
 
 from visift.paradox import REVERSAL_MIN_ABS, _within_rank_correlation, find_paradoxes
 from visift.profiler import profile_dataset
+from visift.redundancy import find_redundancies
 
 RESULTS_DIR = Path("evaluation/results/simpson_calibration_v1")
 
@@ -73,6 +74,13 @@ def null_dataset(kind: str, k: int, seed: int) -> pd.DataFrame:
     return pd.DataFrame({"x": x, "y": y, "group": labels})
 
 
+def _detect(df: pd.DataFrame) -> list:
+    """Call the detector the way the pipeline does (with redundancy info)."""
+
+    profile = profile_dataset(df)
+    return find_paradoxes(df, profile, find_redundancies(df, profile))
+
+
 NULL_KINDS = ("independent_groups", "shift_same_sign", "shift_x_only", "pure_noise")
 
 
@@ -82,7 +90,7 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     for k, rho, separation in itertools.product(GROUP_COUNTS, WITHIN_RHO, SEPARATION):
         for seed in SEEDS:
             df = planted_reversal(k, rho, separation, seed)
-            flags = find_paradoxes(df, profile_dataset(df))
+            flags = _detect(df)
             overall = float(stats.spearmanr(df["x"], df["y"])[0])
             within = _within_rank_correlation(df, "x", "y", "group")
             planted_rows.append(
@@ -107,7 +115,7 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     for kind, k in itertools.product(NULL_KINDS, GROUP_COUNTS):
         for seed in SEEDS:
             df = null_dataset(kind, k, seed)
-            flags = find_paradoxes(df, profile_dataset(df))
+            flags = _detect(df)
             null_rows.append(
                 {
                     "null": kind,
