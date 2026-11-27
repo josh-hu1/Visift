@@ -218,8 +218,8 @@ def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     (outside each group's own 1.5 x IQR fences) are equal.
     """
 
-    indicators = []
-    codes = []
+    indicators: list[np.ndarray] = []
+    codes: list[np.ndarray] = []
 
     for values in _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD):
         q1, q3 = np.quantile(values, [0.25, 0.75])
