@@ -66,6 +66,8 @@ class Candidate(_CandidateRequired, total=False):
     y: str
     # "count" or "mean" for bar charts
     aggregation: str
+    # Grouping column for a colored, per-group scatter (Simpson's paradox)
+    group: str
 
 
 class _ScoreResultRequired(TypedDict):
@@ -84,14 +86,31 @@ class ScoredCandidate(Candidate, ScoreResult):
     """A candidate merged with its score result."""
 
 
-class AlternativeChart(TypedDict):
+class _AlternativeChartRequired(TypedDict):
     chart: str
     chart_name: str
     title: str
+
+
+class AlternativeChart(_AlternativeChartRequired, total=False):
+    """Another view of the same variables.
+
+    score is present for scored alternatives. Grouped views added for a
+    Simpson's paradox carry group instead and are not on the 0-100 scale.
+    """
+
     score: float
+    x: str
+    y: str
+    group: str
 
 
-class Recommendation(ScoredCandidate):
+class _RecommendationRequired(ScoredCandidate):
+    alternative_charts: list[AlternativeChart]
+
+
+class Recommendation(_RecommendationRequired, total=False):
     """A ranked recommendation, with lower-scoring views of the same variables."""
 
-    alternative_charts: list[AlternativeChart]
+    # Set when this x-y pair reverses within groups (visift.paradox).
+    paradox: dict[str, Any]

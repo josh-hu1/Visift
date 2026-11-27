@@ -22,6 +22,7 @@ from typing import TypedDict
 import pandas as pd
 
 from visift.candidate_generator import generate_candidates
+from visift.paradox import Paradox, find_paradoxes
 from visift.profiler import profile_dataset
 from visift.redundancy import (
     NEAR_DUPLICATE_KINDS,
@@ -53,6 +54,45 @@ class Analysis(TypedDict):
     noted_charts: list[ScoredCandidate]
     # Near-duplicate column -> cluster representative.
     aliases: dict[str, str]
+    # Simpson's paradox findings, largest gap first ("Worth a closer look").
+    paradoxes: list[Paradox]
+
+
+def _attach_paradoxes(
+    recommendations: list[Recommendation], paradoxes: list[Paradox]
+) -> None:
+    """
+    Badge plain x-y scatters whose pair reverses within groups, and add the
+    grouped scatter as an alternative view. Scores and order are untouched.
+    """
+
+    by_pair: dict[frozenset[str], Paradox] = {}
+
+    for paradox in paradoxes:  # largest gap first, so keep the first
+        by_pair.setdefault(frozenset((paradox["x"], paradox["y"])), paradox)
+
+    for recommendation in recommendations:
+        y = recommendation.get("y")
+
+        if recommendation["chart"] != "scatter" or y is None:
+            continue
+
+        match = by_pair.get(frozenset((recommendation["x"], y)))
+
+        if match is None:
+            continue
+
+        recommendation["paradox"] = dict(match)
+        recommendation["alternative_charts"].append(
+            {
+                "chart": "scatter",
+                "chart_name": f"Scatter by {match['group']}",
+                "title": f"{recommendation['x']} vs {y} by {match['group']}",
+                "x": recommendation["x"],
+                "y": y,
+                "group": match["group"],
+            }
+        )
 
 
 def _chart_pair(candidate: Candidate) -> frozenset[str] | None:
@@ -126,6 +166,10 @@ def analyze(
     aliases = duplicate_aliases(df, redundancies, target)
     recommendations = diversify_recommendations(ranked, aliases)
 
+    report("Looking for Simpson's paradoxes", 0.95)
+    paradoxes = find_paradoxes(df, profile, redundancies)
+    _attach_paradoxes(recommendations, paradoxes)
+
     if target is None:
         drivers: list[Recommendation] = []
         others = recommendations
@@ -145,4 +189,5 @@ def analyze(
         "notes": [_note(r, target) for r in redundancies],
         "noted_charts": noted_charts,
         "aliases": aliases,
+        "paradoxes": paradoxes,
     }
