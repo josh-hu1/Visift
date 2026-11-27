@@ -23,9 +23,8 @@ NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 # - location: Kruskal-Wallis across groups
 # - dispersion: Brown-Forsythe (Levene with median centering) across the
 #   groups the IQR ratio uses (>= 8 rows)
-# - outlier pattern: chi-square test of homogeneity of per-group outlier
-#   rates with a Monte Carlo p-value (999 label permutations, fixed seed),
-#   because outlier counts are small and the asymptotic test unreliable
+# - outlier pattern: chi-square statistic of per-group outlier rates with a
+#   permutation p-value (see amendment 1 below)
 #
 # Reliability ramp: the one the line scorer already uses for its Levene-gated
 # volatility signal (full weight at p <= 0.001, zero at p >= 0.10, linear in
@@ -37,12 +36,32 @@ NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
 # suite's null box cases and in 20-81% of cases with ~20 rows per group,
 # driven by chance IQR ratios (dispersion), chance outlier-rate gaps
 # (outlier) and, rarely, location.
+#
+# Amendments, made after the pre-registered version (commit 9ce488f) failed
+# its acceptance criteria on the validation data (null >= 50 up to 5.0% per
+# cell, and some >= 65):
+#
+# 1. The pre-registered outlier test permuted the 0/1 outlier indicators.
+#    That is invalid: each point's outlier status depends on its own
+#    group's estimated fences, so indicators are not exchangeable across
+#    groups, and under pure noise the test gave p < 0.01 in 3-6% of cases.
+#    The test now permutes the raw values across groups and recomputes every
+#    group's fences and the chi-square statistic each time (a valid
+#    permutation test of identical distributions). For speed it stops early
+#    once 20 permutations reach the observed statistic (Besag & Clifford
+#    1991 sequential p-value), so the full 999 run only when p is small.
+# 2. The signal is the maximum of three gated components, so their p-values
+#    are Bonferroni-corrected (x3) before the reliability ramp.
+#
+# Thresholds, the ramp and the score scales are unchanged.
 
 GATE_STRONG_P = 0.001
 GATE_WEAK_P = 0.10
 OUTLIER_TEST_PERMUTATIONS = 999
+OUTLIER_TEST_STOP_AFTER = 20
 OUTLIER_TEST_SEED = 0
 MIN_ROWS_FOR_SPREAD = 8
+GATED_COMPONENTS = 3
 
 
 def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
@@ -200,10 +219,30 @@ def dispersion_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     return p_value if np.isfinite(p_value) else 1.0
 
 
-def _chi_square(outliers: np.ndarray, codes: np.ndarray, k: int) -> float:
+def _outlier_chi_square(values: np.ndarray, codes: np.ndarray, k: int) -> float:
+    """
+    Chi-square statistic of per-group outlier rates, where each group's
+    outliers fall outside its own 1.5 x IQR fences. Groups whose IQR is 0
+    count as having no outliers.
+    """
+
     counts = np.bincount(codes, minlength=k).astype(float)
-    hits = np.bincount(codes, weights=outliers, minlength=k)
+    hits = np.zeros(k)
+
+    for group in range(k):
+        members = values[codes == group]
+        q1, q3 = np.quantile(members, [0.25, 0.75])
+        iqr = q3 - q1
+        if np.isfinite(iqr) and iqr > 0:
+            hits[group] = np.count_nonzero(
+                (members < q1 - 1.5 * iqr) | (members > q3 + 1.5 * iqr)
+            )
+
     rate = hits.sum() / counts.sum()
+
+    if rate <= 0 or rate >= 1:
+        return 0.0
+
     expected_hits = counts * rate
     expected_misses = counts * (1 - rate)
     return float(
@@ -214,38 +253,34 @@ def _chi_square(outliers: np.ndarray, codes: np.ndarray, k: int) -> float:
 
 def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     """
-    Monte Carlo p-value of a chi-square test that per-group outlier rates
-    (outside each group's own 1.5 x IQR fences) are equal.
+    Permutation p-value that per-group outlier rates are equal: values are
+    shuffled across groups and every group's fences recomputed, with
+    Besag-Clifford sequential stopping after OUTLIER_TEST_STOP_AFTER
+    permutations reach the observed statistic.
     """
 
-    indicators: list[np.ndarray] = []
-    codes: list[np.ndarray] = []
+    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD)
 
-    for values in _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD):
-        q1, q3 = np.quantile(values, [0.25, 0.75])
-        iqr = q3 - q1
-        if not np.isfinite(iqr) or iqr <= 0:
-            continue
-        outside = (values < q1 - 1.5 * iqr) | (values > q3 + 1.5 * iqr)
-        indicators.append(outside.astype(float))
-        codes.append(np.full(len(values), len(codes)))
-
-    if len(indicators) < 2:
+    if len(groups) < 2:
         return 1.0
 
-    outliers = np.concatenate(indicators)
-    group_codes = np.concatenate(codes)
-    k = len(indicators)
+    values = np.concatenate(groups)
+    codes = np.concatenate([np.full(len(g), i) for i, g in enumerate(groups)])
+    k = len(groups)
 
-    if outliers.sum() == 0 or outliers.sum() == len(outliers):
+    observed = _outlier_chi_square(values, codes, k)
+
+    if observed <= 0:
         return 1.0
 
-    observed = _chi_square(outliers, group_codes, k)
     rng = np.random.default_rng(OUTLIER_TEST_SEED)
-    exceed = sum(
-        _chi_square(rng.permutation(outliers), group_codes, k) >= observed - 1e-12
-        for _ in range(OUTLIER_TEST_PERMUTATIONS)
-    )
+    exceed = 0
+
+    for done in range(1, OUTLIER_TEST_PERMUTATIONS + 1):
+        if _outlier_chi_square(rng.permutation(values), codes, k) >= observed - 1e-12:
+            exceed += 1
+            if exceed >= OUTLIER_TEST_STOP_AFTER:
+                return exceed / done
 
     return (1 + exceed) / (1 + OUTLIER_TEST_PERMUTATIONS)
 
@@ -411,9 +446,10 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
     else:
         comparison_reliability = max(0.40, math.sqrt(4 / group_count))
 
-    location_p = location_p_value(df, x, y)
-    dispersion_p = dispersion_p_value(df, x, y)
-    outlier_p = outlier_p_value(df, x, y)
+    # Bonferroni across the three gated components (amendment 2).
+    location_p = min(1.0, GATED_COMPONENTS * location_p_value(df, x, y))
+    dispersion_p = min(1.0, GATED_COMPONENTS * dispersion_p_value(df, x, y))
+    outlier_p = min(1.0, GATED_COMPONENTS * outlier_p_value(df, x, y))
 
     ungated_location = location_signal
     location_signal = location_signal * significance_reliability(location_p)
