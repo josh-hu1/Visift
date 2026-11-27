@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import streamlit as st
 
@@ -1122,24 +1124,53 @@ def profile_data(df):
     return profile_dataset(df)
 
 
-@st.cache_data(show_spinner=False)
-def analyze_dataset(df, target=None):
+ANALYSIS_CACHE_SIZE = 4
+
+
+def analyze_dataset(df, target=None, progress=None):
     """
     Run the full recommendation pipeline.
 
-    Results are cached so changing interface
-    filters does not rerun the analysis.
+    Results are cached per session so changing interface filters does not
+    rerun the analysis. This is a plain session-state cache rather than
+    st.cache_data because the progress callback updates a Streamlit element
+    created outside the function, which st.cache_data forbids
+    (CacheReplayClosureError on a real server).
     """
 
-    analysis = analyze(df, target=target)
+    key = (
+        int(pd.util.hash_pandas_object(df, index=True).sum()),
+        tuple(map(str, df.columns)),
+        tuple(map(str, df.dtypes)),
+        target,
+    )
 
-    return (
+    cache = st.session_state.setdefault("_visift_analysis_cache", {})
+
+    if key in cache:
+        return cache[key]
+
+    start = time.perf_counter()
+
+    analysis = analyze(df, target=target, progress=progress)
+
+    elapsed = time.perf_counter() - start
+
+    result = (
         analysis["profile"],
         analysis["candidates"],
         analysis["recommendations"],
         analysis["notes"],
         analysis["noted_charts"],
+        elapsed,
     )
+
+    while len(cache) >= ANALYSIS_CACHE_SIZE:
+        cache.pop(next(iter(cache)))
+
+    cache[key] = result
+
+    return result
 
 
 # ==================================================
@@ -1180,7 +1211,7 @@ Visift ranks the charts most likely to be informative.**
 # ==================================================
 
 
-def display_dataset_metrics(df, profile, candidates, recommendations):
+def display_dataset_metrics(df, profile, candidates, recommendations, elapsed=None):
     """
     Display high-level dataset and engine metrics.
     """
@@ -1199,7 +1230,12 @@ def display_dataset_metrics(df, profile, candidates, recommendations):
 
     column4.metric("Top score", f"{top_score:.1f}")
 
-    st.caption(f"{missing_values:,} missing values detected across the dataset.")
+    caption = f"{missing_values:,} missing values detected across the dataset."
+
+    if elapsed is not None:
+        caption += f" Analysis took {elapsed:.1f} s."
+
+    st.caption(caption)
 
 
 def build_column_profile_table(profile):
@@ -1843,10 +1879,16 @@ def main():
     try:
         target = target_control(profile_data(df))
 
-        with st.spinner("Analyzing dataset..."):
-            (profile, candidates, recommendations, notes, noted_charts) = (
-                analyze_dataset(df, target)
-            )
+        progress_bar = st.progress(0.0, text="Analyzing dataset...")
+
+        def show_progress(stage, fraction):
+            progress_bar.progress(min(max(fraction, 0.0), 1.0), text=f"{stage}...")
+
+        (profile, candidates, recommendations, notes, noted_charts, elapsed) = (
+            analyze_dataset(df, target, progress=show_progress)
+        )
+
+        progress_bar.empty()
 
     except Exception as error:
         st.error(
@@ -1864,7 +1906,7 @@ def main():
 
     st.divider()
 
-    display_dataset_metrics(df, profile, candidates, recommendations)
+    display_dataset_metrics(df, profile, candidates, recommendations, elapsed)
 
     display_notes_summary(notes)
 

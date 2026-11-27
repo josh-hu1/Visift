@@ -469,6 +469,25 @@ def nonlinear_signal_score(clean: pd.DataFrame, x: str, y: str) -> dict[str, Any
     observed_mi = symmetric_mutual_information(x_values, y_values, MI_RANDOM_STATE)
 
     # -----------------------------------
+    # Exact shortcut: the permutation null can only raise the threshold
+    # above MI_MINIMUM_EFFECT, so an observed MI at or below it gives
+    # excess_mi = 0 and signal = 0 whatever the permutations would show.
+    # Skipping them changes no score; the null statistics are reported as
+    # not computed (NaN) instead.
+    # -----------------------------------
+
+    if observed_mi <= MI_MINIMUM_EFFECT:
+        return {
+            "signal": 0.0,
+            "observed_mi": float(observed_mi),
+            "null_mean": float("nan"),
+            "null_std": float("nan"),
+            "threshold": float(MI_MINIMUM_EFFECT),
+            "excess_mi": 0.0,
+            "sample_size": len(mi_data),
+        }
+
+    # -----------------------------------
     # Null distribution
     # -----------------------------------
 

@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -202,7 +204,10 @@ def test_without_redundancies_analyze_matches_the_plain_pipeline(rng):
     )
     analysis = analyze(df)
     assert analysis["notes"] == []
-    assert analysis["recommendations"] == plain
+    # json comparison: skipped MI null statistics are NaN, and NaN != NaN.
+    assert json.dumps(analysis["recommendations"], default=str) == json.dumps(
+        plain, default=str
+    )
 
 
 # --------------------------------------------------
