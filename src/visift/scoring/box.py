@@ -219,36 +219,74 @@ def dispersion_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     return p_value if np.isfinite(p_value) else 1.0
 
 
-def _outlier_chi_square(values: np.ndarray, codes: np.ndarray, k: int) -> float:
+class _OutlierStatistic:
     """
     Chi-square statistic of per-group outlier rates, where each group's
-    outliers fall outside its own 1.5 x IQR fences. Groups whose IQR is 0
-    count as having no outliers.
+    outliers fall outside its own 1.5 x IQR fences (quartiles as in
+    np.quantile's default linear method). Groups with IQR 0 have no
+    outliers.
+
+    Shuffling values across fixed group labels is the same as shuffling the
+    labels across fixed values, so the values are sorted once and each
+    permutation only needs a stable integer sort of the labels; within each
+    group the values then stay in ascending order.
     """
 
-    counts = np.bincount(codes, minlength=k).astype(float)
-    hits = np.zeros(k)
+    def __init__(self, values: np.ndarray, codes: np.ndarray, k: int) -> None:
+        self.codes = codes
+        self.k = k
+        self.n = len(values)
+        self.sort_index = np.argsort(values, kind="stable")
+        self.sorted_values = values[self.sort_index]
+        self.counts = np.bincount(codes, minlength=k).astype(float)
+        starts = np.concatenate([[0], np.cumsum(self.counts)[:-1]]).astype(int)
+        sizes = self.counts.astype(int)
 
-    for group in range(k):
-        members = values[codes == group]
-        q1, q3 = np.quantile(members, [0.25, 0.75])
+        positions = [(sizes - 1) * q for q in (0.25, 0.75)]
+        self.lower = [starts + np.floor(pos).astype(int) for pos in positions]
+        self.upper = [starts + np.ceil(pos).astype(int) for pos in positions]
+        self.weight = [pos - np.floor(pos) for pos in positions]
+
+    def __call__(self, permutation: np.ndarray | None = None) -> float:
+        """Statistic for values[permutation] against the fixed group codes."""
+
+        if permutation is None:
+            labels = self.codes
+        else:
+            # values[permutation][i] = values[permutation[i]] sits in group
+            # codes[i], so value j's group is codes[inverse[j]].
+            inverse = np.empty(self.n, dtype=np.int64)
+            inverse[permutation] = np.arange(self.n)
+            labels = self.codes[inverse]
+
+        sorted_labels = labels[self.sort_index]
+        ordered = self.sorted_values[np.argsort(sorted_labels, kind="stable")]
+
+        q1, q3 = (
+            ordered[lo] + (ordered[hi] - ordered[lo]) * w
+            for lo, hi, w in zip(self.lower, self.upper, self.weight, strict=True)
+        )
         iqr = q3 - q1
-        if np.isfinite(iqr) and iqr > 0:
-            hits[group] = np.count_nonzero(
-                (members < q1 - 1.5 * iqr) | (members > q3 + 1.5 * iqr)
-            )
+        valid = np.isfinite(iqr) & (iqr > 0)
+        low_fence = np.where(valid, q1 - 1.5 * iqr, -np.inf)
+        high_fence = np.where(valid, q3 + 1.5 * iqr, np.inf)
 
-    rate = hits.sum() / counts.sum()
+        outside = (self.sorted_values < low_fence[sorted_labels]) | (
+            self.sorted_values > high_fence[sorted_labels]
+        )
+        hits = np.bincount(sorted_labels, weights=outside, minlength=self.k)
 
-    if rate <= 0 or rate >= 1:
-        return 0.0
+        rate = float(hits.sum()) / float(self.counts.sum())
 
-    expected_hits = counts * rate
-    expected_misses = counts * (1 - rate)
-    return float(
-        ((hits - expected_hits) ** 2 / expected_hits).sum()
-        + ((counts - hits - expected_misses) ** 2 / expected_misses).sum()
-    )
+        if rate <= 0 or rate >= 1:
+            return 0.0
+
+        expected_hits = self.counts * rate
+        expected_misses = self.counts * (1 - rate)
+        return float(
+            ((hits - expected_hits) ** 2 / expected_hits).sum()
+            + ((self.counts - hits - expected_misses) ** 2 / expected_misses).sum()
+        )
 
 
 def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
@@ -266,9 +304,9 @@ def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
 
     values = np.concatenate(groups)
     codes = np.concatenate([np.full(len(g), i) for i, g in enumerate(groups)])
-    k = len(groups)
+    statistic = _OutlierStatistic(values, codes, len(groups))
 
-    observed = _outlier_chi_square(values, codes, k)
+    observed = statistic()
 
     if observed <= 0:
         return 1.0
@@ -277,7 +315,7 @@ def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     exceed = 0
 
     for done in range(1, OUTLIER_TEST_PERMUTATIONS + 1):
-        if _outlier_chi_square(rng.permutation(values), codes, k) >= observed - 1e-12:
+        if statistic(rng.permutation(len(values))) >= observed - 1e-12:
             exceed += 1
             if exceed >= OUTLIER_TEST_STOP_AFTER:
                 return exceed / done
@@ -377,11 +415,6 @@ def grouped_outlier_statistics(df: pd.DataFrame, x: str, y: str) -> dict[str, An
     }
 
 
-def grouped_outlier_score(df: pd.DataFrame, x: str, y: str) -> tuple[float, float]:
-    stats = grouped_outlier_statistics(df, x, y)
-    return stats["score"], stats["overall_rate"]
-
-
 def dispersion_difference_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     clean = df[[x, y]].dropna()
     default = {
@@ -449,22 +482,33 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
     # Bonferroni across the three gated components (amendment 2).
     location_p = min(1.0, GATED_COMPONENTS * location_p_value(df, x, y))
     dispersion_p = min(1.0, GATED_COMPONENTS * dispersion_p_value(df, x, y))
-    outlier_p = min(1.0, GATED_COMPONENTS * outlier_p_value(df, x, y))
-
     ungated_location = location_signal
     location_signal = location_signal * significance_reliability(location_p)
-
-    outlier_difference_signal = (
-        outlier_stats["score"]
-        * comparison_reliability
-        * significance_reliability(outlier_p)
-    )
 
     dispersion_difference_signal = (
         dispersion_stats["score"]
         * comparison_reliability
         * significance_reliability(dispersion_p)
     )
+
+    # The outlier permutation test is the expensive one. Its gated value can
+    # never exceed the ungated one, so when that is 0, or no larger than the
+    # stronger of the other two gated signals, the test cannot change the
+    # final signal (a max of the three) and is skipped: outlier_p is NaN and
+    # the outlier component is reported as 0. Exact: no score changes.
+    ungated_outlier = outlier_stats["score"] * comparison_reliability
+    outlier_test_needed = ungated_outlier > 0 and ungated_outlier > max(
+        location_signal, dispersion_difference_signal
+    )
+
+    if outlier_test_needed:
+        outlier_p = min(1.0, GATED_COMPONENTS * outlier_p_value(df, x, y))
+        outlier_difference_signal = ungated_outlier * significance_reliability(
+            outlier_p
+        )
+    else:
+        outlier_p = float("nan")
+        outlier_difference_signal = 0.0
 
     signal = max(
         location_signal, outlier_difference_signal, dispersion_difference_signal
