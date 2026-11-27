@@ -11,6 +11,8 @@ Visift is an explainable visualization recommendation engine that automatically 
 
 Instead of showing every chart that *can* be made, Visift prioritizes the charts most likely to reveal useful structure.
 
+**Results so far:** on a small, pre-registered real-world benchmark (4 public datasets, 20 expected insights), Visift puts 95% of the expected insights in its top 10 when you name the outcome you care about, versus 75% for a baseline that sorts the same charts by plain effect size. Without an outcome it is only slightly ahead of that baseline (50% vs 45% in the top 10). Details in [Evaluation](#evaluation).
+
 [Live Demo](https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/) · [GitHub Repository](https://github.com/josh-hu1/Visift)
 
 ---
@@ -52,7 +54,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Pattern-aware explanations** describing why a chart was recommended
 - **Alternative-view detection** to avoid ranking redundant charts separately
 - **Dataset notes for redundant columns:** near-duplicates (e.g. `temp` and `atemp`, Spearman 0.99) count as one variable, and charts between trivially related columns are set aside with the statistic that explains why instead of topping the ranking
-- **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 45% to 95% with pre-registered targets
+- **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 50% to 95% with pre-registered targets (an effect-size baseline reaches 75% in the same setting)
 - **Missing-data and sample-size reliability adjustments**
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts
 
@@ -209,74 +211,69 @@ The thresholds and chart-family scoring scales were calibrated using dedicated s
 
 ## Evaluation
 
-Visift includes several controlled synthetic benchmarks designed to test both ranking quality and false-positive behavior.
+### Real-world benchmark
 
-### Hardened benchmark
+Four public datasets, each with **expected insights written down before running Visift on it** (pre-registered in [`expectations.py`](evaluation/real_world/expectations.py); the rule is never to add an expectation because Visift ranked it highly). A recommendation counts if it shows the expected variables with an acceptable chart type. The insights and the outcome column for each dataset were chosen by the same person who built Visift, and there are only 20 of them, so treat these numbers as a small, honest sample rather than a definitive score.
 
-The final hardened benchmark contains:
+Three rankers see exactly the same candidate charts:
 
-- **125 datasets**
-- **95 positive datasets**
-- **30 null datasets**
-- **1,850 visualization candidates**
+- **Baseline**: sorts charts by one standard effect size (|Spearman ρ|, correlation ratio η, or Cramér's V; single-variable charts last), with no significance tests, calibration, redundancy handling or diversity ([definition](evaluation/real_world/baseline.py), committed before it was run). In target mode it lists the charts involving the outcome first (like an analyst sorting by correlation with it), then the rest, mirroring how Visift's target mode is scored. That target-mode rule was amended after the first results: the pre-registered version kept only the outcome's charts, which made 3 of the 20 insights unreachable for the baseline; the fix can only raise its numbers.
+- **Visift before Phase 2**: the engine at the end of Phase 1 (commit `4aa4729`), scored against the same answer key. It had no target mode.
+- **Visift now**: target-aware ranking, redundancy handling and Simpson's paradox detection.
 
-Results:
+Headline (all 20 insights; R@k = share of expected insights in the top k, MRR = mean reciprocal rank):
 
-| Metric | Result |
-|---|---:|
-| Top-1 retrieval accuracy | **100.0%** |
-| Top-3 retrieval accuracy | **100.0%** |
-| Top-5 retrieval accuracy | **100.0%** |
-| Mean reciprocal rank | **1.000** |
-| Median global rank | **1.0** |
-| Null candidates scoring ≥50 | **0.0%** |
-| Null candidates scoring ≥65 | **0.0%** |
-| Highest observed null score | **46.65** |
+| | Baseline | Visift before Phase 2 | Visift now |
+|---|---:|---:|---:|
+| No outcome selected: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 15% / 30% / 50% |
+| No outcome selected: MRR | 0.190 | 0.192 | 0.205 |
+| Outcome selected: R@3 / R@5 / R@10 | 40% / 50% / 75% | 15% / 25% / 45% | **50% / 70% / 95%** |
+| Outcome selected: MRR | 0.352 | 0.192 | **0.409** |
 
-On this controlled benchmark, every planted positive relationship was retrieved at global rank #1, while no evaluated null candidate reached the 50-point recommendation threshold.
+**Where the baseline holds up:** without an outcome, Visift is barely ahead (R@10 50% vs 45%, MRR 0.205 vs 0.190), and the baseline is better at R@3 (20% vs 15%) and on Palmer Penguins (MRR 0.415 vs 0.394), where the expected insights are strong, simple correlations. With an outcome selected the baseline is also close on Titanic (it ties at R@3 and R@5 and has a slightly higher MRR, 0.343 vs 0.340), though Visift finds all five Titanic insights in its top 10 versus three. Most of Visift's gain comes from target-aware ranking, which turns the question into "what drives this outcome?".
 
-### Cross-chart calibration
+Per dataset (R@3 / R@5 / R@10, MRR):
 
-A separate benchmark tests whether the shared score remains comparable across visualization families when several planted patterns compete inside the same dataset.
+| Dataset (outcome) | Baseline | Visift before Phase 2 | Visift now |
+|---|---|---|---|
+| Palmer Penguins, no outcome | 50 / 75 / 100%, 0.415 | 25 / 75 / 100%, 0.394 | 25 / 75 / 100%, 0.394 |
+| Palmer Penguins (species) | 50 / 50 / 100%, 0.397 | 25 / 75 / 100%, 0.394* | 50 / 100 / 100%, 0.487 |
+| Bike Sharing, no outcome | 0 / 0 / 40%, 0.086 | 0 / 0 / 40%, 0.081 | 0 / 20 / 40%, 0.124 |
+| Bike Sharing (cnt) | 40 / 60 / 100%, 0.365 | 0 / 0 / 40%, 0.081* | 60 / 80 / 100%, 0.442 |
+| Titanic, no outcome | 40 / 40 / 60%, 0.298 | 40 / 40 / 60%, 0.324 | 40 / 40 / 60%, 0.324 |
+| Titanic (survived) | 40 / 40 / 60%, 0.343 | 40 / 40 / 60%, 0.324* | 40 / 40 / 100%, 0.340 |
+| Bank Marketing, no outcome | 0 / 0 / 0%, 0.037 | 0 / 0 / 0%, 0.041 | 0 / 0 / 17%, 0.047 |
+| Bank Marketing (y) | 33 / 50 / 50%, 0.317 | 0 / 0 / 0%, 0.041* | 50 / 67 / 83%, 0.386 |
 
-The suite contains:
+\* Before Phase 2 there was no target mode, so the plain ranking is shown for both rows.
 
-- **150 multi-pattern datasets**
-- **6,300 visualization candidates**
-- aligned-strength comparisons
-- strong-vs-weak competitions
-- extreme-vs-moderate competitions
-- unrelated distractor candidates
+Reproduce every number with one command, which also writes [`real_world_comparison.csv`](evaluation/results/real_world_comparison.csv) and the per-insight ranks under [`evaluation/results/`](evaluation/results/):
 
-After calibration, the median cross-family score spread was:
-
-| Strength tier | Score spread |
-|---|---:|
-| Weak | **3.42** |
-| Moderate | **7.55** |
-| Strong | **5.54** |
-| Extreme | **9.39** |
-
-The intentionally stronger planted relationship was the best target in **100%** of mixed-strength comparisons across every focal chart family.
-
-### Dedicated calibration suites
-
-The repository also contains dedicated evaluation suites for:
-
-- histogram scoring
-- scatter scoring
-- categorical / grouped scoring
-- temporal scoring
-- cross-chart score alignment
-- null robustness
-- sample-size reliability
-- missingness robustness
-
-Benchmark outputs are written under:
-
-```text
-evaluation/results/
+```bash
+python -m evaluation.real_world.download_datasets
+python -m evaluation.real_world.benchmark --ranker all
 ```
+
+**Where it still misses:**
+
+- **Bank Marketing, age vs subscription** ranks 11th even with the outcome selected. The effect is U-shaped (24% of under-25s and 42% of over-60s subscribe, but medians are nearly equal), and the box-plot scorer mostly reads medians and spread. A binned-rate chart would catch it.
+- **Bike Sharing, weekday vs workingday** is still in the top 3 without an outcome. `workingday` is determined by `weekday` and `holiday` together, and the redundancy check only looks at one column at a time.
+- **Without an outcome, Bank Marketing** finds only 1 of 6 expected insights in the top 10: they are all about the subscription outcome and compete with every unrelated pair.
+- **Charts that do not involve the outcome drop in target mode** (Titanic fare by class falls from #1 to #8), by design.
+
+### Calibration and false-positive control (synthetic)
+
+The synthetic suites plant known patterns, so they check calibration and false positives, not accuracy. Retrieving a planted pattern at rank 1 is a sanity check.
+
+| Check | Result |
+|---|---:|
+| Planted patterns retrieved at rank 1 (95 positive datasets) | 100% (sanity check) |
+| Pure-noise candidates scoring ≥ 50 / ≥ 65 (30 null datasets) | 0% / 0% |
+| Highest pure-noise score observed | 46.65 |
+| Stronger planted pattern wins a cross-chart competition (150 datasets) | 100% |
+| Simpson's paradox: planted reversals detected / null datasets flagged | 94.5% / 0 of 320 |
+
+The cross-chart suite also checks that the 0–100 scale means the same thing across chart types (median spread between chart families of 3–9 points per strength tier). Per-family suites for histograms, scatters, grouped charts, time series and binary rates live in [`evaluation/`](evaluation/); outputs go to `evaluation/results/`. One known calibration weakness: the box-plot scorer rates about 4% of pure-noise groupings as "Moderate" (≥ 50), because its spread signal has no significance test.
 
 ---
 
@@ -444,7 +441,12 @@ Visift currently focuses on tabular CSV data and five chart types.
 Known limitations include:
 
 - irregular temporal sampling can reduce FFT-based seasonality detection
-- the [real-world benchmark](evaluation/real_world/README.md) covers only four datasets so far
+- the [real-world benchmark](evaluation/real_world/README.md) covers only four datasets and 20 expected insights, written by the same person who built Visift
+- without an outcome column, ranking is only slightly better than sorting by plain effect size (see [Evaluation](#evaluation))
+- relationships that depend on two columns at once (e.g. `workingday` from `weekday` and `holiday`) are not recognized as trivial
+- non-monotonic group effects (e.g. a U-shaped rate by age) are underrated by the box-plot scorer
+- the box-plot scorer occasionally (about 4% of the time) rates pure noise as "Moderate"
+- wide tables are slow: 50 columns take 13–19 s on a laptop
 - semantic inference is heuristic and can misclassify ambiguous columns
 - high-cardinality or domain-specific visualizations are outside the current scope
 

@@ -1,0 +1,41 @@
+dataset,rank,score,signal,chart,aggregation,x,y,label
+palmer_penguins,2,88.21728382519647,88.21728382519647,box,,species,flipper_length_mm,box | species vs flipper_length_mm
+palmer_penguins,4,84.13139288696168,84.13139288696168,box,,species,bill_length_mm,box | species vs bill_length_mm
+palmer_penguins,5,82.44750833497089,82.44750833497089,bar,mean,species,bill_depth_mm,bar | mean | species vs bill_depth_mm
+palmer_penguins,6,82.44750833497089,82.44750833497089,box,,species,bill_depth_mm,box | species vs bill_depth_mm
+palmer_penguins,8,81.83348664745755,81.83348664745755,box,,species,body_mass_g,box | species vs body_mass_g
+palmer_penguins,10,67.27719416255546,67.27719416255546,scatter,,bill_length_mm,flipper_length_mm,scatter | bill_length_mm vs flipper_length_mm
+palmer_penguins,11,63.24403232672524,63.24403232672524,bar,mean,island,bill_depth_mm,bar | mean | island vs bill_depth_mm
+palmer_penguins,12,63.24403232672524,63.24403232672524,box,,island,bill_depth_mm,box | island vs bill_depth_mm
+palmer_penguins,13,62.73573224256875,62.73573224256875,bar,mean,island,body_mass_g,bar | mean | island vs body_mass_g
+palmer_penguins,14,62.73573224256875,62.73573224256875,box,,island,body_mass_g,box | island vs body_mass_g
+uci_bike_sharing_day,2,62.278186535908695,62.278186535908695,scatter,,atemp,cnt,scatter | atemp vs cnt
+uci_bike_sharing_day,5,58.905995987307215,58.905995987307215,box,,season,cnt,box | season vs cnt
+uci_bike_sharing_day,6,57.19957034038499,57.19957034038499,line,,yr,cnt,line | yr vs cnt
+uci_bike_sharing_day,8,31.489231261961017,31.489231261961017,box,,weathersit,cnt,box | weathersit vs cnt
+uci_bike_sharing_day,9,21.71970102726884,21.71970102726884,scatter,,windspeed,cnt,scatter | windspeed vs cnt
+uci_bike_sharing_day,11,8.0286921922048,8.0286921922048,bar,mean,weekday,cnt,bar | mean | weekday vs cnt
+uci_bike_sharing_day,12,8.0286921922048,8.0286921922048,box,,weekday,cnt,box | weekday vs cnt
+uci_bike_sharing_day,13,6.834771589248419,6.834771589248419,bar,mean,holiday,cnt,bar | mean | holiday vs cnt
+uci_bike_sharing_day,14,6.834771589248419,6.834771589248419,box,,holiday,cnt,box | holiday vs cnt
+uci_bike_sharing_day,15,6.11560630605207,6.11560630605207,bar,mean,workingday,cnt,bar | mean | workingday vs cnt
+titanic3,3,24.42654689148121,24.42654689148121,bar,mean,survived,fare,bar | mean | survived vs fare
+titanic3,4,24.42654689148121,24.42654689148121,box,,survived,fare,box | survived vs fare
+titanic3,5,17.98421897189125,17.98421897189125,bar,mean,embarked,survived,bar | mean | embarked vs survived
+titanic3,6,8.265957038609853,8.265957038609853,bar,mean,survived,parch,bar | mean | survived vs parch
+titanic3,7,8.265957038609853,8.265957038609853,box,,survived,parch,box | survived vs parch
+titanic3,8,5.55118359713636,5.55118359713636,bar,mean,survived,age,bar | mean | survived vs age
+titanic3,10,2.782511923058179,2.782511923058179,bar,mean,survived,sibsp,bar | mean | survived vs sibsp
+titanic3,11,2.782511923058179,2.782511923058179,box,,survived,sibsp,box | survived vs sibsp
+titanic3,13,60.29633393951415,60.29633393951415,box,,pclass,fare,box | pclass vs fare
+titanic3,14,44.55662304934039,44.55662304934039,scatter,,sibsp,fare,scatter | sibsp vs fare
+uci_bank_marketing,3,15.121086009936358,15.121086009936358,bar,mean,contact,y,bar | mean | contact vs y
+uci_bank_marketing,4,13.909475210971573,13.909475210971573,bar,mean,housing,y,bar | mean | housing vs y
+uci_bank_marketing,6,10.362149401628688,10.362149401628688,bar,mean,y,pdays,bar | mean | y vs pdays
+uci_bank_marketing,7,10.362149401628688,10.362149401628688,box,,y,pdays,box | y vs pdays
+uci_bank_marketing,8,9.32357727888769,9.32357727888769,bar,mean,y,previous,bar | mean | y vs previous
+uci_bank_marketing,9,9.32357727888769,9.32357727888769,box,,y,previous,box | y vs previous
+uci_bank_marketing,10,7.3172006345866905,7.3172006345866905,bar,mean,y,campaign,bar | mean | y vs campaign
+uci_bank_marketing,11,7.3172006345866905,7.3172006345866905,box,,y,campaign,box | y vs campaign
+uci_bank_marketing,13,6.802339530461135,6.802339530461135,bar,mean,loan,y,bar | mean | loan vs y
+uci_bank_marketing,14,6.559005175017731,6.559005175017731,bar,mean,marital,y,bar | mean | marital vs y
