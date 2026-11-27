@@ -30,10 +30,18 @@ correlation scale in [0, 1] so different chart types are comparable:
 Ties (including all single-variable charts) keep candidate-generation
 order, so the ranking is deterministic.
 
-Target mode ("an analyst sorts by correlation with the outcome"): only the
-two-variable charts involving the target are kept, ranked by the same
-effect size. Expected insights that do not involve the target therefore
-cannot be found in target mode.
+Target mode ("an analyst sorts by correlation with the outcome"): the
+target's two-variable charts come first, ranked by the same effect size,
+followed by every remaining chart in the no-target order. This mirrors how
+Visift's target mode is scored (drivers first, then everything else).
+
+Amendment (decided after seeing results; the pre-registered original is
+commit e392ea7): target mode originally kept ONLY the charts involving the
+target. Three of the 20 expected insights do not involve the target, so
+they were unreachable for the baseline by construction while Visift could
+still find them further down its combined list. Listing the remaining
+charts after the drivers can only raise the baseline's numbers. Nothing
+else about the baseline changed.
 """
 
 from typing import Any
@@ -122,11 +130,6 @@ def baseline_ranking(
     ranked: list[dict[str, Any]] = []
 
     for candidate in candidates:
-        if target is not None and target not in (candidate["x"], candidate.get("y")):
-            continue
-        if target is not None and candidate.get("y") is None:
-            continue
-
         score = 100 * effect_size(df, candidate, types)
         ranked.append(
             {
@@ -140,6 +143,16 @@ def baseline_ranking(
 
     # Stable sort: ties keep candidate-generation order.
     ranked.sort(key=lambda item: -item["score"])
+
+    if target is not None:
+        # Drivers of the target first (same effect-size order), then the rest.
+        def is_driver(chart: dict[str, Any]) -> bool:
+            y = chart.get("y")
+            return y is not None and target in (chart["x"], y)
+
+        ranked = [c for c in ranked if is_driver(c)] + [
+            c for c in ranked if not is_driver(c)
+        ]
 
     return candidates, ranked
 

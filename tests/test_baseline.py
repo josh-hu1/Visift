@@ -68,11 +68,18 @@ def test_ranking_is_deterministic(frame):
     assert [_key(c) for c in first] == [_key(c) for c in second]
 
 
-def test_target_mode_keeps_only_charts_involving_the_target(frame):
+def test_target_mode_lists_target_charts_first_then_the_rest(frame):
+    plain = baseline_analysis(frame)["recommendations"]
     ranked = baseline_analysis(frame, target="converted")["recommendations"]
-    assert ranked
-    for chart in ranked:
-        assert chart.get("y") is not None
-        assert "converted" in (chart["x"], chart["y"])
-    scores = [c["score"] for c in ranked]
+
+    def is_driver(chart):
+        return chart.get("y") is not None and "converted" in (chart["x"], chart["y"])
+
+    drivers = [c for c in ranked if is_driver(c)]
+    assert drivers and ranked[: len(drivers)] == drivers
+    scores = [c["score"] for c in drivers]
     assert scores == sorted(scores, reverse=True)
+
+    # The rest keeps the no-target order.
+    rest = [_key(c) for c in ranked[len(drivers) :]]
+    assert rest == [_key(c) for c in plain if not is_driver(c)]

@@ -11,7 +11,7 @@ Visift is an explainable visualization recommendation engine that automatically 
 
 Instead of showing every chart that *can* be made, Visift prioritizes the charts most likely to reveal useful structure.
 
-**Results so far:** on a small, pre-registered real-world benchmark (4 public datasets, 20 expected insights), Visift puts 95% of the expected insights in its top 10 when you name the outcome you care about, versus 70% for a baseline that sorts the same charts by plain effect size. Without an outcome it is only slightly ahead of that baseline (50% vs 45% in the top 10). Details in [Evaluation](#evaluation).
+**Results so far:** on a small, pre-registered real-world benchmark (4 public datasets, 20 expected insights), Visift puts 95% of the expected insights in its top 10 when you name the outcome you care about, versus 75% for a baseline that sorts the same charts by plain effect size. Without an outcome it is only slightly ahead of that baseline (50% vs 45% in the top 10). Details in [Evaluation](#evaluation).
 
 [Live Demo](https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/) · [GitHub Repository](https://github.com/josh-hu1/Visift)
 
@@ -54,7 +54,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Pattern-aware explanations** describing why a chart was recommended
 - **Alternative-view detection** to avoid ranking redundant charts separately
 - **Dataset notes for redundant columns:** near-duplicates (e.g. `temp` and `atemp`, Spearman 0.99) count as one variable, and charts between trivially related columns are set aside with the statistic that explains why instead of topping the ranking
-- **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 50% to 95% with pre-registered targets (an effect-size baseline reaches 70% in the same setting)
+- **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 50% to 95% with pre-registered targets (an effect-size baseline reaches 75% in the same setting)
 - **Missing-data and sample-size reliability adjustments**
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts
 
@@ -217,7 +217,7 @@ Four public datasets, each with **expected insights written down before running 
 
 Three rankers see exactly the same candidate charts:
 
-- **Baseline**: sorts charts by one standard effect size (|Spearman ρ|, correlation ratio η, or Cramér's V; single-variable charts last), with no significance tests, calibration, redundancy handling or diversity ([definition](evaluation/real_world/baseline.py), committed before it was run). In target mode it keeps only charts involving the outcome, like an analyst sorting by correlation with it.
+- **Baseline**: sorts charts by one standard effect size (|Spearman ρ|, correlation ratio η, or Cramér's V; single-variable charts last), with no significance tests, calibration, redundancy handling or diversity ([definition](evaluation/real_world/baseline.py), committed before it was run). In target mode it lists the charts involving the outcome first (like an analyst sorting by correlation with it), then the rest, mirroring how Visift's target mode is scored. That target-mode rule was amended after the first results: the pre-registered version kept only the outcome's charts, which made 3 of the 20 insights unreachable for the baseline; the fix can only raise its numbers.
 - **Visift before Phase 2**: the engine at the end of Phase 1 (commit `4aa4729`), scored against the same answer key. It had no target mode.
 - **Visift now**: target-aware ranking, redundancy handling and Simpson's paradox detection.
 
@@ -227,21 +227,21 @@ Headline (all 20 insights; R@k = share of expected insights in the top k, MRR = 
 |---|---:|---:|---:|
 | No outcome selected: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 15% / 30% / 50% |
 | No outcome selected: MRR | 0.190 | 0.192 | 0.205 |
-| Outcome selected: R@3 / R@5 / R@10 | 40% / 50% / 70% | 15% / 25% / 45% | **50% / 70% / 95%** |
-| Outcome selected: MRR | 0.341 | 0.192 | **0.409** |
+| Outcome selected: R@3 / R@5 / R@10 | 40% / 50% / 75% | 15% / 25% / 45% | **50% / 70% / 95%** |
+| Outcome selected: MRR | 0.352 | 0.192 | **0.409** |
 
-**Where the baseline holds up:** without an outcome, Visift is barely ahead (R@10 50% vs 45%, MRR 0.205 vs 0.190), and the baseline is better at R@3 (20% vs 15%) and on Palmer Penguins (MRR 0.415 vs 0.394), where the expected insights are strong, simple correlations. Most of Visift's gain comes from target-aware ranking, which turns the question into "what drives this outcome?".
+**Where the baseline holds up:** without an outcome, Visift is barely ahead (R@10 50% vs 45%, MRR 0.205 vs 0.190), and the baseline is better at R@3 (20% vs 15%) and on Palmer Penguins (MRR 0.415 vs 0.394), where the expected insights are strong, simple correlations. With an outcome selected the baseline is also close on Titanic (it ties at R@3 and R@5 and has a slightly higher MRR, 0.343 vs 0.340), though Visift finds all five Titanic insights in its top 10 versus three. Most of Visift's gain comes from target-aware ranking, which turns the question into "what drives this outcome?".
 
 Per dataset (R@3 / R@5 / R@10, MRR):
 
 | Dataset (outcome) | Baseline | Visift before Phase 2 | Visift now |
 |---|---|---|---|
 | Palmer Penguins, no outcome | 50 / 75 / 100%, 0.415 | 25 / 75 / 100%, 0.394 | 25 / 75 / 100%, 0.394 |
-| Palmer Penguins (species) | 50 / 50 / 75%, 0.369 | 25 / 75 / 100%, 0.394* | 50 / 100 / 100%, 0.487 |
+| Palmer Penguins (species) | 50 / 50 / 100%, 0.397 | 25 / 75 / 100%, 0.394* | 50 / 100 / 100%, 0.487 |
 | Bike Sharing, no outcome | 0 / 0 / 40%, 0.086 | 0 / 0 / 40%, 0.081 | 0 / 20 / 40%, 0.124 |
 | Bike Sharing (cnt) | 40 / 60 / 100%, 0.365 | 0 / 0 / 40%, 0.081* | 60 / 80 / 100%, 0.442 |
 | Titanic, no outcome | 40 / 40 / 60%, 0.298 | 40 / 40 / 60%, 0.324 | 40 / 40 / 60%, 0.324 |
-| Titanic (survived) | 40 / 40 / 60%, 0.322 | 40 / 40 / 60%, 0.324* | 40 / 40 / 100%, 0.340 |
+| Titanic (survived) | 40 / 40 / 60%, 0.343 | 40 / 40 / 60%, 0.324* | 40 / 40 / 100%, 0.340 |
 | Bank Marketing, no outcome | 0 / 0 / 0%, 0.037 | 0 / 0 / 0%, 0.041 | 0 / 0 / 17%, 0.047 |
 | Bank Marketing (y) | 33 / 50 / 50%, 0.317 | 0 / 0 / 0%, 0.041* | 50 / 67 / 83%, 0.386 |
 

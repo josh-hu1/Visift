@@ -147,7 +147,7 @@ evaluation/results/real_world_pre_phase2/      engine at 4aa4729 (end of Phase 1
 evaluation/results/real_world_comparison.csv   all of the above, per dataset and overall
 ```
 
-The baseline ([`baseline.py`](baseline.py)) ranks the same candidate charts by one untuned effect size (|Spearman rho|, correlation ratio eta, or bias-corrected Cramer's V; single-variable charts last), with no significance testing, calibration, redundancy handling or diversity. Its definition was committed before it was run. In target mode it keeps only charts involving the target. `--ranker pre-phase2` exports `src/visift` at commit 4aa4729 to a temporary directory and scores it with the current harness and expectations.
+The baseline ([`baseline.py`](baseline.py)) ranks the same candidate charts by one untuned effect size (|Spearman rho|, correlation ratio eta, or bias-corrected Cramer's V; single-variable charts last), with no significance testing, calibration, redundancy handling or diversity. Its definition was committed before it was run. In target mode it lists the charts involving the target first, then the rest in its no-target order (amended after first results; the pre-registered version, commit e392ea7, kept only the target's charts). `--ranker pre-phase2` exports `src/visift` at commit 4aa4729 to a temporary directory and scores it with the current harness and expectations.
 
 The benchmark tracks:
 
