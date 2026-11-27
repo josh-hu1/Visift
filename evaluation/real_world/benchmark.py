@@ -1,12 +1,17 @@
 import argparse
+import os
+import subprocess
+import sys
+import tarfile
+import tempfile
 import time
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from evaluation.real_world.expectations import DATASET_DIR, build_real_world_suite
-from visift.pipeline import analyze
 
 # ==================================================
 # CONFIGURATION
@@ -16,6 +21,24 @@ RESULTS_DIR = Path("evaluation/results/real_world_v1")
 
 # Target mode: each dataset's pre-registered target, drivers ranked first.
 TARGET_RESULTS_DIR = Path("evaluation/results/real_world_target_v1")
+
+# Effect-size-only baseline (evaluation/real_world/baseline.py), both modes.
+BASELINE_RESULTS_DIR = Path("evaluation/results/real_world_baseline_v1")
+BASELINE_TARGET_RESULTS_DIR = Path("evaluation/results/real_world_baseline_target_v1")
+
+# The engine at the end of Phase 1, before target-aware ranking (#7), scored
+# with this harness against the current expectations. It had no target
+# mode, so its plain ranking is the 'before' number for both modes.
+PRE_PHASE2_COMMIT = "4aa4729"
+PRE_PHASE2_RESULTS_DIR = Path("evaluation/results/real_world_pre_phase2")
+
+RESULTS_DIRS = {
+    ("visift", False): RESULTS_DIR,
+    ("visift", True): TARGET_RESULTS_DIR,
+    ("baseline", False): BASELINE_RESULTS_DIR,
+    ("baseline", True): BASELINE_TARGET_RESULTS_DIR,
+    ("legacy", False): PRE_PHASE2_RESULTS_DIR,
+}
 
 TOP_K_VALUES = (3, 5, 10)
 
@@ -212,7 +235,26 @@ def evaluate_semantics(dataset_spec, profile):
 # ==================================================
 
 
-def evaluate_dataset(dataset_spec, target=None):
+def _legacy_analysis(df):
+    """The Phase 1 pipeline: profile, candidates, scores, diversification."""
+
+    from visift.candidate_generator import generate_candidates
+    from visift.profiler import profile_dataset
+    from visift.scoring.engine import diversify_recommendations, score_all_candidates
+
+    profile = profile_dataset(df)
+    candidates = generate_candidates(df, profile)
+    scored = score_all_candidates(df, candidates, profile)
+
+    return {
+        "profile": profile,
+        "candidates": candidates,
+        "recommendations": diversify_recommendations(scored),
+        "noted_charts": [],
+    }
+
+
+def evaluate_dataset(dataset_spec, target=None, ranker="visift"):
     """
     Run one real dataset through the complete Visift pipeline.
 
@@ -224,6 +266,9 @@ def evaluate_dataset(dataset_spec, target=None):
     With a target, candidates include the target-oriented charts and the
     ranking is "drivers of target" first, then everything else. Expected
     insight ranks are measured against that combined list.
+
+    ranker="baseline" ranks the same candidates by plain effect size
+    (evaluation/real_world/baseline.py) instead of Visift's scores.
     """
 
     path = DATASET_DIR / dataset_spec.filename
@@ -239,7 +284,23 @@ def evaluate_dataset(dataset_spec, target=None):
 
     start = time.perf_counter()
 
-    analysis = analyze(df, target=target)
+    # Imports are local so the 'legacy' ranker can run against an older
+    # visift package that has no pipeline module.
+    if ranker == "visift":
+        from visift.pipeline import analyze
+
+        analysis = analyze(df, target=target)
+
+    elif ranker == "baseline":
+        from evaluation.real_world.baseline import baseline_analysis
+
+        analysis = baseline_analysis(df, target=target)
+
+    elif ranker == "legacy":
+        analysis = _legacy_analysis(df)
+
+    else:
+        raise ValueError(f"Unknown ranker: {ranker!r}")
 
     profile = analysis["profile"]
 
@@ -696,17 +757,19 @@ def save_results(
 # ==================================================
 
 
-def run_benchmark(target_mode=False):
+def run_benchmark(target_mode=False, ranker="visift"):
     """
     Run the complete registered real-world benchmark suite.
 
     target_mode=False reproduces the original benchmark exactly.
     target_mode=True gives each dataset its pre-registered target.
+    ranker: "visift" (default), "baseline" (effect size only), or "legacy"
+    (whatever visift package is importable; used by run_pre_phase2).
     """
 
     suite = build_real_world_suite()
 
-    results_dir = TARGET_RESULTS_DIR if target_mode else RESULTS_DIR
+    results_dir = RESULTS_DIRS[(ranker, target_mode)]
 
     summaries = []
     expectation_frames = []
@@ -716,7 +779,7 @@ def run_benchmark(target_mode=False):
 
     print()
     print(
-        "Running Visift real-world benchmark"
+        f"Running real-world benchmark [{ranker}]"
         + (" (target mode)..." if target_mode else "...")
     )
 
@@ -729,7 +792,7 @@ def run_benchmark(target_mode=False):
         )
 
         (summary, expectation_df, unmatched_df, semantic_df, profile, _) = (
-            evaluate_dataset(dataset_spec, target=target)
+            evaluate_dataset(dataset_spec, target=target, ranker=ranker)
         )
 
         if target_mode:
@@ -819,6 +882,45 @@ def compare_modes():
     return summary, ranks
 
 
+def run_pre_phase2():
+    """
+    Score the Phase 1 engine (PRE_PHASE2_COMMIT) with this harness and the
+    current expectations: export that commit's src/visift to a temporary
+    directory and run the 'legacy' ranker in a subprocess that imports it
+    first.
+    """
+
+    archive = subprocess.run(
+        ["git", "archive", PRE_PHASE2_COMMIT, "src/visift"],
+        check=True,
+        capture_output=True,
+    ).stdout
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with tarfile.open(fileobj=BytesIO(archive)) as tar:
+            if hasattr(tarfile, "data_filter"):  # Python >= 3.12 / patched 3.10+
+                tar.extractall(tmp, filter="data")
+            else:
+                tar.extractall(tmp)  # trusted: our own git archive
+
+        env = {
+            **os.environ,
+            "PYTHONPATH": os.pathsep.join([str(Path(tmp) / "src"), os.getcwd()]),
+        }
+
+        subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import visift, evaluation.real_world.benchmark as b; "
+                f"assert visift.__file__.startswith({tmp!r}); "
+                "b.run_benchmark(target_mode=False, ranker='legacy')",
+            ],
+            check=True,
+            env=env,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -830,16 +932,40 @@ def main():
         "both (default): run both and compare.",
     )
 
-    mode = parser.parse_args().mode
+    parser.add_argument(
+        "--ranker",
+        choices=("visift", "baseline", "pre-phase2", "all"),
+        default="visift",
+        help="visift (default); baseline: effect size only; pre-phase2: the "
+        f"engine at {PRE_PHASE2_COMMIT}; all: everything, then the comparison "
+        "table (python -m evaluation.real_world.report).",
+    )
 
-    if mode in ("no-target", "both"):
-        run_benchmark(target_mode=False)
+    args = parser.parse_args()
+    mode = args.mode
 
-    if mode in ("target", "both"):
-        run_benchmark(target_mode=True)
+    rankers = (
+        ("visift", "baseline", "pre-phase2") if args.ranker == "all" else (args.ranker,)
+    )
 
-    if mode == "both":
+    for ranker in rankers:
+        if ranker == "pre-phase2":
+            run_pre_phase2()
+            continue
+
+        if mode in ("no-target", "both"):
+            run_benchmark(target_mode=False, ranker=ranker)
+
+        if mode in ("target", "both"):
+            run_benchmark(target_mode=True, ranker=ranker)
+
+    if mode == "both" and "visift" in rankers:
         compare_modes()
+
+    if args.ranker == "all":
+        from evaluation.real_world.report import main as report
+
+        report()
 
 
 if __name__ == "__main__":
