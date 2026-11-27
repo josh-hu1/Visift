@@ -2,13 +2,47 @@ import math
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
 import pandas as pd
+from scipy.stats import kruskal, levene
 
 from visift.types import Candidate, DatasetProfile, ScoreResult
 
 CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
 
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
+
+# ==================================================
+# SIGNIFICANCE GATES (Phase 2.6, pre-registered)
+# ==================================================
+#
+# Each of the three grouped-distribution signals (location, dispersion,
+# outlier pattern) is multiplied by a 0-1 reliability derived from a
+# significance test of the same kind of difference:
+#
+# - location: Kruskal-Wallis across groups
+# - dispersion: Brown-Forsythe (Levene with median centering) across the
+#   groups the IQR ratio uses (>= 8 rows)
+# - outlier pattern: chi-square test of homogeneity of per-group outlier
+#   rates with a Monte Carlo p-value (999 label permutations, fixed seed),
+#   because outlier counts are small and the asymptotic test unreliable
+#
+# Reliability ramp: the one the line scorer already uses for its Levene-gated
+# volatility signal (full weight at p <= 0.001, zero at p >= 0.10, linear in
+# log10(p) in between). A smooth ramp avoids a cliff at an arbitrary alpha
+# and keeps the scorers consistent. The underlying 0-100 scales are
+# unchanged; only how much of each signal is trusted changes.
+#
+# Why: on pure noise the ungated signals score >= 50 in 4.8% of the test
+# suite's null box cases and in 20-81% of cases with ~20 rows per group,
+# driven by chance IQR ratios (dispersion), chance outlier-rate gaps
+# (outlier) and, rarely, location.
+
+GATE_STRONG_P = 0.001
+GATE_WEAK_P = 0.10
+OUTLIER_TEST_PERMUTATIONS = 999
+OUTLIER_TEST_SEED = 0
+MIN_ROWS_FOR_SPREAD = 8
 
 
 def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
@@ -108,6 +142,112 @@ def sample_support_score(counts: pd.Series) -> float:
     average_score = clamp(average_group_size / 20 * 100)
     minimum_score = clamp(minimum_group_size / 10 * 100)
     return 0.50 * average_score + 0.50 * minimum_score
+
+
+def significance_reliability(p_value: float) -> float:
+    """0 at p >= GATE_WEAK_P, 1 at p <= GATE_STRONG_P, log-linear between."""
+
+    if p_value is None or not np.isfinite(p_value) or p_value >= GATE_WEAK_P:
+        return 0.0
+
+    if p_value <= GATE_STRONG_P:
+        return 1.0
+
+    position = (math.log10(GATE_WEAK_P) - math.log10(p_value)) / (
+        math.log10(GATE_WEAK_P) - math.log10(GATE_STRONG_P)
+    )
+
+    return float(clamp(position, 0, 1))
+
+
+def _group_values(
+    df: pd.DataFrame, x: str, y: str, minimum_rows: int
+) -> list[np.ndarray]:
+    clean = df[[x, y]].dropna()
+    return [
+        group[y].to_numpy(dtype=float)
+        for _, group in clean.groupby(x)
+        if len(group) >= minimum_rows
+    ]
+
+
+def location_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+    """Kruskal-Wallis p-value for a difference in location across groups."""
+
+    groups = _group_values(df, x, y, minimum_rows=2)
+
+    if len(groups) < 2:
+        return 1.0
+
+    try:
+        p_value = float(kruskal(*groups).pvalue)
+    except ValueError:  # all values identical
+        return 1.0
+
+    return p_value if np.isfinite(p_value) else 1.0
+
+
+def dispersion_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+    """Brown-Forsythe p-value for a difference in spread across groups."""
+
+    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD)
+
+    if len(groups) < 2:
+        return 1.0
+
+    p_value = float(levene(*groups, center="median").pvalue)
+
+    return p_value if np.isfinite(p_value) else 1.0
+
+
+def _chi_square(outliers: np.ndarray, codes: np.ndarray, k: int) -> float:
+    counts = np.bincount(codes, minlength=k).astype(float)
+    hits = np.bincount(codes, weights=outliers, minlength=k)
+    rate = hits.sum() / counts.sum()
+    expected_hits = counts * rate
+    expected_misses = counts * (1 - rate)
+    return float(
+        ((hits - expected_hits) ** 2 / expected_hits).sum()
+        + ((counts - hits - expected_misses) ** 2 / expected_misses).sum()
+    )
+
+
+def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+    """
+    Monte Carlo p-value of a chi-square test that per-group outlier rates
+    (outside each group's own 1.5 x IQR fences) are equal.
+    """
+
+    indicators = []
+    codes = []
+
+    for values in _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD):
+        q1, q3 = np.quantile(values, [0.25, 0.75])
+        iqr = q3 - q1
+        if not np.isfinite(iqr) or iqr <= 0:
+            continue
+        outside = (values < q1 - 1.5 * iqr) | (values > q3 + 1.5 * iqr)
+        indicators.append(outside.astype(float))
+        codes.append(np.full(len(values), len(codes)))
+
+    if len(indicators) < 2:
+        return 1.0
+
+    outliers = np.concatenate(indicators)
+    group_codes = np.concatenate(codes)
+    k = len(indicators)
+
+    if outliers.sum() == 0 or outliers.sum() == len(outliers):
+        return 1.0
+
+    observed = _chi_square(outliers, group_codes, k)
+    rng = np.random.default_rng(OUTLIER_TEST_SEED)
+    exceed = sum(
+        _chi_square(rng.permutation(outliers), group_codes, k) >= observed - 1e-12
+        for _ in range(OUTLIER_TEST_PERMUTATIONS)
+    )
+
+    return (1 + exceed) / (1 + OUTLIER_TEST_PERMUTATIONS)
 
 
 def eta_squared_score(df: pd.DataFrame, x: str, y: str) -> float:
@@ -271,9 +411,24 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
     else:
         comparison_reliability = max(0.40, math.sqrt(4 / group_count))
 
-    outlier_difference_signal = outlier_stats["score"] * comparison_reliability
+    location_p = location_p_value(df, x, y)
+    dispersion_p = dispersion_p_value(df, x, y)
+    outlier_p = outlier_p_value(df, x, y)
 
-    dispersion_difference_signal = dispersion_stats["score"] * comparison_reliability
+    ungated_location = location_signal
+    location_signal = location_signal * significance_reliability(location_p)
+
+    outlier_difference_signal = (
+        outlier_stats["score"]
+        * comparison_reliability
+        * significance_reliability(outlier_p)
+    )
+
+    dispersion_difference_signal = (
+        dispersion_stats["score"]
+        * comparison_reliability
+        * significance_reliability(dispersion_p)
+    )
 
     signal = max(
         location_signal, outlier_difference_signal, dispersion_difference_signal
@@ -291,6 +446,10 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
         "maximum_group_outlier_rate": outlier_stats["maximum_rate"],
         "dispersion_score": dispersion_difference_signal,
         "dispersion_ratio": dispersion_stats["dispersion_ratio"],
+        "ungated_location_score": ungated_location,
+        "location_p": location_p,
+        "dispersion_p": dispersion_p,
+        "outlier_p": outlier_p,
     }
 
 
