@@ -10,18 +10,18 @@ palmer_penguins,12,70.54,80.0,line,,year,flipper_length_mm,line | year vs flippe
 palmer_penguins,13,70.06,54.06,box,,island,flipper_length_mm,box | island vs flipper_length_mm
 palmer_penguins,14,67.49,50.11,box,,island,bill_length_mm,box | island vs bill_length_mm
 uci_bike_sharing_day,5,50.25,23.45,scatter,,windspeed,cnt,scatter | windspeed vs cnt
-uci_bike_sharing_day,6,46.75,20.07,box,,holiday,cnt,box | holiday vs cnt
-uci_bike_sharing_day,7,46.02,18.4,box,,weekday,cnt,box | weekday vs cnt
-uci_bike_sharing_day,9,36.56,3.97,box,,workingday,cnt,box | workingday vs cnt
+uci_bike_sharing_day,7,35.42,0.64,bar,mean,weekday,cnt,bar | mean | weekday vs cnt
+uci_bike_sharing_day,8,34.24,0.47,bar,mean,holiday,cnt,bar | mean | holiday vs cnt
+uci_bike_sharing_day,9,34.19,0.37,bar,mean,workingday,cnt,bar | mean | workingday vs cnt
 uci_bike_sharing_day,10,25.06,0.0,line,,yr,cnt,line | yr vs cnt
 uci_bike_sharing_day,11,97.0,100.0,line,,dteday,temp,line | dteday vs temp
 uci_bike_sharing_day,12,90.77,90.11,bar,count,holiday,,bar | count | holiday
 uci_bike_sharing_day,13,87.52,80.81,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
 uci_bike_sharing_day,14,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
-uci_bike_sharing_day,15,76.72,64.18,box,,weathersit,hum,box | weathersit vs hum
+uci_bike_sharing_day,15,71.89,56.76,histogram,,temp,,histogram | temp
 titanic3,2,68.27,54.11,box,,survived,fare,box | survived vs fare
 titanic3,4,55.16,31.04,bar,mean,embarked,survived,bar | mean | embarked vs survived
-titanic3,5,35.77,3.78,box,,survived,sibsp,box | survived vs sibsp
+titanic3,5,35.21,2.88,box,,survived,sibsp,box | survived vs sibsp
 titanic3,6,34.38,0.68,bar,mean,survived,parch,bar | mean | survived vs parch
 titanic3,9,96.71,95.0,box,,embarked,fare,box | embarked vs fare
 titanic3,11,81.53,92.0,histogram,,sibsp,,histogram | sibsp
@@ -34,7 +34,7 @@ uci_bank_marketing,6,45.66,18.58,bar,mean,housing,y,bar | mean | housing vs y
 uci_bank_marketing,8,43.58,13.19,bar,mean,marital,y,bar | mean | marital vs y
 uci_bank_marketing,9,39.93,9.48,bar,mean,loan,y,bar | mean | loan vs y
 uci_bank_marketing,10,39.39,8.63,bar,mean,default,y,bar | mean | default vs y
-uci_bank_marketing,12,36.64,4.09,box,,y,campaign,box | y vs campaign
+uci_bank_marketing,12,36.03,3.12,box,,y,campaign,box | y vs campaign
 uci_bank_marketing,13,34.63,1.07,bar,mean,y,pdays,bar | mean | y vs pdays
 uci_bank_marketing,14,94.8,92.0,histogram,,pdays,,histogram | pdays
 uci_bank_marketing,15,92.75,93.26,bar,count,default,,bar | count | default

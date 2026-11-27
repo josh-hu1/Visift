@@ -13,9 +13,9 @@ uci_bike_sharing_day,1,97.0,100.0,line,,dteday,temp,line | dteday vs temp
 uci_bike_sharing_day,2,90.77,90.11,bar,count,holiday,,bar | count | holiday
 uci_bike_sharing_day,3,87.52,80.81,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
 uci_bike_sharing_day,5,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
-uci_bike_sharing_day,7,76.72,64.18,box,,weathersit,hum,box | weathersit vs hum
-uci_bike_sharing_day,8,71.89,56.76,histogram,,temp,,histogram | temp
-uci_bike_sharing_day,9,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
+uci_bike_sharing_day,7,71.89,56.76,histogram,,temp,,histogram | temp
+uci_bike_sharing_day,8,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
+uci_bike_sharing_day,9,69.83,53.59,box,,weathersit,hum,box | weathersit vs hum
 uci_bike_sharing_day,10,66.11,47.87,box,,weathersit,temp,box | weathersit vs temp
 uci_bike_sharing_day,12,60.19,41.61,line,,dteday,hum,line | dteday vs hum
 uci_bike_sharing_day,14,53.89,31.63,bar,count,workingday,,bar | count | workingday
@@ -27,8 +27,8 @@ titanic3,8,68.27,54.11,box,,survived,fare,box | survived vs fare
 titanic3,9,67.5,50.01,box,,sex,fare,box | sex vs fare
 titanic3,10,67.4,60.11,scatter,,sibsp,fare,scatter | sibsp vs fare
 titanic3,12,61.95,50.91,scatter,,parch,fare,scatter | parch vs fare
-titanic3,13,59.9,40.0,box,,pclass,parch,box | pclass vs parch
-titanic3,14,55.87,43.84,scatter,,sibsp,parch,scatter | sibsp vs parch
+titanic3,13,55.87,43.84,scatter,,sibsp,parch,scatter | sibsp vs parch
+titanic3,14,55.16,31.04,bar,mean,embarked,survived,bar | mean | embarked vs survived
 uci_bank_marketing,1,94.8,92.0,histogram,,pdays,,histogram | pdays
 uci_bank_marketing,2,92.75,93.26,bar,count,default,,bar | count | default
 uci_bank_marketing,3,88.71,82.63,histogram,,balance,,histogram | balance

@@ -5,12 +5,12 @@ palmer_penguins,ecology,species_vs_flipper_length,species | flipper_length_mm,bo
 palmer_penguins,ecology,species_vs_bill_length,species | bill_length_mm,box | bar,,,,2,80.91,bar,mean,False,Bill length is one of the morphological measurements that distinguishes species.
 uci_bike_sharing_day,transportation,date_vs_total_rentals,dteday | cnt,line,,,,1,85.49,line,,False,"Daily rental demand changes materially over the 731-date observation window, making a time-series view useful."
 uci_bike_sharing_day,transportation,temperature_vs_total_rentals,temp | cnt,scatter,,,,2,78.08,scatter,,False,Rental demand is meaningfully associated with temperature.
-uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,,,,8,39.82,scatter,,False,Humidity is a weather variable with a meaningful relationship to rental demand.
+uci_bike_sharing_day,transportation,humidity_vs_total_rentals,hum | cnt,scatter,,,,6,39.82,scatter,,False,Humidity is a weather variable with a meaningful relationship to rental demand.
 uci_bike_sharing_day,transportation,season_vs_total_rentals,season | cnt,box | bar,,,,3,63.81,box,,False,"UCI defines season as categorical, and daily rental demand differs across seasons."
 uci_bike_sharing_day,transportation,weather_situation_vs_total_rentals,weathersit | cnt,box | bar,,,,4,54.33,box,,False,"UCI defines weather situation as categorical, and rental demand differs across weather conditions."
 titanic3,passenger survival,survival_rate_by_sex,sex | survived,bar,sex,survived,mean,1,73.42,bar,mean,False,Survival status differs substantially by sex. The intended visualization is survival rate by sex rather than the reverse orientation.
 titanic3,passenger survival,survival_rate_by_passenger_class,pclass | survived,bar,pclass,survived,mean,3,64.56,bar,mean,False,Passenger class is a core survival-related factor. The intended view is survival rate by passenger class.
-titanic3,passenger survival,age_by_survival_status,survived | age,box,survived,age,,7,32.75,box,,False,Age distributions are useful to compare between survivors and non-survivors.
+titanic3,passenger survival,age_by_survival_status,survived | age,box,survived,age,,7,32.73,bar,mean,False,Age distributions are useful to compare between survivors and non-survivors.
 titanic3,passenger survival,fare_by_passenger_class,pclass | fare,box | bar,pclass,fare,,8,96.74,box,,False,Passenger fares differ strongly across the three passenger classes.
 titanic3,passenger survival,fare_distribution,fare,histogram,fare,,,10,90.61,histogram,,False,Passenger fare has a distinctly uneven distribution that is useful to inspect.
 uci_bank_marketing,marketing,previous_outcome_vs_subscription_rate,poutcome | y,bar,poutcome,y,mean,1,75.78,bar,mean,False,The outcome of a previous marketing campaign is a natural and decision-relevant grouping for current term-deposit subscription rate.
