@@ -1215,20 +1215,37 @@ def load_upload():
 
     data = uploaded_file.getvalue()
 
+    # Load with Visift's default choice first (for workbooks: the first sheet
+    # that holds a table). Even if that fails, the sheet picker is shown
+    # before the error, so a different sheet can always be chosen.
     try:
         table = read_upload(data, uploaded_file.name)
+        error = None
+        sheet_names = table["sheet_names"]
+        default_sheet = table["sheet"]
+    except UploadError as caught:
+        table = None
+        error = caught
+        sheet_names = caught.sheet_names
+        default_sheet = sheet_names[0] if sheet_names else None
 
-        if len(table["sheet_names"]) > 1:
-            sheet = st.selectbox(
-                "Sheet",
-                options=table["sheet_names"],
-                key=f"sheet::{uploaded_file.name}",
-            )
+    if len(sheet_names) > 1:
+        sheet = st.selectbox(
+            "Sheet",
+            options=sheet_names,
+            index=sheet_names.index(default_sheet),
+            key=f"sheet::{uploaded_file.name}",
+        )
 
-            if sheet != table["sheet"]:
+        if table is None or sheet != table["sheet"]:
+            try:
                 table = read_upload(data, uploaded_file.name, sheet)
+                error = None
+            except UploadError as caught:
+                table = None
+                error = caught
 
-    except UploadError as error:
+    if table is None:
         show_upload_error(error)
 
         st.stop()

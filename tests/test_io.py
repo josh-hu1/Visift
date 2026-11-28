@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from visift.io import MAX_ROWS, UploadError, load_table
+from visift.io import MAX_ROWS, UploadError, excel_sheet_names, load_table
 
 ROWS = "name,city,score\nAnna,Zürich,3.5\nBjörn,Malmö,4.0\nCécile,Paris,2.5\n"
 
@@ -149,3 +149,59 @@ def test_wide_tables_are_loaded_in_full():
     row = ",".join(str(i) for i in range(60))
     table = _load(f"{header}\n{row}\n{row}\n")
     assert table["df"].shape == (2, 60)
+
+
+# --------------------------------------------------
+# Workbooks whose first sheet is not a table
+# --------------------------------------------------
+
+PENGUINS = pd.DataFrame(
+    {"species": ["Adelie", "Gentoo", "Chinstrap"], "mass": [3700, 5000, 3700]}
+)
+COVER = pd.DataFrame({"note": ["Sales export, see next sheet"]})
+
+
+def test_cover_sheet_is_skipped_with_a_notice():
+    table = load_table(_xlsx({"About": COVER, "Penguins": PENGUINS}), "book.xlsx")
+    assert table["sheet"] == "Penguins"
+    assert table["sheet_names"] == ["About", "Penguins"]
+    assert table["df"].equals(PENGUINS)
+    assert (
+        table["notices"][0] == "Opened sheet “Penguins”; earlier sheets have no table."
+    )
+
+
+def test_empty_first_sheet_is_skipped():
+    table = load_table(_xlsx({"Blank": pd.DataFrame(), "Data": PENGUINS}), "book.xlsx")
+    assert table["sheet"] == "Data"
+
+
+def test_requesting_an_unusable_sheet_raises_with_the_sheet_list():
+    data = _xlsx({"About": COVER, "Penguins": PENGUINS})
+    with pytest.raises(UploadError) as raised:
+        load_table(data, "book.xlsx", sheet="About")
+    error = raised.value
+    assert error.message == "Only one column was found."
+    assert "Pick another sheet" in error.hint and "separator" not in error.hint
+    assert error.sheet_names == ["About", "Penguins"]
+
+
+def test_workbook_without_any_table_raises_the_first_sheets_error():
+    data = _xlsx({"About": COVER, "Blank": pd.DataFrame()})
+    with pytest.raises(UploadError) as raised:
+        load_table(data, "book.xlsx")
+    assert raised.value.message == "Only one column was found."
+    assert raised.value.sheet_names == ["About", "Blank"]
+
+
+def test_excel_sheet_names_helper():
+    assert excel_sheet_names(_xlsx({"A": PENGUINS, "B": COVER})) == ["A", "B"]
+    assert excel_sheet_names(b"not a workbook") == []
+
+
+def test_trailing_empty_column_is_only_reported_as_dropped():
+    table = _load("region;revenue;\nNorth;1,5;\nSouth;2,5;\n")
+    assert list(table["df"].columns) == ["region", "revenue"]
+    notices = " ".join(table["notices"])
+    assert "Dropped 1 completely empty column" in notices
+    assert "unnamed" not in notices
