@@ -101,16 +101,20 @@ def semantic_fit_score(x_type: str | None, y_type: str | None) -> float:
     return 0
 
 
-def data_quality_score(df: pd.DataFrame, x: str, y: str) -> float:
+def data_quality_score(
+    df: pd.DataFrame, x: str, y: str, clean: pd.DataFrame | None = None
+) -> float:
     """
     Score the percentage of rows containing
-    finite x/y observations.
+    finite x/y observations. clean: clean_numeric_pairs(df, x, y), if the
+    caller already has it.
     """
 
     if len(df) == 0:
         return 0
 
-    clean = clean_numeric_pairs(df, x, y)
+    if clean is None:
+        clean = clean_numeric_pairs(df, x, y)
 
     return (len(clean) / len(df)) * 100
 
@@ -169,13 +173,16 @@ def variance_score(series: pd.Series) -> float:
     return 100
 
 
-def readability_score(df: pd.DataFrame, x: str, y: str) -> float:
+def readability_score(
+    df: pd.DataFrame, x: str, y: str, clean: pd.DataFrame | None = None
+) -> float:
     """
     Estimate whether the variables provide enough
     distinct values for a useful scatterplot.
     """
 
-    clean = clean_numeric_pairs(df, x, y)
+    if clean is None:
+        clean = clean_numeric_pairs(df, x, y)
 
     if clean.empty:
         return 0
@@ -548,7 +555,9 @@ def nonlinear_signal_score(clean: pd.DataFrame, x: str, y: str) -> dict[str, Any
 # ==================================================
 
 
-def relationship_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
+def relationship_signal_score(
+    df: pd.DataFrame, x: str, y: str, clean: pd.DataFrame | None = None
+) -> dict[str, Any]:
     """
     Estimate overall relationship strength.
 
@@ -561,7 +570,8 @@ def relationship_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
     The strongest supported form of dependence wins.
     """
 
-    clean = clean_numeric_pairs(df, x, y)
+    if clean is None:
+        clean = clean_numeric_pairs(df, x, y)
 
     if len(clean) < 3:
         return {
@@ -669,13 +679,14 @@ def score_scatter_chart(
 
     semantic_fit = semantic_fit_score(x_type, y_type)
 
-    quality = data_quality_score(df, x, y)
+    # The helpers only read clean, so it is computed once and shared.
+    quality = data_quality_score(df, x, y, clean)
 
     support = sample_support_score(len(clean))
 
-    readability = readability_score(df, x, y)
+    readability = readability_score(df, x, y, clean)
 
-    relationship = relationship_signal_score(df, x, y)
+    relationship = relationship_signal_score(df, x, y, clean)
 
     signal = relationship["signal"]
 

@@ -326,6 +326,8 @@ Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, re
 
 What changed: profiling showed 82% of the time in the scatter scorer's permutation test for mutual information (18 estimator calls per pair). When the observed mutual information is already below the minimum effect size, no permutation result can produce a signal, so those permutations are skipped. This is exact: every score, ranking and benchmark result is unchanged.
 
+Later, the box and scatter scorers stopped repeating work within a chart: each now drops missing rows, groups the data and computes each group's quartiles once, and shares the result across its components ([#23](https://github.com/josh-hu1/Visift/pull/23)). The categorical redundancy checks moved to integer codes ([#22](https://github.com/josh-hu1/Visift/pull/22)). Every score is byte-for-byte unchanged. Serial wall time on a 4-core Linux container, before and after these two changes: 50 × 2,000 from 25.5 s to 16.0 s, 50 × 10,000 from 31.9 s to 20.5 s, 26 × 2,000 from 7.1 s to 5.2 s.
+
 Parallel scoring is available (`analyze(df, n_jobs=4)` or `VISIFT_N_JOBS=4`) and gives identical results, but the default is serial: starting worker processes costs several seconds the first time, which is slower than a typical upload on its own. It pays off in a long-running process or for very wide tables. Hosted Streamlit apps reportedly get at most ~2 cores, so the live demo runs serially.
 
 ---
@@ -523,7 +525,7 @@ Known limitations include:
 - trivial relationships are caught for single columns and for one column determined by two others; definitions that need three or more columns are not
 - non-monotonic group effects (e.g. a U-shaped rate by age) are underrated by the box-plot scorer
 - with very small groups (~20 rows each), pure noise still reaches "Moderate" in up to about 1% of box plots, and genuine spread differences that small are often missed because the significance test has little power there
-- wide tables are slow: 50 columns take roughly 15–25 s on a laptop
+- wide tables are slow: 50 columns × 2,000 rows take about 16.0 s serially on a 4-core Linux container (25.5 s before [#22](https://github.com/josh-hu1/Visift/pull/22) and [#23](https://github.com/josh-hu1/Visift/pull/23)); most of the rest is pandas overhead in the box and bar scorers and scikit-learn's mutual information
 - semantic inference is heuristic and can misclassify ambiguous columns
 - high-cardinality or domain-specific visualizations are outside the current scope
 
