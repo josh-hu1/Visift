@@ -16,9 +16,9 @@ uci_bike_sharing_day,9,34.19,0.37,bar,mean,workingday,cnt,bar | mean | workingda
 uci_bike_sharing_day,10,25.06,0.0,line,,yr,cnt,line | yr vs cnt
 uci_bike_sharing_day,11,97.0,100.0,line,,dteday,temp,line | dteday vs temp
 uci_bike_sharing_day,12,90.77,90.11,bar,count,holiday,,bar | count | holiday
-uci_bike_sharing_day,13,87.52,80.81,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
-uci_bike_sharing_day,14,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
-uci_bike_sharing_day,15,71.89,56.76,histogram,,temp,,histogram | temp
+uci_bike_sharing_day,13,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
+uci_bike_sharing_day,14,71.89,56.76,histogram,,temp,,histogram | temp
+uci_bike_sharing_day,15,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
 titanic3,2,68.27,54.11,box,,survived,fare,box | survived vs fare
 titanic3,4,55.16,31.04,bar,mean,embarked,survived,bar | mean | embarked vs survived
 titanic3,5,35.21,2.88,box,,survived,sibsp,box | survived vs sibsp

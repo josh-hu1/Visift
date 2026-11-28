@@ -12,7 +12,7 @@ Visift is an explainable visualization recommendation engine that automatically 
 
 Instead of showing every chart that *can* be made, Visift prioritizes the charts most likely to reveal useful structure.
 
-**Results so far:** on a small, pre-registered real-world benchmark (4 public datasets, 20 expected insights), Visift puts 95% of the expected insights in its top 10 when you name the outcome you care about, versus 75% for a baseline that sorts the same charts by plain effect size. Without an outcome it is only slightly ahead of that baseline (50% vs 45% in the top 10). Details in [Evaluation](#evaluation).
+**Results so far:** on a small, pre-registered real-world benchmark (4 public datasets, 20 expected insights), Visift puts 95% of the expected insights in its top 10 when you name the outcome you care about, versus 75% for a baseline that sorts the same charts by plain effect size. Without an outcome it is only modestly ahead of that baseline (55% vs 45% in the top 10). Details in [Evaluation](#evaluation).
 
 [Live Demo](https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/) · [Design doc](docs/design.md) · [GitHub Repository](https://github.com/josh-hu1/Visift)
 
@@ -60,7 +60,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Global 0–100 recommendation scores** calibrated across visualization types
 - **Pattern-aware explanations** describing why a chart was recommended
 - **Alternative-view detection** to avoid ranking redundant charts separately
-- **Dataset notes for redundant columns:** near-duplicates (e.g. `temp` and `atemp`, Spearman 0.99) count as one variable, and charts between trivially related columns are set aside with the statistic that explains why instead of topping the ranking
+- **Dataset notes for redundant columns:** near-duplicates (e.g. `temp` and `atemp`, Spearman 0.99) count as one variable, and charts between trivially related columns are set aside with the statistic that explains why instead of topping the ranking. That includes a column determined by two others together, such as `workingday` from `weekday` and `holiday`, or a total that is the sum of two other columns
 - **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 50% to 95% with pre-registered targets (an effect-size baseline reaches 75% in the same setting)
 - **Missing-data and sample-size reliability adjustments**
 - **Sample gallery:** Palmer Penguins, Titanic, Bike Sharing, a Bank Marketing sample and synthetic sales load in one click, with their known outcome preselected ([sources and licenses](src/visift/samples/README.md))
@@ -249,12 +249,12 @@ Headline (all 20 insights; R@k = share of expected insights in the top k, MRR = 
 
 | | Baseline | Visift before Phase 2 | Visift now |
 |---|---:|---:|---:|
-| No outcome selected: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 15% / 30% / 50% |
-| No outcome selected: MRR | 0.190 | 0.192 | 0.205 |
+| No outcome selected: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 20% / 35% / 55% |
+| No outcome selected: MRR | 0.190 | 0.192 | 0.212 |
 | Outcome selected: R@3 / R@5 / R@10 | 40% / 50% / 75% | 15% / 25% / 45% | **50% / 70% / 95%** |
 | Outcome selected: MRR | 0.352 | 0.192 | **0.411** |
 
-**Where the baseline holds up:** without an outcome, Visift is barely ahead (R@10 50% vs 45%, MRR 0.205 vs 0.190), and the baseline is better at R@3 (20% vs 15%) and on Palmer Penguins (MRR 0.415 vs 0.394), where the expected insights are strong, simple correlations. With an outcome selected the baseline is also close on Titanic (it ties at R@3 and R@5 and has a slightly higher MRR, 0.343 vs 0.340), though Visift finds all five Titanic insights in its top 10 versus three. Most of Visift's gain comes from target-aware ranking, which turns the question into "what drives this outcome?".
+**Where the baseline holds up:** without an outcome, Visift is only modestly ahead (R@10 55% vs 45%, MRR 0.212 vs 0.190), the two tie at R@3 (20%), and the baseline is better on Palmer Penguins (MRR 0.415 vs 0.394), where the expected insights are strong, simple correlations. With an outcome selected the baseline is also close on Titanic (it ties at R@3 and R@5 and has a slightly higher MRR, 0.343 vs 0.340), though Visift finds all five Titanic insights in its top 10 versus three. Most of Visift's gain comes from target-aware ranking, which turns the question into "what drives this outcome?".
 
 Per dataset (R@3 / R@5 / R@10, MRR):
 
@@ -262,7 +262,7 @@ Per dataset (R@3 / R@5 / R@10, MRR):
 |---|---|---|---|
 | Palmer Penguins, no outcome | 50 / 75 / 100%, 0.415 | 25 / 75 / 100%, 0.394 | 25 / 75 / 100%, 0.394 |
 | Palmer Penguins (species) | 50 / 50 / 100%, 0.397 | 25 / 75 / 100%, 0.394* | 50 / 100 / 100%, 0.487 |
-| Bike Sharing, no outcome | 0 / 0 / 40%, 0.086 | 0 / 0 / 40%, 0.081 | 0 / 20 / 40%, 0.125 |
+| Bike Sharing, no outcome | 0 / 0 / 40%, 0.086 | 0 / 0 / 40%, 0.081 | 20 / 40 / 60%, 0.152 |
 | Bike Sharing (cnt) | 40 / 60 / 100%, 0.365 | 0 / 0 / 40%, 0.081* | 60 / 80 / 100%, 0.450 |
 | Titanic, no outcome | 40 / 40 / 60%, 0.298 | 40 / 40 / 60%, 0.324 | 40 / 40 / 60%, 0.324 |
 | Titanic (survived) | 40 / 40 / 60%, 0.343 | 40 / 40 / 60%, 0.324* | 40 / 40 / 100%, 0.340 |
@@ -281,7 +281,6 @@ python -m evaluation.real_world.benchmark --ranker all
 **Where it still misses:**
 
 - **Bank Marketing, age vs subscription** ranks 11th even with the outcome selected. The effect is U-shaped (24% of under-25s and 42% of over-60s subscribe, but medians are nearly equal), and the box-plot scorer mostly reads medians and spread. A binned-rate chart would catch it.
-- **Bike Sharing, weekday vs workingday** is still in the top 3 without an outcome. `workingday` is determined by `weekday` and `holiday` together, and the redundancy check only looks at one column at a time.
 - **Without an outcome, Bank Marketing** finds only 1 of 6 expected insights in the top 10: they are all about the subscription outcome and compete with every unrelated pair.
 - **Charts that do not involve the outcome drop in target mode** (Titanic fare by class falls from #1 to #8), by design.
 
@@ -361,7 +360,7 @@ Visift/
 │   ├── value_normalization.py
 │   ├── candidate_generator.py
 │   ├── target.py               # target suggestion and drivers-first ranking
-│   ├── redundancy.py           # near-duplicate / near-deterministic column pairs
+│   ├── redundancy.py           # near-duplicate / near-deterministic columns
 │   ├── paradox.py              # Simpson's paradox detection
 │   ├── pipeline.py             # analyze(df, target=None): the whole pipeline in one call
 │   ├── export.py               # chart_code() snippets and html_report()
@@ -521,7 +520,7 @@ Known limitations include:
 - irregular temporal sampling can reduce FFT-based seasonality detection
 - the [real-world benchmark](evaluation/real_world/README.md) covers only four datasets and 20 expected insights, written by the same person who built Visift
 - without an outcome column, ranking is only slightly better than sorting by plain effect size (see [Evaluation](#evaluation))
-- relationships that depend on two columns at once (e.g. `workingday` from `weekday` and `holiday`) are not recognized as trivial
+- trivial relationships are caught for single columns and for one column determined by two others; definitions that need three or more columns are not
 - non-monotonic group effects (e.g. a U-shaped rate by age) are underrated by the box-plot scorer
 - with very small groups (~20 rows each), pure noise still reaches "Moderate" in up to about 1% of box plots, and genuine spread differences that small are often missed because the significance test has little power there
 - wide tables are slow: 50 columns take roughly 15–25 s on a laptop

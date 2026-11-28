@@ -10,10 +10,10 @@ no-target,Visift before Phase 2,titanic3,5,0.4,0.4,0.6,0.3242424242424242
 no-target,Visift before Phase 2,uci_bank_marketing,6,0.0,0.0,0.0,0.04073198737000557
 no-target,Visift before Phase 2,all,20,0.15,0.25,0.45,0.19228764237424906
 no-target,Visift now,palmer_penguins,4,0.25,0.75,1.0,0.39375
-no-target,Visift now,uci_bike_sharing_day,5,0.0,0.2,0.4,0.1248997668997669
+no-target,Visift now,uci_bike_sharing_day,5,0.2,0.4,0.6,0.15202898550724636
 no-target,Visift now,titanic3,5,0.4,0.4,0.6,0.3242424242424242
 no-target,Visift now,uci_bank_marketing,6,0.0,0.0,0.16666666666666666,0.046618604706840004
-no-target,Visift now,all,20,0.15,0.3,0.5,0.2050211291975998
+no-target,Visift now,all,20,0.2,0.35,0.55,0.21180343384946965
 target,Baseline,palmer_penguins,4,0.5,0.5,1.0,0.3968253968253968
 target,Baseline,uci_bike_sharing_day,5,0.4,0.6,1.0,0.36523809523809525
 target,Baseline,titanic3,5,0.4,0.4,0.6,0.34305555555555556

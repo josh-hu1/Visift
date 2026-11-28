@@ -52,9 +52,10 @@ Some details:
   - near-duplicate numeric columns: |Spearman| ≥ 0.97;
   - near-duplicate categorical columns: bias-corrected Cramér's V ≥ 0.95, plus determination both ways;
   - categorical → categorical determination: normalized conditional entropy H(Y|X)/H(Y) ≤ 0.05;
-  - categorical → numeric determination: η² ≥ 0.95.
+  - categorical → numeric determination: η² ≥ 0.95;
+  - a column determined by two others together (added later, fixed before the benchmark was rerun; one disclosed amendment in the module docstring): H(Y|X1,X2)/H(Y) ≤ 0.05 for categoricals, the pairwise threshold plus a shuffle check against small-cell flukes, or R² ≥ 0.999 for a sum or product of two numeric columns. Neither input may determine it alone. This catches Bike Sharing's `workingday` (a weekday that is not a holiday), which used to rank #3 as "weekday vs workingday".
 
-  A chart between such a pair is moved to the dataset notes, with the statistic that explains why. Scores are never changed and nothing is deleted.
+  A chart between such columns is moved to the dataset notes, with the statistic that explains why. Scores are never changed and nothing is deleted. The categorical checks run on integer codes, so a 40-column categorical table takes about a second instead of 15 ([#22](https://github.com/josh-hu1/Visift/pull/22)).
 - **Diversification** folds charts on the same variables into one recommendation. The best-scoring view is the primary one and the others are listed as alternatives.
 
 ---
@@ -156,14 +157,14 @@ The rule was fixed before it was run on real data. It was designed knowing the P
 
 | | Baseline | Visift before Phase 2 | Visift now |
 |---|---:|---:|---:|
-| No outcome: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 15% / 30% / 50% |
-| No outcome: MRR | 0.190 | 0.192 | 0.205 |
+| No outcome: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 20% / 35% / 55% |
+| No outcome: MRR | 0.190 | 0.192 | 0.212 |
 | Outcome selected: R@3 / R@5 / R@10 | 40% / 50% / 75% | 15% / 25% / 45% | **50% / 70% / 95%** |
 | Outcome selected: MRR | 0.352 | 0.192 | **0.411** |
 
 **How to read it honestly:**
 
-- **Without an outcome, Visift barely beats sorting by effect size** (R@10 50% vs 45%). The baseline is better at R@3 and on Penguins, where the expected insights are strong, simple correlations.
+- **Without an outcome, Visift is only modestly ahead of sorting by effect size** (R@10 55% vs 45%; it was 50% before two-column determinism moved Bike Sharing's "weekday vs workingday" out of the ranking). The two tie at R@3, and the baseline is better on Penguins, where the expected insights are strong, simple correlations.
 - **Most of the gain comes from target-aware ranking**, which turns "what's interesting?" into "what drives this outcome?". With an outcome, Visift finds 95% of the insights in its top 10 versus 75% for the baseline given the same outcome.
 - **20 insights is a small benchmark,** written by the same person who built Visift. A single insight moves R@k by 5 points. Treat these numbers as an honest sample, not a definitive score.
 
@@ -219,7 +220,7 @@ The box-plot significance gates add roughly 5–35% on wide tables, depending on
 
 ## 9. Known failure modes
 
-- **Two-column determinism is not caught.** In Bike Sharing, `workingday` is determined by `weekday` and `holiday` together. The redundancy check looks at one column at a time, so weekday vs workingday still reaches the top 3 without an outcome.
+- **Definitions spanning three or more columns are not caught.** Redundancy checks cover one column determined by another, or by two others together (Bike Sharing's `workingday` from `weekday` and `holiday`). A column computed from three inputs still gets ranked charts.
 - **Non-monotonic group effects are underrated.** In Bank Marketing, subscription is U-shaped in age: 24% of under-25s and 42% of over-60s subscribe, but medians are nearly equal. The box-plot scorer mostly reads location and spread, so age vs subscription ranks 11th even with the outcome selected. A binned-rate chart would catch it.
 - **Wide tables are slow.** 50 columns take roughly 15–25 s on a laptop. The hosted tier, with about 2 cores, runs serially and is likely no faster.
 - **The box gates cost runtime:** roughly 5–35% on wide tables, depending on table and machine. The outlier permutation test is the expensive part, which early stopping limits.

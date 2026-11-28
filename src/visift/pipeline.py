@@ -7,9 +7,10 @@ The end-to-end Visift pipeline in one call.
 2. Generate semantically valid chart candidates (plus target-oriented
    ones when a target is given).
 3. Score every candidate with its chart-specific scorer.
-4. Find redundant / trivially related column pairs (visift.redundancy).
-   Charts *between* such a pair are moved to the dataset notes; they are
-   kept, with their scores, but not ranked.
+4. Find redundant / trivially related columns (visift.redundancy): pairs,
+   and columns determined by two others together. Charts *between* such
+   columns are moved to the dataset notes; they are kept, with their
+   scores, but not ranked.
 5. Diversify: charts on the same variables collapse into one
    recommendation with alternatives, treating each near-duplicate cluster
    as a single variable.
