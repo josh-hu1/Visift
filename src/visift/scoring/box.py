@@ -2,13 +2,66 @@ import math
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
 import pandas as pd
+from scipy.stats import kruskal, levene
 
 from visift.types import Candidate, DatasetProfile, ScoreResult
 
 CATEGORY_TYPES = {"categorical", "ordinal", "boolean", "geographic"}
 
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
+
+# ==================================================
+# SIGNIFICANCE GATES (Phase 2.6, pre-registered)
+# ==================================================
+#
+# Each of the three grouped-distribution signals (location, dispersion,
+# outlier pattern) is multiplied by a 0-1 reliability derived from a
+# significance test of the same kind of difference:
+#
+# - location: Kruskal-Wallis across groups
+# - dispersion: Brown-Forsythe (Levene with median centering) across the
+#   groups the IQR ratio uses (>= 8 rows)
+# - outlier pattern: chi-square statistic of per-group outlier rates with a
+#   permutation p-value (see amendment 1 below)
+#
+# Reliability ramp: the one the line scorer already uses for its Levene-gated
+# volatility signal (full weight at p <= 0.001, zero at p >= 0.10, linear in
+# log10(p) in between). A smooth ramp avoids a cliff at an arbitrary alpha
+# and keeps the scorers consistent. The underlying 0-100 scales are
+# unchanged; only how much of each signal is trusted changes.
+#
+# Why: on pure noise the ungated signals score >= 50 in 4.8% of the test
+# suite's null box cases and in 20-81% of cases with ~20 rows per group,
+# driven by chance IQR ratios (dispersion), chance outlier-rate gaps
+# (outlier) and, rarely, location.
+#
+# Amendments, made after the pre-registered version (commit 9ce488f) failed
+# its acceptance criteria on the validation data (null >= 50 up to 5.0% per
+# cell, and some >= 65):
+#
+# 1. The pre-registered outlier test permuted the 0/1 outlier indicators.
+#    That is invalid: each point's outlier status depends on its own
+#    group's estimated fences, so indicators are not exchangeable across
+#    groups, and under pure noise the test gave p < 0.01 in 3-6% of cases.
+#    The test now permutes the raw values across groups and recomputes every
+#    group's fences and the chi-square statistic each time (a valid
+#    permutation test of identical distributions). For speed it stops early
+#    once 20 permutations reach the observed statistic (Besag & Clifford
+#    1991 sequential p-value), so the full 999 run only when p is small.
+# 2. The signal is the maximum of three gated components, so their p-values
+#    are Bonferroni-corrected (x3) before the reliability ramp.
+#
+# Thresholds, the ramp and the score scales are unchanged.
+
+GATE_STRONG_P = 0.001
+GATE_WEAK_P = 0.10
+OUTLIER_TEST_PERMUTATIONS = 999
+OUTLIER_TEST_STOP_AFTER = 20
+OUTLIER_TEST_SEED = 0
+MIN_ROWS_FOR_SPREAD = 8
+GATED_COMPONENTS = 3
 
 
 def clamp(value: float, minimum: float = 0, maximum: float = 100) -> float:
@@ -110,6 +163,166 @@ def sample_support_score(counts: pd.Series) -> float:
     return 0.50 * average_score + 0.50 * minimum_score
 
 
+def significance_reliability(p_value: float) -> float:
+    """0 at p >= GATE_WEAK_P, 1 at p <= GATE_STRONG_P, log-linear between."""
+
+    if p_value is None or not np.isfinite(p_value) or p_value >= GATE_WEAK_P:
+        return 0.0
+
+    if p_value <= GATE_STRONG_P:
+        return 1.0
+
+    position = (math.log10(GATE_WEAK_P) - math.log10(p_value)) / (
+        math.log10(GATE_WEAK_P) - math.log10(GATE_STRONG_P)
+    )
+
+    return float(clamp(position, 0, 1))
+
+
+def _group_values(
+    df: pd.DataFrame, x: str, y: str, minimum_rows: int
+) -> list[np.ndarray]:
+    clean = df[[x, y]].dropna()
+    return [
+        group[y].to_numpy(dtype=float)
+        for _, group in clean.groupby(x)
+        if len(group) >= minimum_rows
+    ]
+
+
+def location_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+    """Kruskal-Wallis p-value for a difference in location across groups."""
+
+    groups = _group_values(df, x, y, minimum_rows=2)
+
+    if len(groups) < 2:
+        return 1.0
+
+    try:
+        p_value = float(kruskal(*groups).pvalue)
+    except ValueError:  # all values identical
+        return 1.0
+
+    return p_value if np.isfinite(p_value) else 1.0
+
+
+def dispersion_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+    """Brown-Forsythe p-value for a difference in spread across groups."""
+
+    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD)
+
+    if len(groups) < 2:
+        return 1.0
+
+    p_value = float(levene(*groups, center="median").pvalue)
+
+    return p_value if np.isfinite(p_value) else 1.0
+
+
+class _OutlierStatistic:
+    """
+    Chi-square statistic of per-group outlier rates, where each group's
+    outliers fall outside its own 1.5 x IQR fences (quartiles as in
+    np.quantile's default linear method). Groups with IQR 0 have no
+    outliers.
+
+    Shuffling values across fixed group labels is the same as shuffling the
+    labels across fixed values, so the values are sorted once and each
+    permutation only needs a stable integer sort of the labels; within each
+    group the values then stay in ascending order.
+    """
+
+    def __init__(self, values: np.ndarray, codes: np.ndarray, k: int) -> None:
+        self.codes = codes
+        self.k = k
+        self.n = len(values)
+        self.sort_index = np.argsort(values, kind="stable")
+        self.sorted_values = values[self.sort_index]
+        self.counts = np.bincount(codes, minlength=k).astype(float)
+        starts = np.concatenate([[0], np.cumsum(self.counts)[:-1]]).astype(int)
+        sizes = self.counts.astype(int)
+
+        positions = [(sizes - 1) * q for q in (0.25, 0.75)]
+        self.lower = [starts + np.floor(pos).astype(int) for pos in positions]
+        self.upper = [starts + np.ceil(pos).astype(int) for pos in positions]
+        self.weight = [pos - np.floor(pos) for pos in positions]
+
+    def __call__(self, permutation: np.ndarray | None = None) -> float:
+        """Statistic for values[permutation] against the fixed group codes."""
+
+        if permutation is None:
+            labels = self.codes
+        else:
+            # values[permutation][i] = values[permutation[i]] sits in group
+            # codes[i], so value j's group is codes[inverse[j]].
+            inverse = np.empty(self.n, dtype=np.int64)
+            inverse[permutation] = np.arange(self.n)
+            labels = self.codes[inverse]
+
+        sorted_labels = labels[self.sort_index]
+        ordered = self.sorted_values[np.argsort(sorted_labels, kind="stable")]
+
+        q1, q3 = (
+            ordered[lo] + (ordered[hi] - ordered[lo]) * w
+            for lo, hi, w in zip(self.lower, self.upper, self.weight, strict=True)
+        )
+        iqr = q3 - q1
+        valid = np.isfinite(iqr) & (iqr > 0)
+        low_fence = np.where(valid, q1 - 1.5 * iqr, -np.inf)
+        high_fence = np.where(valid, q3 + 1.5 * iqr, np.inf)
+
+        outside = (self.sorted_values < low_fence[sorted_labels]) | (
+            self.sorted_values > high_fence[sorted_labels]
+        )
+        hits = np.bincount(sorted_labels, weights=outside, minlength=self.k)
+
+        rate = float(hits.sum()) / float(self.counts.sum())
+
+        if rate <= 0 or rate >= 1:
+            return 0.0
+
+        expected_hits = self.counts * rate
+        expected_misses = self.counts * (1 - rate)
+        return float(
+            ((hits - expected_hits) ** 2 / expected_hits).sum()
+            + ((self.counts - hits - expected_misses) ** 2 / expected_misses).sum()
+        )
+
+
+def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+    """
+    Permutation p-value that per-group outlier rates are equal: values are
+    shuffled across groups and every group's fences recomputed, with
+    Besag-Clifford sequential stopping after OUTLIER_TEST_STOP_AFTER
+    permutations reach the observed statistic.
+    """
+
+    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD)
+
+    if len(groups) < 2:
+        return 1.0
+
+    values = np.concatenate(groups)
+    codes = np.concatenate([np.full(len(g), i) for i, g in enumerate(groups)])
+    statistic = _OutlierStatistic(values, codes, len(groups))
+
+    observed = statistic()
+
+    if observed <= 0:
+        return 1.0
+
+    rng = np.random.default_rng(OUTLIER_TEST_SEED)
+    exceed = 0
+
+    for done in range(1, OUTLIER_TEST_PERMUTATIONS + 1):
+        if statistic(rng.permutation(len(values))) >= observed - 1e-12:
+            exceed += 1
+            if exceed >= OUTLIER_TEST_STOP_AFTER:
+                return exceed / done
+
+    return (1 + exceed) / (1 + OUTLIER_TEST_PERMUTATIONS)
+
+
 def eta_squared_score(df: pd.DataFrame, x: str, y: str) -> float:
     clean = df[[x, y]].dropna()
     if clean.empty or clean[x].nunique() <= 1:
@@ -202,11 +415,6 @@ def grouped_outlier_statistics(df: pd.DataFrame, x: str, y: str) -> dict[str, An
     }
 
 
-def grouped_outlier_score(df: pd.DataFrame, x: str, y: str) -> tuple[float, float]:
-    stats = grouped_outlier_statistics(df, x, y)
-    return stats["score"], stats["overall_rate"]
-
-
 def dispersion_difference_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
     clean = df[[x, y]].dropna()
     default = {
@@ -271,9 +479,36 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
     else:
         comparison_reliability = max(0.40, math.sqrt(4 / group_count))
 
-    outlier_difference_signal = outlier_stats["score"] * comparison_reliability
+    # Bonferroni across the three gated components (amendment 2).
+    location_p = min(1.0, GATED_COMPONENTS * location_p_value(df, x, y))
+    dispersion_p = min(1.0, GATED_COMPONENTS * dispersion_p_value(df, x, y))
+    ungated_location = location_signal
+    location_signal = location_signal * significance_reliability(location_p)
 
-    dispersion_difference_signal = dispersion_stats["score"] * comparison_reliability
+    dispersion_difference_signal = (
+        dispersion_stats["score"]
+        * comparison_reliability
+        * significance_reliability(dispersion_p)
+    )
+
+    # The outlier permutation test is the expensive one. Its gated value can
+    # never exceed the ungated one, so when that is 0, or no larger than the
+    # stronger of the other two gated signals, the test cannot change the
+    # final signal (a max of the three) and is skipped: outlier_p is NaN and
+    # the outlier component is reported as 0. Exact: no score changes.
+    ungated_outlier = outlier_stats["score"] * comparison_reliability
+    outlier_test_needed = ungated_outlier > 0 and ungated_outlier > max(
+        location_signal, dispersion_difference_signal
+    )
+
+    if outlier_test_needed:
+        outlier_p = min(1.0, GATED_COMPONENTS * outlier_p_value(df, x, y))
+        outlier_difference_signal = ungated_outlier * significance_reliability(
+            outlier_p
+        )
+    else:
+        outlier_p = float("nan")
+        outlier_difference_signal = 0.0
 
     signal = max(
         location_signal, outlier_difference_signal, dispersion_difference_signal
@@ -291,6 +526,10 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
         "maximum_group_outlier_rate": outlier_stats["maximum_rate"],
         "dispersion_score": dispersion_difference_signal,
         "dispersion_ratio": dispersion_stats["dispersion_ratio"],
+        "ungated_location_score": ungated_location,
+        "location_p": location_p,
+        "dispersion_p": dispersion_p,
+        "outlier_p": outlier_p,
     }
 
 

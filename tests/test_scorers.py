@@ -117,7 +117,11 @@ def test_null_false_positive_rate(score, null):
 
     scores = np.array([score(_base_frame(seed), *null)["score"] for seed in range(50)])
 
-    assert (scores >= 50).mean() <= 0.10, np.sort(scores)[-5:]
+    # The box scorer's significance gates (Phase 2.6) cut its tail from ~5%
+    # to ~0.2% over 500 seeds, so it is held to a stricter bound.
+    allowed = 0.02 if null[0] == "box" else 0.10
+
+    assert (scores >= 50).mean() <= allowed, np.sort(scores)[-5:]
     assert scores.max() < 65, np.sort(scores)[-5:]
 
 

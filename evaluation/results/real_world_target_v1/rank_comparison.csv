@@ -5,7 +5,7 @@ palmer_penguins,species_vs_flipper_length,4,1
 palmer_penguins,species_vs_bill_length,5,2
 uci_bike_sharing_day,date_vs_total_rentals,4,1
 uci_bike_sharing_day,temperature_vs_total_rentals,6,2
-uci_bike_sharing_day,humidity_vs_total_rentals,29,8
+uci_bike_sharing_day,humidity_vs_total_rentals,25,6
 uci_bike_sharing_day,season_vs_total_rentals,11,3
 uci_bike_sharing_day,weather_situation_vs_total_rentals,13,4
 titanic3,survival_rate_by_sex,6,1

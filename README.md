@@ -228,7 +228,7 @@ Headline (all 20 insights; R@k = share of expected insights in the top k, MRR = 
 | No outcome selected: R@3 / R@5 / R@10 | 20% / 25% / 45% | 15% / 25% / 45% | 15% / 30% / 50% |
 | No outcome selected: MRR | 0.190 | 0.192 | 0.205 |
 | Outcome selected: R@3 / R@5 / R@10 | 40% / 50% / 75% | 15% / 25% / 45% | **50% / 70% / 95%** |
-| Outcome selected: MRR | 0.352 | 0.192 | **0.409** |
+| Outcome selected: MRR | 0.352 | 0.192 | **0.411** |
 
 **Where the baseline holds up:** without an outcome, Visift is barely ahead (R@10 50% vs 45%, MRR 0.205 vs 0.190), and the baseline is better at R@3 (20% vs 15%) and on Palmer Penguins (MRR 0.415 vs 0.394), where the expected insights are strong, simple correlations. With an outcome selected the baseline is also close on Titanic (it ties at R@3 and R@5 and has a slightly higher MRR, 0.343 vs 0.340), though Visift finds all five Titanic insights in its top 10 versus three. Most of Visift's gain comes from target-aware ranking, which turns the question into "what drives this outcome?".
 
@@ -238,8 +238,8 @@ Per dataset (R@3 / R@5 / R@10, MRR):
 |---|---|---|---|
 | Palmer Penguins, no outcome | 50 / 75 / 100%, 0.415 | 25 / 75 / 100%, 0.394 | 25 / 75 / 100%, 0.394 |
 | Palmer Penguins (species) | 50 / 50 / 100%, 0.397 | 25 / 75 / 100%, 0.394* | 50 / 100 / 100%, 0.487 |
-| Bike Sharing, no outcome | 0 / 0 / 40%, 0.086 | 0 / 0 / 40%, 0.081 | 0 / 20 / 40%, 0.124 |
-| Bike Sharing (cnt) | 40 / 60 / 100%, 0.365 | 0 / 0 / 40%, 0.081* | 60 / 80 / 100%, 0.442 |
+| Bike Sharing, no outcome | 0 / 0 / 40%, 0.086 | 0 / 0 / 40%, 0.081 | 0 / 20 / 40%, 0.125 |
+| Bike Sharing (cnt) | 40 / 60 / 100%, 0.365 | 0 / 0 / 40%, 0.081* | 60 / 80 / 100%, 0.450 |
 | Titanic, no outcome | 40 / 40 / 60%, 0.298 | 40 / 40 / 60%, 0.324 | 40 / 40 / 60%, 0.324 |
 | Titanic (survived) | 40 / 40 / 60%, 0.343 | 40 / 40 / 60%, 0.324* | 40 / 40 / 100%, 0.340 |
 | Bank Marketing, no outcome | 0 / 0 / 0%, 0.037 | 0 / 0 / 0%, 0.041 | 0 / 0 / 17%, 0.047 |
@@ -269,11 +269,12 @@ The synthetic suites plant known patterns, so they check calibration and false p
 |---|---:|
 | Planted patterns retrieved at rank 1 (95 positive datasets) | 100% (sanity check) |
 | Pure-noise candidates scoring ≥ 50 / ≥ 65 (30 null datasets) | 0% / 0% |
-| Highest pure-noise score observed | 46.65 |
+| Highest pure-noise score observed | 43.25 |
+| Box plots on pure noise scoring ≥ 50: standard case / 2–8 groups of 20 or 100 rows (500 seeds each) | 0.2% / 0.0–1.2% |
 | Stronger planted pattern wins a cross-chart competition (150 datasets) | 100% |
 | Simpson's paradox: planted reversals detected / null datasets flagged | 94.5% / 0 of 320 |
 
-The cross-chart suite also checks that the 0–100 scale means the same thing across chart types (median spread between chart families of 3–9 points per strength tier). Per-family suites for histograms, scatters, grouped charts, time series and binary rates live in [`evaluation/`](evaluation/); outputs go to `evaluation/results/`. One known calibration weakness: the box-plot scorer rates about 4% of pure-noise groupings as "Moderate" (≥ 50), because its spread signal has no significance test.
+The cross-chart suite also checks that the 0–100 scale means the same thing across chart types (median spread between chart families of 1–9 points per strength tier). Per-family suites for histograms, scatters, grouped charts, time series and binary rates live in [`evaluation/`](evaluation/); outputs go to `evaluation/results/`. The box-plot scorer gates each of its grouped signals (location, spread, outlier rates) on a significance test (Kruskal–Wallis, Brown–Forsythe, and a permutation test of outlier rates), which cut its noise tail from about 5% (and up to 81% with ~20 rows per group) to at most about 1%; see [`box_calibration.py`](evaluation/box_calibration.py).
 
 ---
 
@@ -289,7 +290,7 @@ A pair is flagged only when the overall and within-group Spearman correlations h
 
 ## Performance
 
-Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac. Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
+Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac before the box-plot significance gates were added; those gates cost roughly another 25–35% on wide tables (measured back to back). Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
 
 | Dataset | Columns × rows | Before | After (serial, default) | After (4 warm workers) |
 |---|---|---|---|---|
@@ -445,8 +446,8 @@ Known limitations include:
 - without an outcome column, ranking is only slightly better than sorting by plain effect size (see [Evaluation](#evaluation))
 - relationships that depend on two columns at once (e.g. `workingday` from `weekday` and `holiday`) are not recognized as trivial
 - non-monotonic group effects (e.g. a U-shaped rate by age) are underrated by the box-plot scorer
-- the box-plot scorer occasionally (about 4% of the time) rates pure noise as "Moderate"
-- wide tables are slow: 50 columns take 13–19 s on a laptop
+- with very small groups (~20 rows each), pure noise still reaches "Moderate" in up to about 1% of box plots, and genuine spread differences that small are often missed because the significance test has little power there
+- wide tables are slow: 50 columns take roughly 15–25 s on a laptop
 - semantic inference is heuristic and can misclassify ambiguous columns
 - high-cardinality or domain-specific visualizations are outside the current scope
 
