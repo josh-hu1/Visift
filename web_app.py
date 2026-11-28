@@ -7,6 +7,7 @@ import streamlit as st
 
 from visift.explain import SUITABILITY_WEIGHTS, score_breakdown
 from visift.export import chart_code, html_report
+from visift.io import MAX_COLUMNS, MAX_UPLOAD_MB, UploadError, load_table
 from visift.pipeline import analyze
 from visift.profiler import profile_dataset
 from visift.scoring.engine import (
@@ -1173,6 +1174,111 @@ def read_sample(path):
     return pd.read_csv(APP_DIR / path)
 
 
+@st.cache_data(show_spinner=False, max_entries=4)
+def read_upload(data, filename, sheet=None):
+    """Cached load_table, so filter changes don't re-parse the upload."""
+
+    return load_table(data, filename, sheet=sheet)
+
+
+def show_upload_error(error):
+    st.error(error.message)
+
+    if error.hint:
+        st.caption(error.hint)
+
+    with st.expander("Technical details"):
+        st.code(error.detail or error.message, language=None)
+
+
+def load_upload():
+    """
+    Upload widget plus everything around it: sheet choice for workbooks,
+    a column picker for very wide tables, notices, friendly errors.
+    Returns (df, file name); stops the script until a usable file is loaded.
+    """
+
+    uploaded_file = st.file_uploader(
+        "Upload a file",
+        type=["csv", "tsv", "txt", "xlsx", "xlsm"],
+        help=(
+            "CSV, TSV, TXT (comma, semicolon, tab or pipe separated) or Excel "
+            f".xlsx, up to {MAX_UPLOAD_MB} MB. Files over 100,000 rows are "
+            "analyzed on a random sample."
+        ),
+    )
+
+    if uploaded_file is None:
+        st.info("Upload a CSV or Excel file to begin.")
+
+        st.stop()
+
+    data = uploaded_file.getvalue()
+
+    # Load with Visift's default choice first (for workbooks: the first sheet
+    # that holds a table). Even if that fails, the sheet picker is shown
+    # before the error, so a different sheet can always be chosen.
+    try:
+        table = read_upload(data, uploaded_file.name)
+        error = None
+        sheet_names = table["sheet_names"]
+        default_sheet = table["sheet"]
+    except UploadError as caught:
+        table = None
+        error = caught
+        sheet_names = caught.sheet_names
+        default_sheet = sheet_names[0] if sheet_names else None
+
+    if len(sheet_names) > 1:
+        sheet = st.selectbox(
+            "Sheet",
+            options=sheet_names,
+            index=sheet_names.index(default_sheet),
+            key=f"sheet::{uploaded_file.name}",
+        )
+
+        if table is None or sheet != table["sheet"]:
+            try:
+                table = read_upload(data, uploaded_file.name, sheet)
+                error = None
+            except UploadError as caught:
+                table = None
+                error = caught
+
+    if table is None:
+        show_upload_error(error)
+
+        st.stop()
+
+    df = table["df"]
+
+    if df.shape[1] > MAX_COLUMNS:
+        st.warning(
+            f"This table has {df.shape[1]} columns. Wide tables are slow to "
+            f"analyze, so Visift uses up to {MAX_COLUMNS} at a time."
+        )
+
+        columns = st.multiselect(
+            "Columns to analyze",
+            options=list(df.columns),
+            default=list(df.columns[:MAX_COLUMNS]),
+            max_selections=MAX_COLUMNS,
+            key=f"columns::{uploaded_file.name}",
+        )
+
+        if len(columns) < 2:
+            st.info("Pick at least two columns to analyze.")
+
+            st.stop()
+
+        df = df[columns]
+
+    for notice in table["notices"]:
+        st.caption(f"ℹ️ {notice}")
+
+    return (df, uploaded_file.name)
+
+
 def load_data():
     """
     Sidebar dataset picker: one-click samples or an uploaded CSV.
@@ -1190,28 +1296,7 @@ def load_data():
         )
 
         if choice == UPLOAD_OPTION:
-            uploaded_file = st.file_uploader(
-                "Upload CSV",
-                type=["csv"],
-                help=("Upload a CSV dataset for automatic visualization analysis."),
-            )
-
-            if uploaded_file is None:
-                st.info("Upload a CSV file to begin.")
-
-                st.stop()
-
-            try:
-                df = pd.read_csv(uploaded_file)
-
-            except Exception as error:
-                st.error("The CSV could not be read.")
-
-                st.exception(error)
-
-                st.stop()
-
-            return (df, uploaded_file.name, None)
+            return (*load_upload(), None)
 
         path, outcome, hook, credit = SAMPLES[choice]
 

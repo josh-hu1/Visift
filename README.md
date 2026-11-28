@@ -352,6 +352,7 @@ Visift/
 │   ├── paradox.py              # Simpson's paradox detection
 │   ├── pipeline.py             # analyze(df, target=None): the whole pipeline in one call
 │   ├── export.py               # chart_code() snippets and html_report()
+│   ├── io.py                   # load_table(): robust CSV/Excel upload loading
 │   ├── scoring/
 │   │   ├── engine.py
 │   │   ├── bar.py
@@ -431,6 +432,7 @@ mypy                      # type-checks src/visift
 
 1. Launch the application or open the live demo. It opens on Palmer Penguins.
 2. Pick another sample from **Choose a dataset** (Titanic, Bike Sharing, Bank Marketing, synthetic sales) or choose **Upload your own CSV**.
+   Uploads can be CSV, TSV or TXT (comma, semicolon, tab or pipe separated; UTF-8 or Windows-1252; decimal commas are recognized) or Excel `.xlsx` (pick the sheet), up to 50 MB. Visift tidies headers (blank or duplicate names) and drops empty rows and columns, telling you what it changed; files over 100,000 rows are analyzed on a fixed random sample, and tables over 50 columns let you choose which 50 to analyze. Unreadable files get a plain explanation instead of an error trace.
 3. Optionally pick the column you want to explain under **Focus on an outcome**. Samples preselect theirs (e.g. `survived` for Titanic); choose **None** to see the general ranking.
 4. Read **Worth a closer look** (Simpson's paradoxes, if any), then the **Drivers of** your outcome and the other recommendations, each with a plain-English takeaway.
 5. Expand **Recommendation details** for statistical evidence, score components, and a **Python code** tab you can copy to rebuild the chart in your own notebook.

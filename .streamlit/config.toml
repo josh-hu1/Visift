@@ -5,3 +5,6 @@ backgroundColor = "#000000"
 secondaryBackgroundColor = "#0B0B0B"
 textColor = "#E8FFE8"
 font = "sans serif"
+[server]
+# Keep in sync with visift.io.MAX_UPLOAD_MB.
+maxUploadSize = 50
