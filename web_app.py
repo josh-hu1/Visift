@@ -538,26 +538,26 @@ def export_csv_name():
 # One-click sample datasets: label -> (file, outcome to preselect, hook, credit).
 SAMPLES = {
     "Palmer Penguins": (
-        "data/samples/penguins.csv",
+        "src/visift/samples/penguins.csv",
         "species",
         "A relationship that flips within species (Simpson's paradox).",
         "Gorman, Williams & Fraser (2014), palmerpenguins, CC0.",
     ),
     "Titanic": (
-        "data/samples/titanic.csv",
+        "src/visift/samples/titanic.csv",
         "survived",
         "Who survived?",
         "titanic3 by Thomas Cason, from hbiostat.org/data courtesy of "
         "Vanderbilt Biostatistics.",
     ),
     "Bike Sharing (daily)": (
-        "data/samples/bike_sharing_day.csv",
+        "src/visift/samples/bike_sharing_day.csv",
         "cnt",
         "What drives daily rentals?",
         "Fanaee-T (2013), UCI Machine Learning Repository, CC BY 4.0.",
     ),
     "Bank Marketing (5,000-row sample)": (
-        "data/samples/bank_marketing_sample.csv",
+        "src/visift/samples/bank_marketing_sample.csv",
         "y",
         "Who subscribes to a term deposit?",
         "Moro, Rita & Cortez (2014), UCI Machine Learning Repository, CC BY 4.0.",
@@ -1200,7 +1200,8 @@ def display_recommendation(df, candidate, rank):
 
         insight = plain_english_insight(df, candidate)
 
-        st.info(insight, icon="💡")
+        # Escape "$" so Streamlit Markdown doesn't read it as math.
+        st.info(insight.replace("$", "\\$"), icon="💡")
 
         # -----------------------------------
         # Visualization

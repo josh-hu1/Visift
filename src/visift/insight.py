@@ -388,11 +388,10 @@ def box_insight(df: pd.DataFrame, candidate: Mapping[str, Any]) -> str:
     highest_value = medians.iloc[-1]
 
     if is_currency_column(y):
-        # Escape dollar signs because Streamlit
-        # Markdown otherwise interprets them as math.
-        lowest_display = f"\\${lowest_value:,.0f}"
+        # Plain text; the app escapes "$" where it renders Markdown.
+        lowest_display = f"${lowest_value:,.0f}"
 
-        highest_display = f"\\${highest_value:,.0f}"
+        highest_display = f"${highest_value:,.0f}"
 
     else:
         lowest_display = f"{lowest_value:,.1f}"
