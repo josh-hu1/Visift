@@ -74,5 +74,5 @@ def test_upload_option_waits_for_a_file():
     app = _run()
     _selectbox(app, "Choose a dataset").set_value(web_app.UPLOAD_OPTION)
     app = _run(app)
-    assert any("Upload a CSV file to begin." in i.value for i in app.info)
+    assert any("Upload a CSV or Excel file to begin." in i.value for i in app.info)
     assert not app.subheader  # nothing analyzed until a file arrives
