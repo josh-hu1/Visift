@@ -1,9 +1,11 @@
 import time
+from html import escape as html_escape
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
+from visift.explain import SUITABILITY_WEIGHTS, score_breakdown
 from visift.export import chart_code, html_report
 from visift.pipeline import analyze
 from visift.profiler import profile_dataset
@@ -63,6 +65,21 @@ def apply_custom_theme():
         .visift-tagline {
             font-size: 1.05rem;
             color: #9CB39C;
+        }
+
+        .visift-scorebar {
+            display: flex;
+            width: 100%;
+            height: 14px;
+            border-radius: 7px;
+            overflow: hidden;
+            background: #111111;
+            margin: 0.35rem 0 0.25rem 0;
+        }
+
+        .visift-scorebar span {
+            display: block;
+            height: 100%;
         }
 
 
@@ -1425,34 +1442,80 @@ def build_display_preview(df, profile, rows=100):
 
 def display_score_breakdown(candidate):
     """
-    Display recommendation score components.
+    The score formula with this chart's numbers: the same math as the bar.
     """
 
-    display_names = {
-        "semantic_fit": "Semantic Fit",
-        "readability": "Readability",
-        "sample_support": "Sample Support",
-        "data_quality": "Data Quality",
-        "signal": "Pattern Strength",
-        "visualization_quality": "Chart Suitability",
-    }
+    breakdown = score_breakdown(candidate)
+    components = candidate["components"]
 
-    component_rows = []
+    rows = [
+        {
+            "Part": label,
+            "Value": round(float(components[key]), 1),
+            "Weight": weight,
+            "Contribution": round(weight * float(components[key]), 1),
+        }
+        for key, label, weight in SUITABILITY_WEIGHTS
+    ]
 
-    for name, value in candidate["components"].items():
-        component_rows.append(
-            {
-                "Component": (display_names.get(name, name.replace("_", " ").title())),
-                "Score": value,
-            }
-        )
+    rows.append(
+        {
+            "Part": "= Chart suitability",
+            "Value": round(breakdown["suitability"], 1),
+            "Weight": None,
+            "Contribution": None,
+        }
+    )
 
-    st.dataframe(pd.DataFrame(component_rows), width="stretch", hide_index=True)
+    st.markdown("**Chart suitability** (is this a good chart for these columns?)")
+
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+    st.markdown(
+        f"**Pattern strength** {breakdown['pattern_strength']:.1f}/100 gives a "
+        f"pattern factor of 0.35 + 0.65 × {breakdown['pattern_strength']:.1f}/100 "
+        f"= **{breakdown['pattern_factor']:.2f}**. Even no pattern keeps 35% of "
+        "the suitability, which is why pure noise lands around 35."
+    )
+
+    st.markdown(f"**Score:** {breakdown['formula']}")
 
 
 # ==================================================
 # RECOMMENDATION CARD
 # ==================================================
+
+
+SEGMENT_COLORS = {
+    "semantic_fit": "#2B2F2B",
+    "readability": "#363B36",
+    "data_quality": "#414741",
+    "sample_support": "#4C534C",
+    "pattern": "#1E4D16",
+    "score": "#39FF14",
+}
+
+
+def score_bar_html(breakdown):
+    """
+    A stacked bar from 0 to 100: the score (accent) followed by what each
+    part of the formula cost (muted). Hover a segment for its explanation;
+    aria-label carries the formula as text.
+    """
+
+    ordered = [breakdown["segments"][-1], *breakdown["segments"][:-1]]
+    spans = "".join(
+        f"<span style='width:{segment['value']:.3f}%;"
+        f"background:{SEGMENT_COLORS[segment['key']]}' "
+        f"title='{html_escape(segment['detail'])}'></span>"
+        for segment in ordered
+        if segment["value"] > 0
+    )
+
+    return (
+        f"<div class='visift-scorebar' role='img' "
+        f"aria-label='{html_escape(breakdown['formula'])}'>{spans}</div>"
+    )
 
 
 def display_recommendation(df, candidate, rank):
@@ -1509,26 +1572,22 @@ def display_recommendation(df, candidate, rank):
         st.plotly_chart(fig, width="stretch", config=plotly_config(title))
 
         # -----------------------------------
-        # Top metrics
+        # How the score is built
         # -----------------------------------
 
-        if alternatives:
-            (metric1, metric2, metric3) = st.columns(3)
+        breakdown = score_breakdown(candidate)
 
-        else:
-            (metric1, metric2) = st.columns(2)
+        st.markdown(score_bar_html(breakdown), unsafe_allow_html=True)
 
-        metric1.metric(
-            "Pattern strength", (f"{candidate['components']['signal']:.1f}/100")
-        )
-
-        metric2.metric(
-            "Chart suitability",
-            (f"{candidate['components']['visualization_quality']:.1f}/100"),
-        )
+        caption = breakdown["formula"]
 
         if alternatives:
-            metric3.metric("Alternative views", len(alternatives))
+            caption += (
+                f" · {len(alternatives)} alternative "
+                f"view{'' if len(alternatives) == 1 else 's'}"
+            )
+
+        st.caption(caption)
 
         # -----------------------------------
         # Details

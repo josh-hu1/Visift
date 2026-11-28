@@ -20,6 +20,7 @@ from typing import Any
 import pandas as pd
 
 import visift
+from visift.explain import score_breakdown
 from visift.scoring.engine import (
     chart_display_name,
     recommendation_strength,
@@ -319,6 +320,7 @@ h1 { margin-bottom: 0.2rem; } .stats { color: #555; margin-top: 0; }
          font-size: 0.85rem; background: #eef; margin-right: 0.3rem; }
 .badge.paradox { background: #fde7c8; } .score { float: right; font-weight: 700; }
 .insight { background: #f3f8f3; border-radius: 6px; padding: 0.6rem 0.8rem; }
+.formula { color: #555; font-size: 0.9rem; }
 footer { color: #777; font-size: 0.85rem; margin-top: 2rem; }
 """
 
@@ -404,6 +406,9 @@ def html_report(
         )
         if insight is not None:
             parts.append(f"<p class='insight'>{esc(insight(df, candidate))}</p>")
+        parts.append(
+            f"<p class='formula'>{esc(score_breakdown(candidate)['formula'])}</p>"
+        )
         reasons = summary_reasons(candidate)
         if reasons:
             parts.append(

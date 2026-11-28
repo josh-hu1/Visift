@@ -211,6 +211,18 @@ This makes box plots useful for more than simple mean or median comparisons.
 
 The thresholds and chart-family scoring scales were calibrated using dedicated synthetic evaluation suites.
 
+**How a score is built.** Every chart type uses the same formula:
+
+```text
+chart suitability = 0.30 semantic fit + 0.20 readability + 0.20 data quality + 0.30 sample support
+pattern factor    = 0.35 + 0.65 × pattern strength / 100
+score             = chart suitability × pattern factor
+```
+
+Worked example (synthetic sales, #1, Units vs Revenue): chart suitability 99.6 and pattern strength 73.5 give a pattern factor of 0.35 + 0.65 × 0.735 = 0.83, so the score is 99.6 × 0.83 = 82.5. In the app, each recommendation shows this as a bar from 0 to 100: the score, then what each part of the formula cost (hover a segment), with the same sentence underneath.
+
+**Why noise sits around 35:** the pattern factor never drops below 0.35, so a perfectly suitable chart with no pattern at all still scores about 35. A chart needs a real pattern to climb above the "Weak" band.
+
 ---
 
 ## Evaluation
