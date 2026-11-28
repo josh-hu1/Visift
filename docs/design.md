@@ -53,7 +53,7 @@ Some details:
   - near-duplicate categorical columns: bias-corrected Cramér's V ≥ 0.95, plus determination both ways;
   - categorical → categorical determination: normalized conditional entropy H(Y|X)/H(Y) ≤ 0.05;
   - categorical → numeric determination: η² ≥ 0.95;
-  - a column determined by two others together, added later with the same thresholds: H(Y|X1,X2)/H(Y) ≤ 0.05 for categoricals (with a shuffle check against small-cell flukes), or R² ≥ 0.999 for a sum or product of two numeric columns. Neither input may determine it alone. This catches Bike Sharing's `workingday` (a weekday that is not a holiday), which used to rank #3 as "weekday vs workingday".
+  - a column determined by two others together (added later, fixed before the benchmark was rerun; one disclosed amendment in the module docstring): H(Y|X1,X2)/H(Y) ≤ 0.05 for categoricals, the pairwise threshold plus a shuffle check against small-cell flukes, or R² ≥ 0.999 for a sum or product of two numeric columns. Neither input may determine it alone. This catches Bike Sharing's `workingday` (a weekday that is not a holiday), which used to rank #3 as "weekday vs workingday".
 
   A chart between such columns is moved to the dataset notes, with the statistic that explains why. Scores are never changed and nothing is deleted. The categorical checks run on integer codes, so a 40-column categorical table takes about a second instead of 15 ([#22](https://github.com/josh-hu1/Visift/pull/22)).
 - **Diversification** folds charts on the same variables into one recommendation. The best-scoring view is the primary one and the others are listed as alternatives.
