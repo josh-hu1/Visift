@@ -1,5 +1,6 @@
 import math
 from collections.abc import Sequence
+from functools import cached_property
 from typing import Any
 
 import numpy as np
@@ -107,6 +108,40 @@ def piecewise_score(value: float, points: Sequence[tuple[float, float]]) -> floa
     return 0
 
 
+class _Pair:
+    """
+    The rows where x and y are both present, and their groups (sorted by x,
+    as groupby gives them), computed once per chart and shared by the
+    component scores. Each component runs the same pandas operations on the
+    same frames as before, so every number is unchanged.
+    """
+
+    def __init__(self, df: pd.DataFrame, x: str, y: str) -> None:
+        self.x = x
+        self.y = y
+        self.clean = df[[x, y]].dropna()
+
+    @cached_property
+    def groups(self) -> list[tuple[Any, pd.DataFrame]]:
+        return list(self.clean.groupby(self.x))
+
+    @cached_property
+    def quartiles(self) -> list[tuple[pd.Series, Any, Any]]:
+        """(values, Q1, Q3) of y for each group with at least 8 rows."""
+
+        found = []
+        for _, group in self.groups:
+            values = group[self.y]
+            if len(values) < 8:
+                continue
+            found.append((values, values.quantile(0.25), values.quantile(0.75)))
+        return found
+
+
+def _pair(df: pd.DataFrame, x: str, y: str, pair: _Pair | None) -> _Pair:
+    return pair if pair is not None else _Pair(df, x, y)
+
+
 def get_semantic_type(profile: DatasetProfile, column_name: str) -> str | None:
     for column in profile["column_profiles"]:
         if column["name"] == column_name:
@@ -146,10 +181,12 @@ def category_readability_score(unique_count: int) -> float:
     return 20
 
 
-def data_quality_score(df: pd.DataFrame, x: str, y: str) -> float:
+def data_quality_score(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> float:
     if len(df) == 0:
         return 0
-    complete = df[[x, y]].dropna()
+    complete = _pair(df, x, y, pair).clean
     return (len(complete) / len(df)) * 100
 
 
@@ -180,20 +217,21 @@ def significance_reliability(p_value: float) -> float:
 
 
 def _group_values(
-    df: pd.DataFrame, x: str, y: str, minimum_rows: int
+    df: pd.DataFrame, x: str, y: str, minimum_rows: int, pair: _Pair | None = None
 ) -> list[np.ndarray]:
-    clean = df[[x, y]].dropna()
     return [
         group[y].to_numpy(dtype=float)
-        for _, group in clean.groupby(x)
+        for _, group in _pair(df, x, y, pair).groups
         if len(group) >= minimum_rows
     ]
 
 
-def location_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+def location_p_value(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> float:
     """Kruskal-Wallis p-value for a difference in location across groups."""
 
-    groups = _group_values(df, x, y, minimum_rows=2)
+    groups = _group_values(df, x, y, minimum_rows=2, pair=pair)
 
     if len(groups) < 2:
         return 1.0
@@ -206,10 +244,12 @@ def location_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     return p_value if np.isfinite(p_value) else 1.0
 
 
-def dispersion_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+def dispersion_p_value(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> float:
     """Brown-Forsythe p-value for a difference in spread across groups."""
 
-    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD)
+    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD, pair=pair)
 
     if len(groups) < 2:
         return 1.0
@@ -289,7 +329,9 @@ class _OutlierStatistic:
         )
 
 
-def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
+def outlier_p_value(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> float:
     """
     Permutation p-value that per-group outlier rates are equal: values are
     shuffled across groups and every group's fences recomputed, with
@@ -297,7 +339,7 @@ def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     permutations reach the observed statistic.
     """
 
-    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD)
+    groups = _group_values(df, x, y, minimum_rows=MIN_ROWS_FOR_SPREAD, pair=pair)
 
     if len(groups) < 2:
         return 1.0
@@ -323,8 +365,11 @@ def outlier_p_value(df: pd.DataFrame, x: str, y: str) -> float:
     return (1 + exceed) / (1 + OUTLIER_TEST_PERMUTATIONS)
 
 
-def eta_squared_score(df: pd.DataFrame, x: str, y: str) -> float:
-    clean = df[[x, y]].dropna()
+def eta_squared_score(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> float:
+    pair = _pair(df, x, y, pair)
+    clean = pair.clean
     if clean.empty or clean[x].nunique() <= 1:
         return 0
     overall_mean = clean[y].mean()
@@ -332,15 +377,17 @@ def eta_squared_score(df: pd.DataFrame, x: str, y: str) -> float:
     if total_variation == 0:
         return 0
     between_group_variation = 0
-    for _, group in clean.groupby(x):
+    for _, group in pair.groups:
         group_mean = group[y].mean()
         between_group_variation += len(group) * (group_mean - overall_mean) ** 2
     eta_squared = between_group_variation / total_variation
     return clamp(eta_squared * 100)
 
 
-def median_separation_score(df: pd.DataFrame, x: str, y: str) -> float:
-    clean = df[[x, y]].dropna()
+def median_separation_score(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> float:
+    clean = _pair(df, x, y, pair).clean
     if clean.empty:
         return 0
     medians = clean.groupby(x)[y].median()
@@ -356,8 +403,11 @@ def median_separation_score(df: pd.DataFrame, x: str, y: str) -> float:
     return clamp(relative_separation / 2 * 100)
 
 
-def grouped_outlier_statistics(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
-    clean = df[[x, y]].dropna()
+def grouped_outlier_statistics(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> dict[str, Any]:
+    pair = _pair(df, x, y, pair)
+    clean = pair.clean
     default = {
         "overall_rate": 0.0,
         "rate_disparity": 0.0,
@@ -370,12 +420,7 @@ def grouped_outlier_statistics(df: pd.DataFrame, x: str, y: str) -> dict[str, An
     rates = []
     weighted_outliers = 0
     weighted_observations = 0
-    for _, group in clean.groupby(x):
-        values = group[y]
-        if len(values) < 8:
-            continue
-        q1 = values.quantile(0.25)
-        q3 = values.quantile(0.75)
+    for values, q1, q3 in pair.quartiles:
         iqr = q3 - q1
         if pd.isna(iqr) or iqr <= 0:
             continue
@@ -415,8 +460,11 @@ def grouped_outlier_statistics(df: pd.DataFrame, x: str, y: str) -> dict[str, An
     }
 
 
-def dispersion_difference_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
-    clean = df[[x, y]].dropna()
+def dispersion_difference_score(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> dict[str, Any]:
+    pair = _pair(df, x, y, pair)
+    clean = pair.clean
     default = {
         "score": 0.0,
         "dispersion_ratio": 1.0,
@@ -426,12 +474,7 @@ def dispersion_difference_score(df: pd.DataFrame, x: str, y: str) -> dict[str, A
     if clean.empty:
         return default
     iqrs = []
-    for _, group in clean.groupby(x):
-        values = group[y]
-        if len(values) < 8:
-            continue
-        q1 = values.quantile(0.25)
-        q3 = values.quantile(0.75)
+    for _values, q1, q3 in pair.quartiles:
         iqr = float(q3 - q1)
         if math.isfinite(iqr) and iqr > 0:
             iqrs.append(iqr)
@@ -464,15 +507,18 @@ def dispersion_difference_score(df: pd.DataFrame, x: str, y: str) -> dict[str, A
     }
 
 
-def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any]:
-    eta_score = eta_squared_score(df, x, y)
-    median_score = median_separation_score(df, x, y)
+def distribution_signal_score(
+    df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
+) -> dict[str, Any]:
+    pair = _pair(df, x, y, pair)
+    eta_score = eta_squared_score(df, x, y, pair)
+    median_score = median_separation_score(df, x, y, pair)
     location_signal = 0.55 * eta_score + 0.45 * median_score
 
-    outlier_stats = grouped_outlier_statistics(df, x, y)
-    dispersion_stats = dispersion_difference_score(df, x, y)
+    outlier_stats = grouped_outlier_statistics(df, x, y, pair)
+    dispersion_stats = dispersion_difference_score(df, x, y, pair)
 
-    group_count = int(df[[x, y]].dropna()[x].nunique())
+    group_count = int(pair.clean[x].nunique())
 
     if group_count <= 4:
         comparison_reliability = 1.0
@@ -480,8 +526,8 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
         comparison_reliability = max(0.40, math.sqrt(4 / group_count))
 
     # Bonferroni across the three gated components (amendment 2).
-    location_p = min(1.0, GATED_COMPONENTS * location_p_value(df, x, y))
-    dispersion_p = min(1.0, GATED_COMPONENTS * dispersion_p_value(df, x, y))
+    location_p = min(1.0, GATED_COMPONENTS * location_p_value(df, x, y, pair))
+    dispersion_p = min(1.0, GATED_COMPONENTS * dispersion_p_value(df, x, y, pair))
     ungated_location = location_signal
     location_signal = location_signal * significance_reliability(location_p)
 
@@ -502,7 +548,7 @@ def distribution_signal_score(df: pd.DataFrame, x: str, y: str) -> dict[str, Any
     )
 
     if outlier_test_needed:
-        outlier_p = min(1.0, GATED_COMPONENTS * outlier_p_value(df, x, y))
+        outlier_p = min(1.0, GATED_COMPONENTS * outlier_p_value(df, x, y, pair))
         outlier_difference_signal = ungated_outlier * significance_reliability(
             outlier_p
         )
@@ -561,13 +607,14 @@ def score_box_chart(
     x_type = get_semantic_type(profile, x)
     y_type = get_semantic_type(profile, y)
     semantic_fit = semantic_fit_score(x_type, y_type)
-    clean = df[[x, y]].dropna()
+    pair = _Pair(df, x, y)
+    clean = pair.clean
     counts = clean[x].value_counts()
     unique_count = clean[x].nunique()
     readability = category_readability_score(unique_count)
     support = sample_support_score(counts)
-    quality = data_quality_score(df, x, y)
-    distribution = distribution_signal_score(df, x, y)
+    quality = data_quality_score(df, x, y, pair)
+    distribution = distribution_signal_score(df, x, y, pair)
     raw_signal = distribution["signal"]
     signal = adjust_signal_for_support(raw_signal, support)
     final_score, visualization_quality = combine_quality_and_signal(

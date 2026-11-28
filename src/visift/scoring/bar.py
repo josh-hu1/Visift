@@ -105,16 +105,20 @@ def sample_support_score(counts: pd.Series) -> float:
     return 0.60 * average_score + 0.40 * minimum_score
 
 
-def data_quality_score(df: pd.DataFrame, columns: list[str]) -> float:
+def data_quality_score(
+    df: pd.DataFrame, columns: list[str], complete_rows: pd.DataFrame | None = None
+) -> float:
     """
     Penalize missing values in the columns required
-    for the visualization.
+    for the visualization. complete_rows: df[columns].dropna(), if the
+    caller already has it.
     """
 
     if len(df) == 0:
         return 0
 
-    complete_rows = df[columns].dropna()
+    if complete_rows is None:
+        complete_rows = df[columns].dropna()
 
     completeness = len(complete_rows) / len(df)
 
@@ -329,7 +333,7 @@ def score_bar_chart(
 
         support = sample_support_score(counts)
 
-        quality = data_quality_score(df, [x])
+        quality = data_quality_score(df, [x], clean)
 
         count_signal = count_signal_details(counts)
 
@@ -373,7 +377,7 @@ def score_bar_chart(
 
         support = sample_support_score(counts)
 
-        quality = data_quality_score(df, [x, y])
+        quality = data_quality_score(df, [x, y], clean)
 
         y_semantic_type = get_semantic_type(profile, y)
 
