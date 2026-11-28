@@ -106,7 +106,7 @@ def test_pin_and_unpin():
     key = first.key
     app = _click(app, first)
     assert len(_board(app)) == 1
-    assert any(t.label.startswith("My board (1)") for t in app.tabs)
+    assert any("1 of 4 pins" in c.value for c in app.caption)
     assert app.button(key=key).label == "Unpin from board"
 
     app = _click(app, app.button(key=key))
@@ -138,9 +138,19 @@ def test_pins_reset_on_dataset_switch():
     _selectbox(app, "Choose a dataset").set_value("Titanic")
     app = _run(app)
     assert _board(app) == []
-    assert any(t.label.startswith("My board (0)") for t in app.tabs)
+    assert any("Nothing pinned yet" in i.value for i in app.info)
 
 
 def test_board_empty_state():
     app = _run()
     assert any("Nothing pinned yet" in i.value for i in app.info)
+
+
+def test_tab_labels_do_not_change_when_pinning():
+    # A changed tab label makes Streamlit rebuild the tabs and jump back to
+    # the first one, so unpinning on the board would leave the board.
+    app = _run()
+    before = [tab.label for tab in app.tabs]
+    app = _click(app, _pin_buttons(app)[0])
+    assert [tab.label for tab in app.tabs] == before
+    assert "My board" in before

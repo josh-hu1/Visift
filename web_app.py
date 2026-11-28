@@ -2495,10 +2495,11 @@ def main():
     # Navigation
     # -----------------------------------
 
-    board_label = f"My board ({len(board_pins(export_csv_name()))})"
-
+    # The labels must not change between runs: a changed label makes
+    # Streamlit rebuild the tabs and jump back to the first one (e.g. after
+    # unpinning on the board). The pin count is shown inside the board tab.
     (recommendations_tab, board_tab, dataset_tab, method_tab) = st.tabs(
-        ["Recommendations", board_label, "Dataset", "How it works"]
+        ["Recommendations", "My board", "Dataset", "How it works"], key="main_tabs"
     )
 
     with recommendations_tab:
