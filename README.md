@@ -522,7 +522,7 @@ Visift currently focuses on tabular CSV data and five chart types.
 
 Known limitations include:
 
-- irregular temporal sampling can reduce FFT-based seasonality detection
+- seasonality on unevenly spaced time steps is checked on an interpolated, evenly spaced copy of the series; with about 50 points, pure noise then gets a small nonzero seasonality signal a little more often than when evenly spaced (8% vs 5%, [evaluation](evaluation/results/irregular_seasonality_v1/README.md))
 - the [real-world benchmark](evaluation/real_world/README.md) covers only four datasets and 20 expected insights, written by the same person who built Visift
 - without an outcome column, ranking is only slightly better than sorting by plain effect size (see [Evaluation](#evaluation))
 - trivial relationships are caught for single columns and for one column determined by two others; definitions that need three or more columns are not
@@ -539,7 +539,6 @@ Known limitations include:
 The [design doc](docs/design.md) explains the scoring formula, the statistic behind each chart family, how calibration and the benchmark were run, and the known failure modes. Potential extensions include:
 
 - additional visualization families
-- more robust seasonality detection for irregular time intervals
 - more datasets in the [real-world benchmark](evaluation/real_world/README.md)
 - learning to rank from the 👍 / 👎 feedback, compared against the hand-calibrated scorer
 - domain-aware semantic inference

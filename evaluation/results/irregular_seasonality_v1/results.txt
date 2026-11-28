@@ -1,0 +1,15 @@
+1. Detection on irregular seasonal series
+   jitter 0.15: median raw seasonality 73.8 (need >= 50), seasonality dominant in 100% (need >= 80%), median line score 82.2  PASS
+   jitter 0.30: median raw seasonality 79.5 (need >= 50), seasonality dominant in 100% (need >= 80%), median line score 85.8  PASS
+2-3. Nonzero seasonality without seasonality: irregular vs even grid
+   white_noise  n=50   irregular  9.0%  even  7.0%  FAIL
+   white_noise  n=100  irregular  1.0%  even  0.0%  PASS
+   white_noise  n=200  irregular  0.0%  even  0.0%  PASS
+   white_noise  n=500  irregular  0.0%  even  0.0%  PASS
+   random_walk  n=50   irregular 37.0%  even 36.0%  PASS
+   random_walk  n=100  irregular 37.0%  even 32.0%  FAIL
+   random_walk  n=200  irregular 38.0%  even 42.0%  PASS
+   random_walk  n=500  irregular 25.0%  even 30.0%  PASS
+   gaps         n=300  irregular  0.0%  even  0.0%  PASS
+4. Checked separately: score dump and app output against main (see the PR).
+FAILED
