@@ -1,4 +1,5 @@
 import time
+import uuid
 from html import escape as html_escape
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import streamlit as st
 
 from visift.explain import SUITABILITY_WEIGHTS, score_breakdown
 from visift.export import chart_code, html_report
+from visift.feedback import REASONS, default_store, feedback_enabled, make_event
 from visift.io import MAX_COLUMNS, MAX_UPLOAD_MB, UploadError, load_table
 from visift.pipeline import analyze
 from visift.profiler import profile_dataset
@@ -1638,6 +1640,79 @@ def pin_button(snapshot, context):
     )
 
 
+# ==================================================
+# FEEDBACK (thumbs on recommendations)
+# ==================================================
+
+
+def feedback_session_id():
+    """A random id per app session (not an identity)."""
+
+    if "feedback_session" not in st.session_state:
+        st.session_state["feedback_session"] = uuid.uuid4().hex
+
+    return st.session_state["feedback_session"]
+
+
+def record_vote(widget_key, reason_key, candidate, rank):
+    """on_change for the thumbs and the reason pills: upsert or clear."""
+
+    context = st.session_state.get("feedback_context", {})
+    value = st.session_state.get(widget_key)  # 1 = up, 0 = down, None = cleared
+    reason = st.session_state.get(reason_key) if value == 0 else None
+
+    event = make_event(
+        session_id=feedback_session_id(),
+        dataset=context.get("dataset", ""),
+        uploaded=context.get("uploaded", False),
+        target=context.get("target"),
+        candidate=candidate,
+        rank=rank,
+        vote=1 if value == 1 else -1,
+        reason=reason,
+    )
+
+    store = default_store()
+
+    if value is None:
+        store.clear(event)
+    else:
+        store.record(event)
+
+
+def feedback_controls(candidate, rank):
+    """Thumbs up/down (and a reason after a thumbs down) for one card."""
+
+    if not feedback_enabled():
+        return
+
+    context = st.session_state.get("feedback_context", {})
+    base = (
+        f"{context.get('dataset', '')}::{context.get('target')}::{chart_key(candidate)}"
+    )
+    widget_key = f"vote::{base}"
+    reason_key = f"reason::{base}"
+
+    vote = st.feedback(
+        "thumbs",
+        key=widget_key,
+        on_change=record_vote,
+        args=(widget_key, reason_key, dict(candidate), rank),
+    )
+
+    if vote == 0:
+        st.pills(
+            "What's wrong with it? (optional)",
+            REASONS,
+            key=reason_key,
+            on_change=record_vote,
+            args=(widget_key, reason_key, dict(candidate), rank),
+        )
+
+    if vote is not None:
+        st.caption("Thanks, this helps tune the ranking.")
+
+
 SEGMENT_COLORS = {
     "semantic_fit": "#2B2F2B",
     "readability": "#363B36",
@@ -1741,7 +1816,13 @@ def display_recommendation(df, candidate, rank):
 
         st.caption(caption)
 
-        pin_button({"kind": "recommendation", "chart": dict(candidate)}, "card")
+        pin_column, feedback_column = st.columns([1, 2])
+
+        with pin_column:
+            pin_button({"kind": "recommendation", "chart": dict(candidate)}, "card")
+
+        with feedback_column:
+            feedback_controls(candidate, rank)
 
         # -----------------------------------
         # Details
@@ -2378,6 +2459,19 @@ def display_method_tab():
 
     score4.metric("Weak", "35–49")
 
+    st.markdown("### Feedback")
+
+    st.write(
+        "The 👍 / 👎 under each recommendation (and an optional reason after a "
+        "👎) is saved to help evaluate and tune the ranking later. Each vote "
+        "stores the chart type, the columns it uses, its rank, score and score "
+        "components, the selected outcome, and a random session id. No data "
+        "values are stored. For an uploaded file, the file name is never stored "
+        "and column names are replaced by a short hash. On the hosted demo the "
+        "votes live in a file on the server, which can be reset when the app is "
+        "redeployed."
+    )
+
 
 # ==================================================
 # MAIN APPLICATION
@@ -2419,6 +2513,12 @@ def main():
         target = target_control(
             profile_data(df), default_target=default_target, dataset_key=source_name
         )
+
+        st.session_state["feedback_context"] = {
+            "dataset": source_name,
+            "uploaded": source_name not in SAMPLES,
+            "target": target,
+        }
 
         progress_bar = st.progress(0.0, text="Analyzing dataset...")
 
