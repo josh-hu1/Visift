@@ -1419,6 +1419,8 @@ def display_paradoxes(df, paradoxes):
             }
 
             fig = render_candidate(df, grouped_chart)
+            # The card heading above already names the chart (as on the board).
+            fig.update_layout(title_text="", margin={"t": 40})
 
             st.plotly_chart(
                 fig,

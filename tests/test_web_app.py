@@ -184,3 +184,21 @@ def test_feedback_off_shows_no_thumbs(monkeypatch):
     monkeypatch.setenv("VISIFT_FEEDBACK", "off")
     app = _run()
     assert len(app.get("feedback")) == 0
+
+
+def test_paradox_card_shows_its_title_once():
+    import json
+
+    app = _run()
+    heading = "### Bill Length (mm) vs Bill Depth (mm) by Species"
+    assert any(m.value == heading for m in app.markdown)
+    specs = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
+    titles = [str(s["layout"].get("title", {}).get("text", "")) for s in specs]
+    assert not any(heading[4:] in t for t in titles), "figure repeats the heading"
+    # The paradox scatter is still drawn (one trace per species), just untitled.
+    assert any(
+        s["layout"].get("legend", {}).get("title", {}).get("text") == "Species"
+        and s["data"][0]["type"] == "scatter"
+        for s in specs
+    )
+    assert any("Average Bill Length (mm)" in t for t in titles)
