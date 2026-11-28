@@ -139,7 +139,7 @@ class Recommendations(list[Recommendation]):
 
     @property
     def notes(self) -> list[DatasetNote]:
-        """Redundant or trivially related column pairs, kept out of the ranking."""
+        """Redundant or trivially related columns, kept out of the ranking."""
 
         return self.analysis["notes"]
 

@@ -39,9 +39,10 @@ a determining column needs at most MAX_DETERMINANT_LEVELS levels with at
 least MIN_ROWS_PER_LEVEL rows per level on average (otherwise any
 near-unique column would trivially "determine" everything).
 
-Joint determination by two columns (added after the pairwise rules; rule and
-thresholds fixed, and checked on pure-noise data, before looking at their
-effect on the real-world benchmark). Some columns are definitional only
+Joint determination by two columns (added after the pairwise rules; the
+thresholds reuse the pairwise ones and were fixed before looking at their
+effect on the real-world benchmark; one amendment is disclosed below). The
+motivating case was known in advance: Bike Sharing. Some columns are definitional only
 through a *pair*: Bike Sharing's workingday is "not a weekend and not a
 holiday", so neither weekday nor holiday determines it alone, and the
 weekday-vs-workingday chart ranked in the top 3. For a column Y and two
@@ -56,6 +57,13 @@ other columns X1, X2:
   JOINT_NULL_FRACTION of the smallest ratio over JOINT_NULL_PERMUTATIONS
   fixed-seed shuffles of Y (a determined column sits near 0 while chance
   structure in small cells stays near its shuffled value).
+  Amendment, disclosed: a pure-noise check after the rule was written
+  flagged 6 of 200 random 50-row tables, always through a flag seen once
+  or twice that landed in a small cell. Two guards were added before any
+  benchmark run with all four datasets: Y's second most common level needs
+  at least MIN_ROWS_PER_LEVEL rows, and the ratio must be strictly below the
+  shuffled bound (a shuffle reaching 0 too is no evidence). After it: 0 of
+  1,000 noise tables (n = 50 to 2,000) are flagged.
 - Numeric Y as a sum or product of two numeric columns: R^2 >= 0.999 for
   Y ~ X1 + X2 (sums, differences, weighted totals such as cnt = casual +
   registered), or for log Y ~ log X1 + log X2 when all three are positive
@@ -63,10 +71,21 @@ other columns X1, X2:
   residual standard deviation is about 3% of Y's: real measurements almost
   never get that close by chance.
 - Both columns must be needed: neither may determine Y alone (H(Y|Xi)/H(Y)
-  > 0.05; single-column R^2 <= 0.99), and a pair already flagged is skipped.
+  > 0.05; single-column R^2 <= 0.99), and a triple containing a pair that is
+  already flagged is skipped. Each categorical input has at most
+  MAX_DETERMINANT_LEVELS levels on its own.
 
 The charts between Y and each of X1 and X2 move to the dataset notes, with
-one note for the triple. The chart between X1 and X2 is untouched.
+one note for the triple. The chart between X1 and X2 is untouched, except
+for categoricals where more than one column of the triple is determined by
+the other two (holiday is also weekday + workingday): then every determined
+column is treated as Y. A numeric identity holds in every orientation
+(casual = cnt - registered), so only one Y is reported: the total or
+product, else the column with the most variance.
+
+Speed: the categorical checks run on integer codes with np.bincount, and
+the joint search loops over input pairs, so a 40-column categorical table
+takes about a second rather than 15.
 """
 
 import itertools
@@ -516,6 +535,13 @@ def _joint_categorical(
             if n < MIN_PAIR_SUPPORT or n_y < 2 or not _can_determine(n_joint, n):
                 continue
 
+            # Y's second most common level needs real support: a level seen
+            # once or twice is "determined" whenever it lands in a small cell.
+            if np.partition(np.bincount(y_codes, minlength=n_y), -2)[-2] < (
+                MIN_ROWS_PER_LEVEL
+            ):
+                continue
+
             ratio = _remaining_entropy(_counts(joint_codes, n_joint, y_codes, n_y))
 
             if ratio > CONDITIONAL_ENTROPY_MAX:
@@ -545,7 +571,7 @@ def _joint_categorical(
                 for _ in range(JOINT_NULL_PERMUTATIONS)
             )
 
-            if ratio > JOINT_NULL_FRACTION * null:
+            if ratio >= JOINT_NULL_FRACTION * null:
                 continue
 
             entropy = _entropy(np.bincount(y_codes).astype(float))

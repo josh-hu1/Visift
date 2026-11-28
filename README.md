@@ -361,7 +361,7 @@ Visift/
 │   ├── value_normalization.py
 │   ├── candidate_generator.py
 │   ├── target.py               # target suggestion and drivers-first ranking
-│   ├── redundancy.py           # near-duplicate / near-deterministic column pairs
+│   ├── redundancy.py           # near-duplicate / near-deterministic columns
 │   ├── paradox.py              # Simpson's paradox detection
 │   ├── pipeline.py             # analyze(df, target=None): the whole pipeline in one call
 │   ├── export.py               # chart_code() snippets and html_report()

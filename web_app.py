@@ -1703,15 +1703,15 @@ def display_dataset_notes(notes, noted_charts):
     st.markdown("### Dataset notes")
 
     if not notes:
-        st.caption("No near-duplicate or near-deterministic column pairs found.")
+        st.caption("No near-duplicate or near-deterministic columns found.")
 
         return
 
     st.write(
-        "These column pairs are related by construction rather than by "
-        "anything worth discovering. Visift treats near-duplicates as one "
-        "variable and does not rank charts between these pairs; their scores "
-        "are unchanged."
+        "These columns are related by construction rather than by anything "
+        "worth discovering. Visift treats near-duplicates as one variable and "
+        "does not rank charts between related columns; their scores are "
+        "unchanged."
     )
 
     for note in notes:
