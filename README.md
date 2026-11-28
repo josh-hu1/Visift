@@ -494,7 +494,7 @@ mypy                      # type-checks src/visift
 3. Optionally pick the column you want to explain under **Focus on an outcome**. Samples preselect theirs (e.g. `survived` for Titanic); choose **None** to see the general ranking.
 4. Read **Worth a closer look** (Simpson's paradoxes, if any), then the **Drivers of** your outcome and the other recommendations, each with a plain-English takeaway.
 5. Expand **Recommendation details** for statistical evidence, score components, and a **Python code** tab you can copy to rebuild the chart in your own notebook.
-6. Check the **Dataset** tab for inferred column types and any dataset notes (redundant columns).
+6. Check the **Dataset** tab for inferred column types, any dataset notes (redundant columns) and the correlation overview of the numeric columns.
 7. Filter by chart type, minimum score, or number of recommendations in the sidebar.
 8. Click **📌 Pin to board** under up to 4 charts to compare them on the **My board** tab; it has its own **Download board as HTML** button.
 9. Save what you found: **Download HTML report** (sidebar) for a one-page, offline report of the charts shown, or hover any chart and click its camera icon for a PNG at 2× resolution.
@@ -528,7 +528,7 @@ Known limitations include:
 - trivial relationships are caught for single columns and for one column determined by two others; definitions that need three or more columns are not
 - non-monotonic group effects (e.g. a U-shaped rate by age) are underrated by the box-plot scorer
 - with very small groups (~20 rows each), pure noise still reaches "Moderate" in up to about 1% of box plots, and genuine spread differences that small are often missed because the significance test has little power there
-- wide tables are slow: 50 columns × 2,000 rows take about 16.0 s serially on a 4-core Linux container (25.5 s before [#22](https://github.com/josh-hu1/Visift/pull/22) and [#23](https://github.com/josh-hu1/Visift/pull/23)); most of the rest is pandas overhead in the box and bar scorers and scikit-learn's mutual information
+- wide tables are slow: 50 columns × 2,000 rows take about 13.7 s serially on a 4-core Linux container (25.5 s before [#22](https://github.com/josh-hu1/Visift/pull/22), [#23](https://github.com/josh-hu1/Visift/pull/23) and [#25](https://github.com/josh-hu1/Visift/pull/25)); most of the rest is scikit-learn's mutual information in the scatter scorer and pandas overhead in the bar scorer
 - semantic inference is heuristic and can misclassify ambiguous columns
 - high-cardinality or domain-specific visualizations are outside the current scope
 
