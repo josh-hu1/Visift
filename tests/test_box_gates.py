@@ -70,3 +70,42 @@ def test_gates_are_deterministic():
     assert box.outlier_p_value(df, "segment", "value") == box.outlier_p_value(
         df, "segment", "value"
     )
+
+
+@pytest.mark.parametrize("y_kind", ["float", "int"])
+@pytest.mark.parametrize("x_kind", ["str", "int", "bool", "category"])
+def test_group_arrays_match_pandas_groupby(x_kind, y_kind):
+    # The scorer splits y into NumPy arrays instead of pandas groups; each
+    # group, its mean and its quartiles must be exactly what pandas gives.
+    rng = np.random.default_rng(11)
+    n = 400
+    keys = rng.integers(0, 5, n)
+    x = {
+        "str": pd.Series([f"g{k}" for k in keys], dtype="str"),
+        "int": pd.Series(keys * 10),
+        "bool": pd.Series(keys > 2),
+        "category": pd.Series(pd.Categorical([f"g{k}" for k in keys])),
+    }[x_kind]
+    y = rng.standard_t(3, n) if y_kind == "float" else rng.integers(-99, 99, n)
+    df = pd.DataFrame({"x": x, "y": y})
+    df.loc[rng.random(n) < 0.05, "y"] = np.nan
+    pair = box._Pair(df, "x", "y")
+    expected = [group["y"] for _, group in pair.clean.groupby("x", observed=True)]
+    assert len(pair.group_values) == len(expected)
+    for values, group in zip(pair.group_values, expected, strict=True):
+        np.testing.assert_array_equal(values, group.to_numpy())
+        assert values.mean() == group.mean()
+        assert box._quartiles(values) == (group.quantile(0.25), group.quantile(0.75))
+    assert list(pair.sizes) == [len(group) for group in expected]
+
+
+def test_outlier_statistic_labels_do_not_change_results():
+    # Narrow label dtypes switch NumPy to radix sort; the order is the same.
+    rng = np.random.default_rng(5)
+    values = rng.standard_t(3, 600)
+    codes = rng.integers(0, 4, 600)
+    statistic = box._OutlierStatistic(values, codes, 4)
+    wide = box._OutlierStatistic(values, codes, 4)
+    wide.codes = codes.astype(np.int64)
+    for permutation in (rng.permutation(600) for _ in range(20)):
+        assert statistic(permutation) == wide(permutation)
