@@ -19,7 +19,9 @@ Instead of showing every chart that *can* be made, Visift prioritizes the charts
 
 ## Preview
 
-![Visift application preview](assets/app-preview.png)
+![Visift opening on Palmer Penguins: a Simpson's paradox chart above the fold](assets/app-preview.png)
+
+The app opens on Palmer Penguins, where bill depth and body mass go in opposite directions overall but together within every species. Four more public datasets are one click away.
 
 ---
 
@@ -56,7 +58,8 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Dataset notes for redundant columns:** near-duplicates (e.g. `temp` and `atemp`, Spearman 0.99) count as one variable, and charts between trivially related columns are set aside with the statistic that explains why instead of topping the ranking
 - **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 50% to 95% with pre-registered targets (an effect-size baseline reaches 75% in the same setting)
 - **Missing-data and sample-size reliability adjustments**
-- **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts
+- **Sample gallery:** Palmer Penguins, Titanic, Bike Sharing, a Bank Marketing sample and synthetic sales load in one click, with their known outcome preselected ([sources and licenses](data/samples/README.md))
+- **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
 
 ---
 
@@ -318,6 +321,7 @@ Visift/
 ├── LICENSE                     # MIT
 ├── .github/workflows/ci.yml    # ruff + mypy, pytest on Python 3.10-3.13
 ├── synthetic_sales.csv
+├── data/samples/               # one-click sample datasets (sources and licenses in README)
 │
 ├── tests/                      # pytest suite; fixtures/ holds small CSVs
 ├── benchmarks/perf.py          # wall-time benchmark (python -m benchmarks.perf)
@@ -411,13 +415,13 @@ mypy                      # type-checks src/visift
 
 ## Using Visift
 
-1. Launch the application or open the live demo.
-2. Choose the included sample dataset or upload a CSV.
-3. Review the inferred semantic column types.
-4. Open the **Recommendations** tab.
-5. Inspect globally ranked visualizations and plain-English takeaways.
-6. Expand **Recommendation details** for statistical evidence and score components.
-7. Filter by chart type, minimum score, or number of recommendations.
+1. Launch the application or open the live demo. It opens on Palmer Penguins.
+2. Pick another sample from **Choose a dataset** (Titanic, Bike Sharing, Bank Marketing, synthetic sales) or choose **Upload your own CSV**.
+3. Optionally pick the column you want to explain under **Focus on an outcome**. Samples preselect theirs (e.g. `survived` for Titanic); choose **None** to see the general ranking.
+4. Read **Worth a closer look** (Simpson's paradoxes, if any), then the **Drivers of** your outcome and the other recommendations, each with a plain-English takeaway.
+5. Expand **Recommendation details** for statistical evidence and score components.
+6. Check the **Dataset** tab for inferred column types and any dataset notes (redundant columns).
+7. Filter by chart type, minimum score, or number of recommendations in the sidebar.
 
 ---
 
