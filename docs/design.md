@@ -190,7 +190,7 @@ Full pipeline wall time on an 8-core Apple-silicon Mac (`python -m benchmarks.pe
 | synthetic 50 × 10,000 | 49.5 s | 18.3 s | 8.3 s |
 | Bank Marketing 16 × 45,211 | 3.9 s | 3.1 s | 2.5 s |
 
-Later, the box and scatter scorers stopped repeating work within a chart: missing-row removal, grouping and per-group quartiles are computed once and shared by the components, with byte-identical scores ([#23](https://github.com/josh-hu1/Visift/pull/23)). Together with the integer-code redundancy checks ([#22](https://github.com/josh-hu1/Visift/pull/22)), 50 × 2,000 went from 25.5 s to 16.0 s serially on a 4-core Linux container.
+Later, the box and scatter scorers stopped repeating work within a chart: missing-row removal, grouping and per-group quartiles are computed once and shared by the components, with byte-identical scores ([#23](https://github.com/josh-hu1/Visift/pull/23)). Together with the integer-code redundancy checks ([#22](https://github.com/josh-hu1/Visift/pull/22)), 50 × 2,000 went from 25.5 s to 16.0 s serially on a 4-core Linux container. Moving the box scorer's per-group work onto NumPy arrays then took it to about 13.7 s, with every value unchanged.
 
 The box-plot significance gates add roughly 5–35% on wide tables, depending on table and machine (measured back to back: +5–15% serial on a 4-core Linux container, up to about 35% on the Mac). The bundled samples analyze in 0.7–2.9 s on a 2-core Linux check ([#13](https://github.com/josh-hu1/Visift/pull/13)).
 
@@ -225,7 +225,7 @@ The box-plot significance gates add roughly 5–35% on wide tables, depending on
 
 - **Definitions spanning three or more columns are not caught.** Redundancy checks cover one column determined by another, or by two others together (Bike Sharing's `workingday` from `weekday` and `holiday`). A column computed from three inputs still gets ranked charts.
 - **Non-monotonic group effects are underrated.** In Bank Marketing, subscription is U-shaped in age: 24% of under-25s and 42% of over-60s subscribe, but medians are nearly equal. The box-plot scorer mostly reads location and spread, so age vs subscription ranks 11th even with the outcome selected. A binned-rate chart would catch it.
-- **Wide tables are slow.** 50 columns × 2,000 rows take about 16.0 s serially on a 4-core Linux container. What is left is mostly pandas overhead in the box and bar scorers and scikit-learn's mutual information estimator. The hosted tier, with about 2 cores, runs serially and is likely no faster.
+- **Wide tables are slow.** 50 columns × 2,000 rows take about 13.7 s serially on a 4-core Linux container. What is left is mostly scikit-learn's mutual information estimator in the scatter scorer, pandas overhead in the bar scorer, and the box scorer's significance tests. The hosted tier, with about 2 cores, runs serially and is likely no faster.
 - **The box gates cost runtime:** roughly 5–35% on wide tables, depending on table and machine. The outlier permutation test is the expensive part, which early stopping limits.
 - **Small groups.** With about 20 rows per group, pure noise still reaches "Moderate" in up to about 1% of box plots, and genuine spread differences that small are often missed.
 - **The hosted feedback store can reset.** On the hosted demo, votes live in a SQLite file on the server, which can be wiped on redeploy. Fine for a demo, not for collecting training data.

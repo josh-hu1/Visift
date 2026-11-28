@@ -110,10 +110,13 @@ def piecewise_score(value: float, points: Sequence[tuple[float, float]]) -> floa
 
 class _Pair:
     """
-    The rows where x and y are both present, and their groups (sorted by x,
-    as groupby gives them), computed once per chart and shared by the
-    component scores. Each component runs the same pandas operations on the
-    same frames as before, so every number is unchanged.
+    The rows where x and y are both present, and y's values split by group,
+    computed once per chart and shared by the component scores. Groups come
+    in groupby's sorted key order and rows keep their original order, so
+    each group's values are the same array pandas would hand out. Means are
+    NumPy's (pandas computes the same sum / count) and quartiles are
+    np.percentile's linear method (which pandas calls), so on NumPy-backed
+    columns every number is unchanged.
     """
 
     def __init__(self, df: pd.DataFrame, x: str, y: str) -> None:
@@ -122,20 +125,62 @@ class _Pair:
         self.clean = df[[x, y]].dropna()
 
     @cached_property
-    def groups(self) -> list[tuple[Any, pd.DataFrame]]:
-        return list(self.clean.groupby(self.x))
+    def grouped(self) -> Any:
+        return self.clean.groupby(self.x, observed=True)
 
     @cached_property
-    def quartiles(self) -> list[tuple[pd.Series, Any, Any]]:
+    def values(self) -> np.ndarray:
+        """y as a NumPy array (its own dtype when NumPy-backed, else float)."""
+
+        column = self.clean[self.y]
+        if isinstance(column.dtype, np.dtype) and column.dtype.kind in "iuf":
+            return column.to_numpy()
+        return column.to_numpy(dtype=float)
+
+    @cached_property
+    def sizes(self) -> np.ndarray:
+        return np.bincount(self._codes)
+
+    @cached_property
+    def _codes(self) -> np.ndarray:
+        """Group number of each row, numbered in groupby's order."""
+
+        column = self.clean[self.x]
+        if isinstance(column.dtype, pd.CategoricalDtype):
+            codes = self.grouped.ngroup().to_numpy()
+        else:
+            # What groupby itself uses to number non-categorical keys.
+            codes, _ = pd.factorize(column, sort=True)
+        return np.asarray(codes, dtype=np.int64)
+
+    @cached_property
+    def group_values(self) -> list[np.ndarray]:
+        """y's values in each group, in groupby's order."""
+
+        if self.clean.empty:
+            return []
+        labels = self._codes.astype(_label_dtype(len(self.sizes)))
+        order = np.argsort(labels, kind="stable")
+        return np.split(self.values[order], np.cumsum(self.sizes)[:-1])
+
+    @cached_property
+    def quartiles(self) -> list[tuple[np.ndarray, float, float]]:
         """(values, Q1, Q3) of y for each group with at least 8 rows."""
 
         found = []
-        for _, group in self.groups:
-            values = group[self.y]
+        for values in self.group_values:
             if len(values) < 8:
                 continue
-            found.append((values, values.quantile(0.25), values.quantile(0.75)))
+            q1, q3 = _quartiles(values)
+            found.append((values, q1, q3))
         return found
+
+
+def _quartiles(values: np.ndarray) -> tuple[float, float]:
+    """Q1 and Q3 exactly as pandas' Series.quantile computes them."""
+
+    q1, q3 = np.percentile(values, [25.0, 75.0])
+    return float(q1), float(q3)
 
 
 def _pair(df: pd.DataFrame, x: str, y: str, pair: _Pair | None) -> _Pair:
@@ -220,9 +265,9 @@ def _group_values(
     df: pd.DataFrame, x: str, y: str, minimum_rows: int, pair: _Pair | None = None
 ) -> list[np.ndarray]:
     return [
-        group[y].to_numpy(dtype=float)
-        for _, group in _pair(df, x, y, pair).groups
-        if len(group) >= minimum_rows
+        values.astype(float)
+        for values in _pair(df, x, y, pair).group_values
+        if len(values) >= minimum_rows
     ]
 
 
@@ -259,6 +304,14 @@ def dispersion_p_value(
     return p_value if np.isfinite(p_value) else 1.0
 
 
+def _label_dtype(k: int) -> type[np.unsignedinteger[Any]]:
+    if k <= np.iinfo(np.uint8).max + 1:
+        return np.uint8
+    if k <= np.iinfo(np.uint16).max + 1:
+        return np.uint16
+    return np.uint64
+
+
 class _OutlierStatistic:
     """
     Chi-square statistic of per-group outlier rates, where each group's
@@ -273,7 +326,9 @@ class _OutlierStatistic:
     """
 
     def __init__(self, values: np.ndarray, codes: np.ndarray, k: int) -> None:
-        self.codes = codes
+        # Small unsigned labels let NumPy's stable sort use radix sort, which
+        # is several times faster here and gives the same (unique) order.
+        self.codes = codes.astype(_label_dtype(k))
         self.k = k
         self.n = len(values)
         self.sort_index = np.argsort(values, kind="stable")
@@ -294,10 +349,9 @@ class _OutlierStatistic:
             labels = self.codes
         else:
             # values[permutation][i] = values[permutation[i]] sits in group
-            # codes[i], so value j's group is codes[inverse[j]].
-            inverse = np.empty(self.n, dtype=np.int64)
-            inverse[permutation] = np.arange(self.n)
-            labels = self.codes[inverse]
+            # codes[i], so value permutation[i] gets label codes[i].
+            labels = np.empty_like(self.codes)
+            labels[permutation] = self.codes
 
         sorted_labels = labels[self.sort_index]
         ordered = self.sorted_values[np.argsort(sorted_labels, kind="stable")]
@@ -370,16 +424,16 @@ def eta_squared_score(
 ) -> float:
     pair = _pair(df, x, y, pair)
     clean = pair.clean
-    if clean.empty or clean[x].nunique() <= 1:
+    if clean.empty or len(pair.sizes) <= 1:
         return 0
     overall_mean = clean[y].mean()
     total_variation = ((clean[y] - overall_mean) ** 2).sum()
     if total_variation == 0:
         return 0
     between_group_variation = 0
-    for _, group in pair.groups:
-        group_mean = group[y].mean()
-        between_group_variation += len(group) * (group_mean - overall_mean) ** 2
+    for values in pair.group_values:
+        group_mean = values.mean()
+        between_group_variation += len(values) * (group_mean - overall_mean) ** 2
     eta_squared = between_group_variation / total_variation
     return clamp(eta_squared * 100)
 
@@ -387,15 +441,14 @@ def eta_squared_score(
 def median_separation_score(
     df: pd.DataFrame, x: str, y: str, pair: _Pair | None = None
 ) -> float:
-    clean = _pair(df, x, y, pair).clean
-    if clean.empty:
+    pair = _pair(df, x, y, pair)
+    if pair.clean.empty:
         return 0
-    medians = clean.groupby(x)[y].median()
+    medians = pair.grouped[y].median()
     if len(medians) <= 1:
         return 0
     median_range = medians.max() - medians.min()
-    q1 = clean[y].quantile(0.25)
-    q3 = clean[y].quantile(0.75)
+    q1, q3 = _quartiles(pair.values)
     iqr = q3 - q1
     if iqr == 0:
         return 0
@@ -426,7 +479,7 @@ def grouped_outlier_statistics(
             continue
         lower = q1 - 1.5 * iqr
         upper = q3 + 1.5 * iqr
-        outlier_count = int(((values < lower) | (values > upper)).sum())
+        outlier_count = int(np.count_nonzero((values < lower) | (values > upper)))
         rate = outlier_count / len(values)
         rates.append(rate)
         weighted_outliers += outlier_count
@@ -518,7 +571,7 @@ def distribution_signal_score(
     outlier_stats = grouped_outlier_statistics(df, x, y, pair)
     dispersion_stats = dispersion_difference_score(df, x, y, pair)
 
-    group_count = int(pair.clean[x].nunique())
+    group_count = len(pair.sizes)
 
     if group_count <= 4:
         comparison_reliability = 1.0
@@ -609,8 +662,8 @@ def score_box_chart(
     semantic_fit = semantic_fit_score(x_type, y_type)
     pair = _Pair(df, x, y)
     clean = pair.clean
-    counts = clean[x].value_counts()
-    unique_count = clean[x].nunique()
+    counts = pd.Series(pair.sizes)
+    unique_count = len(pair.sizes)
     readability = category_readability_score(unique_count)
     support = sample_support_score(counts)
     quality = data_quality_score(df, x, y, pair)
