@@ -11,6 +11,7 @@ from typing import Any
 
 import pandas as pd
 
+from visift.binning import binned_rate_table
 from visift.value_normalization import coerce_numeric_or_boolean
 from visift.visualization.renderer import humanize_column_name, is_currency_column
 
@@ -517,6 +518,40 @@ def histogram_insight(candidate: Mapping[str, Any]) -> str:
     return f"The distribution of {x} is {shape} {outlier_text}"
 
 
+def binned_rate_insight(df: pd.DataFrame, candidate: Mapping[str, Any]) -> str:
+    """
+    "Average Y is highest for Age 61–95 (42%) and lowest for Age 33–38 (8%);
+    it is higher at both ends." The last clause appears when the lowest
+    (or highest) bin is an interior one and both end bins sit on the other
+    side of it, i.e. the pattern a monotonic statistic would miss.
+    """
+
+    x_name = humanize_column_name(candidate["x"])
+    y_name = humanize_column_name(candidate["y"])
+    table = binned_rate_table(df, candidate["x"], candidate["y"])
+
+    if table is None:
+        return f"{x_name} has too few distinct values to split into bins."
+
+    rates = [float(rate) for rate in table["rate"]]
+    high = rates.index(max(rates))
+    low = rates.index(min(rates))
+    last = len(rates) - 1
+
+    sentence = (
+        f"Average {y_name} is highest for {x_name} {table['bin'][high]} "
+        f"({rates[high]:.0%}) and lowest for {x_name} {table['bin'][low]} "
+        f"({rates[low]:.0%})"
+    )
+
+    if 0 < low < last and min(rates[0], rates[last]) > rates[low]:
+        sentence += "; it is higher at both ends"
+    elif 0 < high < last and max(rates[0], rates[last]) < rates[high]:
+        sentence += "; it peaks in the middle"
+
+    return sentence + "."
+
+
 def bar_insight(df: pd.DataFrame, candidate: Mapping[str, Any]) -> str:
     """
     Generate a plain-English explanation for
@@ -528,6 +563,9 @@ def bar_insight(df: pd.DataFrame, candidate: Mapping[str, Any]) -> str:
     x_name = humanize_column_name(x)
 
     aggregation = candidate.get("aggregation", "count")
+
+    if aggregation == "binned_rate":
+        return binned_rate_insight(df, candidate)
 
     # -----------------------------------
     # Count bar

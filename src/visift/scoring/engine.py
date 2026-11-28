@@ -222,25 +222,26 @@ def diversify_recommendations(
 
             primary = diversified[primary_index]
 
-            primary["alternative_charts"].append(
-                {
-                    "chart": candidate["chart"],
-                    "chart_name": chart_display_name(candidate["chart"]),
-                    "title": visualization_title(candidate),
-                    "score": candidate["score"],
-                }
-            )
+            primary["alternative_charts"].append(_alternative(candidate))
 
     return diversified
 
 
 def _alternative(candidate: ScoredCandidate) -> AlternativeChart:
-    return {
+    # Keep the alternative's own columns: a view of the same variables can be
+    # drawn the other way round (box of age by y vs rate of y by age bins).
+    alternative: AlternativeChart = {
         "chart": candidate["chart"],
         "chart_name": chart_display_name(candidate["chart"]),
         "title": visualization_title(candidate),
         "score": candidate["score"],
+        "x": candidate["x"],
     }
+    if "y" in candidate:
+        alternative["y"] = candidate["y"]
+    if "aggregation" in candidate:
+        alternative["aggregation"] = candidate["aggregation"]
+    return alternative
 
 
 def _diversify_with_aliases(

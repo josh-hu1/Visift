@@ -2,6 +2,7 @@ from itertools import combinations
 
 import pandas as pd
 
+from visift.binning import MIN_DISTINCT_VALUES
 from visift.types import Candidate, DatasetProfile
 
 NUMERIC_TYPES = {"numeric_continuous", "numeric_discrete"}
@@ -133,6 +134,33 @@ def generate_candidates(
             candidates.append(
                 {"chart": "bar", "x": col2, "y": col1, "aggregation": "mean"}
             )
+
+        # -----------------------------
+        # Numeric + Boolean Outcome, binned
+        # -----------------------------
+        #
+        # Outcome rate by quintile of a numeric column: catches effects
+        # that are not monotonic (higher at both ends), which box plots and
+        # correlations read as "no difference". Pre-registered in
+        # evaluation/binned_rate_preregistration.md.
+
+        for numeric, outcome, numeric_type, outcome_type in (
+            (col1, col2, type1, type2),
+            (col2, col1, type2, type1),
+        ):
+            if (
+                numeric_type in NUMERIC_TYPES
+                and outcome_type == "boolean"
+                and df[numeric].nunique() >= MIN_DISTINCT_VALUES
+            ):
+                candidates.append(
+                    {
+                        "chart": "bar",
+                        "x": numeric,
+                        "y": outcome,
+                        "aggregation": "binned_rate",
+                    }
+                )
 
     eligible = [
         candidate

@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from visift.binning import binned_rate_table
 from visift.value_normalization import coerce_numeric_or_boolean
 
 # ==================================================
@@ -176,6 +177,9 @@ def visualization_title(candidate: Mapping[str, Any]) -> str:
         return f"{y} by {x}"
 
     if chart == "bar":
+        if candidate.get("aggregation") == "binned_rate":
+            return f"Average {y} by {x} (binned)"
+
         if "y" in candidate:
             return f"Average {y} by {x}"
 
@@ -1112,6 +1116,13 @@ def prepare_bar(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
         return fig
 
     # -----------------------------------
+    # Binned-rate bar chart
+    # -----------------------------------
+
+    if aggregation == "binned_rate":
+        return prepare_binned_rate_bar(df, candidate)
+
+    # -----------------------------------
     # Category + numeric mean bar chart
     # -----------------------------------
 
@@ -1164,6 +1175,44 @@ def prepare_bar(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figure:
     )
 
     apply_numeric_axis_format(fig, "y", y, grouped[y])
+
+    return fig
+
+
+def prepare_binned_rate_bar(
+    df: pd.DataFrame, candidate: Mapping[str, Any]
+) -> go.Figure:
+    """Outcome rate by quantile bin of a numeric column, bins in order."""
+
+    x = candidate["x"]
+    y = candidate["y"]
+    x_name = humanize_column_name(x)
+    y_name = f"Average {humanize_column_name(y)}"
+    table = binned_rate_table(df, x, y)
+
+    if table is None:
+        table = pd.DataFrame({"bin": [], "rate": [], "count": []})
+
+    fig = px.bar(
+        table,
+        x="bin",
+        y="rate",
+        title=visualization_title(candidate),
+        labels={"bin": f"{x_name} (quantile bins)", "rate": y_name},
+        custom_data=["count"],
+    )
+
+    fig.update_traces(
+        marker=dict(color=NEON_GREEN, line=dict(color=NEON_GREEN_SOFT, width=1)),
+        opacity=0.85,
+        hovertemplate=(
+            f"<b>{x_name}</b>: %{{x}}<br>"
+            f"<b>{y_name}</b>: %{{y:.1%}}<br>"
+            "<b>Rows</b>: %{customdata[0]:,}<extra></extra>"
+        ),
+    )
+    fig.update_xaxes(type="category")
+    fig.update_yaxes(tickformat=".0%", rangemode="tozero")
 
     return fig
 
