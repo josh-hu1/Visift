@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from streamlit.testing.v1 import AppTest
 
-import web_app
+# The app needs the [app] extra (streamlit); skip cleanly without it.
+AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
+
+import web_app  # noqa: E402
 
 APP = str(Path(__file__).resolve().parent.parent / "web_app.py")
 
