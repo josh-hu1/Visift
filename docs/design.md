@@ -200,6 +200,7 @@ The box-plot significance gates add roughly 5–35% on wide tables, depending on
 
 - **Lead with the answer.** The app opens on Palmer Penguins with its outcome preselected. The first chart starts 537 px from the top at 1440×900 (it used to be at 950–1,072 px on laptop screens), and the dataset summary is one line. A recruiter or analyst sees a ranked chart before scrolling ([#13](https://github.com/josh-hu1/Visift/pull/13)).
 - **Sample gallery.** Penguins, Titanic, Bike Sharing, a 5,000-row Bank Marketing sample and synthetic sales load in one click, with licenses noted, so nobody needs a CSV to try it.
+- **A map before the ranking.** The Dataset tab opens with a correlation overview: a heatmap of Spearman ρ between numeric columns, clustered so related columns sit together. It is deliberately not part of the score: a strong ρ on a small or skewed sample still has to pass its chart's significance checks to be recommended.
 - **Explain every number.** Each card has a plain-English takeaway, the score bar from section 3, and the statistical evidence in an expander.
 - **Export** ([#14](https://github.com/josh-hu1/Visift/pull/14)):
   - every chart has a short pandas + Plotly snippet that rebuilds its data, checked to match the app's chart data exactly on 98 charts;

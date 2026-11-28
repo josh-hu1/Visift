@@ -1244,3 +1244,89 @@ def render_candidate(df: pd.DataFrame, candidate: Mapping[str, Any]) -> go.Figur
     fig.update_yaxes(showgrid=True, gridcolor=GRID_COLOR, zeroline=False)
 
     return fig
+
+
+# ==================================================
+# CORRELATION OVERVIEW
+# ==================================================
+
+# Diverging pair for rho: red for negative, blue for positive, a neutral gray
+# at 0 (the dark-surface steps of the validated reference palette).
+RHO_NEGATIVE = "#eb6263"
+RHO_NEUTRAL = "#383838"
+RHO_POSITIVE = "#338ced"
+
+# Write the value in each cell only while the cells are large enough.
+OVERVIEW_MAX_ANNOTATED_COLUMNS = 12
+
+
+def render_correlation_overview(overview: Mapping[str, Any]) -> go.Figure:
+    """
+    Heatmap of visift.overview.correlation_overview(): Spearman rho between
+    numeric columns, clustered, diagonal blank. Hover gives rho and the
+    number of rows behind it.
+    """
+
+    columns = list(overview["columns"])
+    rho = overview["rho"]
+    rows = overview["rows"]
+    labels = [humanize_column_name(c) for c in columns]
+    z = rho.to_numpy(dtype=float)
+
+    hover = [
+        [
+            (
+                f"{labels[i]} vs {labels[j]}<br>"
+                + (
+                    f"ρ = {z[i, j]:+.2f} (n = {int(rows.iat[i, j]):,})"
+                    if math.isfinite(z[i, j])
+                    else ("same column" if i == j else "too few shared rows")
+                )
+            )
+            for j in range(len(columns))
+        ]
+        for i in range(len(columns))
+    ]
+
+    annotate = len(columns) <= OVERVIEW_MAX_ANNOTATED_COLUMNS
+    text = [
+        [f"{value:.2f}" if annotate and math.isfinite(value) else "" for value in row]
+        for row in z
+    ]
+
+    fig = go.Figure(
+        go.Heatmap(
+            z=z,
+            x=labels,
+            y=labels,
+            zmin=-1,
+            zmax=1,
+            colorscale=[[0.0, RHO_NEGATIVE], [0.5, RHO_NEUTRAL], [1.0, RHO_POSITIVE]],
+            colorbar=dict(
+                title=dict(text="Spearman ρ", font=dict(color=TEXT_LIGHT)),
+                tickvals=[-1, -0.5, 0, 0.5, 1],
+                tickfont=dict(color=TEXT_MUTED),
+                outlinewidth=0,
+            ),
+            text=text,
+            texttemplate="%{text}",
+            textfont=dict(color=TEXT_LIGHT, size=11),
+            customdata=hover,
+            hovertemplate="%{customdata}<extra></extra>",
+            xgap=2,
+            ygap=2,
+            hoverongaps=False,
+        )
+    )
+
+    size = len(columns)
+    apply_plot_theme(fig)
+    fig.update_layout(
+        title="Correlation overview (Spearman ρ)",
+        height=int(min(820, max(380, 140 + 30 * size))),
+        margin=dict(l=10, r=10, t=60, b=10),
+    )
+    fig.update_xaxes(showgrid=False, tickangle=-45, side="bottom")
+    fig.update_yaxes(showgrid=False, autorange="reversed")
+
+    return fig

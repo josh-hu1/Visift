@@ -202,3 +202,12 @@ def test_paradox_card_shows_its_title_once():
         for s in specs
     )
     assert any("Average Bill Length (mm)" in t for t in titles)
+
+
+def test_dataset_tab_shows_the_correlation_overview():
+    import json
+
+    app = _run()
+    assert any(m.value == "### Correlation overview" for m in app.markdown)
+    specs = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
+    assert any(s["data"][0]["type"] == "heatmap" for s in specs)
