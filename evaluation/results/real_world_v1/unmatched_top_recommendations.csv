@@ -11,14 +11,14 @@ palmer_penguins,13,70.06,54.06,box,,island,flipper_length_mm,box | island vs fli
 palmer_penguins,14,67.49,50.11,box,,island,bill_length_mm,box | island vs bill_length_mm
 uci_bike_sharing_day,1,97.0,100.0,line,,dteday,temp,line | dteday vs temp
 uci_bike_sharing_day,2,90.77,90.11,bar,count,holiday,,bar | count | holiday
-uci_bike_sharing_day,3,87.52,80.81,bar,mean,weekday,workingday,bar | mean | weekday vs workingday
-uci_bike_sharing_day,5,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
-uci_bike_sharing_day,7,71.89,56.76,histogram,,temp,,histogram | temp
-uci_bike_sharing_day,8,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
-uci_bike_sharing_day,9,69.83,53.59,box,,weathersit,hum,box | weathersit vs hum
-uci_bike_sharing_day,10,66.11,47.87,box,,weathersit,temp,box | weathersit vs temp
-uci_bike_sharing_day,12,60.19,41.61,line,,dteday,hum,line | dteday vs hum
-uci_bike_sharing_day,14,53.89,31.63,bar,count,workingday,,bar | count | workingday
+uci_bike_sharing_day,4,79.67,68.73,bar,mean,season,temp,bar | mean | season vs temp
+uci_bike_sharing_day,6,71.89,56.76,histogram,,temp,,histogram | temp
+uci_bike_sharing_day,7,71.2,55.69,bar,count,weathersit,,bar | count | weathersit
+uci_bike_sharing_day,8,69.83,53.59,box,,weathersit,hum,box | weathersit vs hum
+uci_bike_sharing_day,9,66.11,47.87,box,,weathersit,temp,box | weathersit vs temp
+uci_bike_sharing_day,11,60.19,41.61,line,,dteday,hum,line | dteday vs hum
+uci_bike_sharing_day,13,53.89,31.63,bar,count,workingday,,bar | count | workingday
+uci_bike_sharing_day,14,51.15,24.85,scatter,,hum,windspeed,scatter | hum vs windspeed
 titanic3,2,96.71,95.0,box,,embarked,fare,box | embarked vs fare
 titanic3,4,81.53,92.0,histogram,,sibsp,,histogram | sibsp
 titanic3,5,81.53,92.0,histogram,,parch,,histogram | parch
