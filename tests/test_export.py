@@ -122,3 +122,4 @@ def test_html_report_contents():
     assert page.count("Plotly.newPlot") == charts
     assert "Worth a closer look" in page and "Outcome in focus" in page
     assert "github.com/josh-hu1/Visift" in page
+    assert page.count("pattern factor (0.35 + 0.65") == len(recommendations)
