@@ -11,6 +11,20 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _no_browser_windows(monkeypatch):
+    """
+    Exported snippets end with fig.show(), and outside a notebook Plotly's
+    default renderer opens the system web browser. Tests must never do that.
+    """
+
+    import plotly.graph_objects as go
+    import plotly.io as pio
+
+    monkeypatch.setattr(go.Figure, "show", lambda self, *args, **kwargs: None)
+    monkeypatch.setattr(pio, "show", lambda *args, **kwargs: None)
+
+
 @pytest.fixture
 def rng():
     return np.random.default_rng(42)
