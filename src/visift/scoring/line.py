@@ -552,6 +552,36 @@ def temporal_sampling_regularity(trend_data: pd.DataFrame) -> dict[str, Any]:
 # SEASONALITY SIGNAL
 # ==================================================
 
+# An irregular grid is interpolated only when it needs at most this many
+# grid points per observation; beyond that, more than half of the grid
+# would be drawn across gaps (pre-registered in
+# evaluation/irregular_seasonality.py).
+MAX_GRID_POINTS_PER_OBSERVATION = 2
+
+
+def evenly_spaced_residuals(
+    trend_data: pd.DataFrame, residuals: np.ndarray, step: float, observations: int
+) -> np.ndarray | None:
+    """
+    Linearly interpolate residuals observed at irregular times onto an
+    evenly spaced grid from the first to the last time point, one median
+    time step apart, so the FFT and autocorrelation checks can run on them.
+    None when the grid would be mostly gaps.
+    """
+
+    time_values = trend_data["_time_numeric"].to_numpy(dtype=float)
+
+    span = float(time_values[-1] - time_values[0])
+
+    points = int(np.floor(span / step)) + 1
+
+    if points > MAX_GRID_POINTS_PER_OBSERVATION * observations:
+        return None
+
+    grid = time_values[0] + step * np.arange(points)
+
+    return np.interp(grid, time_values, residuals)
+
 
 def autocorrelation_at_lag(values: np.ndarray, lag: int) -> float:
     """
@@ -590,7 +620,10 @@ def seasonality_signal_score(
     Procedure:
 
     1. Remove the linear trend.
-    2. Verify approximately regular time spacing.
+    2. Check the time spacing. Irregularly spaced
+       residuals are linearly interpolated onto an
+       evenly spaced grid whose step is the median time
+       step (see evenly_spaced_residuals).
     3. Use an FFT to find the strongest repeating
        frequency.
     4. Estimate its period.
@@ -624,8 +657,22 @@ def seasonality_signal_score(
 
     regularity = temporal_sampling_regularity(trend_data)
 
-    if not regularity["is_regular"]:
+    if regularity["median_interval"] <= 0:
         return default_result
+
+    observations = n
+
+    if not regularity["is_regular"]:
+        grid_residuals = evenly_spaced_residuals(
+            trend_data, residuals, regularity["median_interval"], observations
+        )
+
+        if grid_residuals is None:
+            return default_result
+
+        residuals = grid_residuals
+
+        n = len(residuals)
 
     centered = residuals - np.mean(residuals)
 
@@ -725,7 +772,7 @@ def seasonality_signal_score(
     # restore full seasonality confidence between
     # 40 and 100 observations.
 
-    sample_reliability = min(1.0, np.sqrt(max(0.0, (n - 30) / 70)))
+    sample_reliability = min(1.0, np.sqrt(max(0.0, (observations - 30) / 70)))
 
     signal = signal * sample_reliability
 
@@ -737,7 +784,7 @@ def seasonality_signal_score(
         "autocorrelation": float(autocorrelation),
         "period_observations": float(period_observations),
         "period_temporal_units": float(period_temporal_units),
-        "regular_sampling": True,
+        "regular_sampling": bool(regularity["is_regular"]),
     }
 
 
@@ -1307,6 +1354,12 @@ def score_line_chart(
             f"{temporal['seasonality']['period_temporal_units']:.1f} "
             "temporal units."
         )
+
+        if not temporal["seasonality"]["regular_sampling"]:
+            reasons.append(
+                "Time steps are uneven, so seasonality was checked on an "
+                "evenly spaced, interpolated copy of the series."
+            )
 
         reasons.append(
             "Seasonal autocorrelation: "
