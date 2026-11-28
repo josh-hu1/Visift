@@ -62,7 +62,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
 - **My board:** pin up to 4 charts from any dataset view and compare them side by side on a **My board** tab (pins survive outcome and filter changes), then download the board as one HTML page
 - **Export:** every chart has a **Python code** tab with a short pandas + Plotly snippet that rebuilds its data (checked to match the app's chart data exactly on 98 charts across all samples), a **Download HTML report** button saves a self-contained, offline page of the charts shown, and each chart's camera button downloads a sharp PNG
-- **Feedback:** 👍 / 👎 on every recommendation (with an optional reason after a 👎) is saved to a local SQLite file with the chart, its rank and score components, never any data values; uploaded files are stored as "upload" with hashed column names. `python -m evaluation.feedback_report` summarizes approval by chart type and score band. Set `VISIFT_FEEDBACK=off` to turn it off
+- **Feedback:** 👍 / 👎 on every recommendation (with an optional reason after a 👎) is saved to a local SQLite file with the chart, its rank and score components, never any data values; uploaded files are stored as "upload", and their column names are replaced by a token salted per session, so they can't be read back. `python -m evaluation.feedback_report` summarizes approval by chart type and score band. Set `VISIFT_FEEDBACK=off` to turn it off
 
 ---
 

@@ -1,8 +1,13 @@
+import gc
+import hashlib
 import json
 import logging
+import sqlite3
+import warnings
 
 import pytest
 
+from visift import feedback
 from visift.feedback import (
     NullFeedbackStore,
     SQLiteFeedbackStore,
@@ -31,6 +36,7 @@ CANDIDATE = {
 def _event(vote=1, reason=None, candidate=CANDIDATE, **overrides):
     arguments = {
         "session_id": "s1",
+        "salt": "salt-1",
         "dataset": "Palmer Penguins",
         "uploaded": False,
         "target": "species",
@@ -93,8 +99,9 @@ def test_uploads_hash_column_names_and_hide_the_file_name(store):
     store.record(event)
     (saved,) = store.events()
     assert saved["dataset"] == "upload"
-    assert saved["x"] == hash_column("bill_length_mm") and saved["x"].startswith("col:")
-    assert saved["target"] == hash_column("churned")
+    assert saved["x"] == hash_column("bill_length_mm", "salt-1")
+    assert saved["x"].startswith("col:")
+    assert saved["target"] == hash_column("churned", "salt-1")
     stored = json.dumps(saved)
     for secret in ("secret_customers", "churned", "bill_length_mm"):
         assert secret not in stored
@@ -119,3 +126,38 @@ def test_write_failure_is_logged_not_raised(tmp_path, caplog):
         broken.clear(_event())
         assert broken.events() == []
     assert "Could not record feedback" in caplog.text
+
+
+def test_column_tokens_are_salted_per_session():
+    assert hash_column("age", "a") == hash_column("age", "a")
+    assert hash_column("age", "a") != hash_column("age", "b")
+    assert hash_column("age", "a") != hash_column("income", "a")
+    # Not the unsalted digest a dictionary of common names would reverse.
+    unsalted = "col:" + hashlib.sha256(b"age").hexdigest()[:8]
+    assert hash_column("age", "a") != unsalted
+
+
+def test_connections_are_closed(store, monkeypatch):
+    # sqlite3's own context manager commits but does not close; Python 3.13+
+    # warns about that, earlier versions don't, so check closing directly.
+    opened = []
+    real_connect = feedback.sqlite3.connect
+
+    def spy(*args, **kwargs):
+        connection = real_connect(*args, **kwargs)
+        opened.append(connection)
+        return connection
+
+    monkeypatch.setattr(feedback.sqlite3, "connect", spy)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", ResourceWarning)
+        store.record(_event())
+        store.clear(_event())
+        store.record(_event())
+        assert len(store.events()) == 1
+        gc.collect()
+
+    assert len(opened) == 4
+    for connection in opened:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")

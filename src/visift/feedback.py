@@ -9,23 +9,29 @@ ranking model later (learning to rank), without storing any data.
 Privacy:
 - no data values are ever stored;
 - for uploaded files the dataset is recorded as "upload" (never the file
-  name) and column names are replaced by a short sha256 prefix
-  ("col:3fa2b1c9"); the built-in samples keep their real column names;
+  name) and column names are replaced by a token salted per session
+  ("col:3fa2b1c9"), so they can't be read back: the salt is random per app
+  session and never stored, so a dictionary of common names ("age",
+  "income") can't reverse a token, and tokens can't be linked across
+  sessions. Within one session a column always gets the same token. The
+  built-in samples keep their real column names;
 - the session id is a random uuid4 per app session, not an identity.
 
 Storage: SQLite (standard library) at $VISIFT_FEEDBACK_DB, default
 .visift/feedback.sqlite. VISIFT_FEEDBACK=off disables it. Each call opens
-its own short-lived connection in WAL mode with a short timeout, so
-concurrent sessions are safe. A vote is an upsert keyed on (session_id,
+its own short-lived connection in WAL mode with a short timeout (closed
+after every call), so concurrent sessions are safe. A vote is an upsert keyed on (session_id,
 dataset, target, chart identity): changing it replaces the row, clearing it
 deletes the row. A failure to write is logged and never breaks the app.
 """
 
 import hashlib
+import hmac
 import logging
 import os
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol, TypedDict
@@ -83,15 +89,21 @@ class FeedbackStore(Protocol):
 # --------------------------------------------------
 
 
-def hash_column(name: str) -> str:
-    """A short, stable stand-in for an uploaded column name."""
+def hash_column(name: str, salt: str) -> str:
+    """
+    A short stand-in for an uploaded column name: HMAC-SHA256 keyed by a
+    per-session salt. The same name and salt always give the same token;
+    without the salt (never stored) it can't be guessed or linked.
+    """
 
-    return "col:" + hashlib.sha256(str(name).encode("utf-8")).hexdigest()[:8]
+    digest = hmac.new(salt.encode("utf-8"), str(name).encode("utf-8"), hashlib.sha256)
+    return "col:" + digest.hexdigest()[:8]
 
 
 def make_event(
     *,
     session_id: str,
+    salt: str,
     dataset: str,
     uploaded: bool,
     target: str | None,
@@ -103,13 +115,14 @@ def make_event(
 ) -> FeedbackEvent:
     """
     Build an event for a vote. For uploads, the dataset becomes "upload" and
-    every column name (x, y, group, target) is hashed.
+    every column name (x, y, group, target) is replaced by a token salted with
+    `salt` (random per session, never stored).
     """
 
     def column(value: Any) -> str | None:
         if value is None or value == "":
             return None
-        return hash_column(value) if uploaded else str(value)
+        return hash_column(value, salt) if uploaded else str(value)
 
     components = candidate.get("components", {})
 
@@ -185,12 +198,16 @@ class SQLiteFeedbackStore:
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """A connection that commits on success and is always closed."""
+
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(self.path, timeout=2.0)
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute(_SCHEMA)
-        return connection
+        with closing(sqlite3.connect(self.path, timeout=2.0)) as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute(_SCHEMA)
+            with connection:  # commit or roll back
+                yield connection
 
     def record(self, event: FeedbackEvent) -> None:
         try:

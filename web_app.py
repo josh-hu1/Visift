@@ -1,3 +1,4 @@
+import secrets
 import time
 import uuid
 from html import escape as html_escape
@@ -1654,6 +1655,15 @@ def feedback_session_id():
     return st.session_state["feedback_session"]
 
 
+def feedback_salt():
+    """Random per session; salts uploaded column names and is never stored."""
+
+    if "feedback_salt" not in st.session_state:
+        st.session_state["feedback_salt"] = secrets.token_hex(16)
+
+    return st.session_state["feedback_salt"]
+
+
 def record_vote(widget_key, reason_key, candidate, rank):
     """on_change for the thumbs and the reason pills: upsert or clear."""
 
@@ -1663,6 +1673,7 @@ def record_vote(widget_key, reason_key, candidate, rank):
 
     event = make_event(
         session_id=feedback_session_id(),
+        salt=feedback_salt(),
         dataset=context.get("dataset", ""),
         uploaded=context.get("uploaded", False),
         target=context.get("target"),
@@ -2467,7 +2478,8 @@ def display_method_tab():
         "stores the chart type, the columns it uses, its rank, score and score "
         "components, the selected outcome, and a random session id. No data "
         "values are stored. For an uploaded file, the file name is never stored "
-        "and column names are replaced by a short hash. On the hosted demo the "
+        "and column names are replaced by a token salted per session, so they "
+        "can't be read back. On the hosted demo the "
         "votes live in a file on the server, which can be reset when the app is "
         "redeployed."
     )
