@@ -76,3 +76,81 @@ def test_upload_option_waits_for_a_file():
     app = _run(app)
     assert any("Upload a CSV or Excel file to begin." in i.value for i in app.info)
     assert not app.subheader  # nothing analyzed until a file arrives
+
+
+# --------------------------------------------------
+# My board (pinned charts)
+# --------------------------------------------------
+
+
+def _pin_buttons(app):
+    return [
+        b
+        for b in app.button
+        if (b.key or "").startswith(("pin::card::", "pin::paradox::"))
+    ]
+
+
+def _board(app):
+    return app.session_state["board"]["pins"] if "board" in app.session_state else []
+
+
+def _click(app, button):
+    button.click()
+    return _run(app)
+
+
+def test_pin_and_unpin():
+    app = _run()
+    first = _pin_buttons(app)[0]
+    key = first.key
+    app = _click(app, first)
+    assert len(_board(app)) == 1
+    assert any("1 of 4 pins" in c.value for c in app.caption)
+    assert app.button(key=key).label == "Unpin from board"
+
+    app = _click(app, app.button(key=key))
+    assert _board(app) == []
+
+
+def test_at_most_four_pins():
+    app = _run()
+    for _ in range(5):
+        unpinned = [b for b in _pin_buttons(app) if b.label.startswith("📌")]
+        app = _click(app, unpinned[0])
+    assert len(_board(app)) == 4
+    assert any("up to 4 charts" in t.value for t in app.toast)
+
+
+def test_pins_survive_an_outcome_change():
+    app = _run()
+    app = _click(app, _pin_buttons(app)[0])
+    pinned = [p["chart"].get("x") for p in _board(app)]
+    app.selectbox(key="target::Palmer Penguins").select_index(0)
+    app = _run(app)
+    assert [p["chart"].get("x") for p in _board(app)] == pinned
+
+
+def test_pins_reset_on_dataset_switch():
+    app = _run()
+    app = _click(app, _pin_buttons(app)[0])
+    assert len(_board(app)) == 1
+    _selectbox(app, "Choose a dataset").set_value("Titanic")
+    app = _run(app)
+    assert _board(app) == []
+    assert any("Nothing pinned yet" in i.value for i in app.info)
+
+
+def test_board_empty_state():
+    app = _run()
+    assert any("Nothing pinned yet" in i.value for i in app.info)
+
+
+def test_tab_labels_do_not_change_when_pinning():
+    # A changed tab label makes Streamlit rebuild the tabs and jump back to
+    # the first one, so unpinning on the board would leave the board.
+    app = _run()
+    before = [tab.label for tab in app.tabs]
+    app = _click(app, _pin_buttons(app)[0])
+    assert [tab.label for tab in app.tabs] == before
+    assert "My board" in before
