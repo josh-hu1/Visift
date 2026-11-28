@@ -313,7 +313,7 @@ A pair is flagged only when the overall and within-group Spearman correlations h
 
 ## Performance
 
-Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac before the box-plot significance gates were added; those gates cost roughly another 25–35% on wide tables (measured back to back). Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
+Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac before the box-plot significance gates were added; those gates add roughly 5–35% on wide tables, depending on table and machine (measured back to back). Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
 
 | Dataset | Columns × rows | Before | After (serial, default) | After (4 warm workers) |
 |---|---|---|---|---|
