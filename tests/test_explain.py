@@ -6,10 +6,10 @@ from visift.explain import pattern_factor, score_breakdown
 from visift.pipeline import analyze
 
 SAMPLES = {
-    "data/samples/penguins.csv": "species",
-    "data/samples/titanic.csv": "survived",
-    "data/samples/bike_sharing_day.csv": "cnt",
-    "data/samples/bank_marketing_sample.csv": "y",
+    "src/visift/samples/penguins.csv": "species",
+    "src/visift/samples/titanic.csv": "survived",
+    "src/visift/samples/bike_sharing_day.csv": "cnt",
+    "src/visift/samples/bank_marketing_sample.csv": "y",
     "synthetic_sales.csv": None,
 }
 

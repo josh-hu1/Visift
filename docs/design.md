@@ -232,7 +232,7 @@ The box-plot significance gates add roughly 5–35% on wide tables, depending on
 
 ## 10. Next (Phase 4)
 
-1. **`pip install visift`, a CLI and a notebook API:** `visift analyze data.csv --target y --html report.html` and `visift.recommend(df, target="y")` returning Plotly figures.
+1. ✅ **A CLI and a notebook API.** Done: `visift analyze data.csv --target y --html report.html` and `visift.recommend(df, target="y")`, with `.figure()` and `.code()` per chart; CI builds the wheel and runs it from a fresh install. Publishing to PyPI is still open.
 2. **More chart families** where the benchmark misses point: binned-rate charts for U-shaped effects, categorical × categorical heatmaps and stacked rate bars, a correlation overview.
 3. **Optional grounded narrative:** a short "what to look at first" summary generated only from the computed evidence, clearly labeled, and off by default so the core stays deterministic.
 4. **Learning to rank:** once there are enough votes, fit a light model over the existing score components and compare it with the hand-calibrated scorer on the real-world benchmark. It has to beat the hand-calibrated scorer to replace it.
