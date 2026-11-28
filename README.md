@@ -67,6 +67,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
 - **My board:** pin up to 4 charts from any dataset view and compare them side by side on a **My board** tab (pins survive outcome and filter changes), then download the board as one HTML page
 - **Export:** every chart has a **Python code** tab with a short pandas + Plotly snippet that rebuilds its data (checked to match the app's chart data exactly on 98 charts across all samples), a **Download HTML report** button saves a self-contained, offline page of the charts shown, and each chart's camera button downloads a sharp PNG
+- **Correlation overview:** the Dataset tab shows a clustered heatmap of Spearman correlations between the numeric columns, a map of the table before reading the ranked charts. It is context only: nothing in it is scored, and it changes no ranking
 - **Command line and notebook API:** `visift analyze data.csv --target y --html report.html`, or `visift.recommend(df, target="y")` in a notebook, with the same ranking, takeaways and report as the app ([Install and Use](#install-and-use))
 - **Feedback:** 👍 / 👎 on every recommendation (with an optional reason after a 👎) is saved to a local SQLite file with the chart, its rank and score components, never any data values; uploaded files are stored as "upload", and their column names are replaced by a token salted per session, so they can't be read back. `python -m evaluation.feedback_report` summarizes approval by chart type and score band. Set `VISIFT_FEEDBACK=off` to turn it off
 
@@ -355,6 +356,7 @@ Visift/
 │   ├── cli.py                  # the visift command (visift analyze ...)
 │   ├── insight.py              # plain-English takeaways
 │   ├── datasets.py             # bundled samples by short name
+│   ├── overview.py             # correlation overview (context, not ranked)
 │   ├── samples/                # sample datasets (sources and licenses in README)
 │   ├── types.py                # TypedDict records passed through the pipeline
 │   ├── profiler.py
@@ -440,6 +442,7 @@ recs[0].figure()  # Plotly figure, as in the app
 recs[0].takeaway  # "Average Churned is highest for North and lowest for South."
 print(recs[0].code())  # pandas + Plotly snippet that rebuilds the chart
 recs.paradoxes, recs.notes
+recs.correlation_overview()  # Spearman heatmap of the numeric columns
 visift.report(df, "report.html", target="churned")
 ```
 

@@ -25,11 +25,16 @@ import plotly.graph_objects as go
 from visift.explain import ScoreBreakdown, score_breakdown
 from visift.export import chart_code, html_report
 from visift.insight import plain_english_insight
+from visift.overview import correlation_overview
 from visift.paradox import Paradox
 from visift.pipeline import Analysis, DatasetNote, analyze
 from visift.scoring.engine import chart_display_name, recommendation_strength
 from visift.types import Recommendation as RankedChart
-from visift.visualization.renderer import render_candidate, visualization_title
+from visift.visualization.renderer import (
+    render_candidate,
+    render_correlation_overview,
+    visualization_title,
+)
 
 __all__ = ["Recommendation", "Recommendations", "recommend", "report", "stats_line"]
 
@@ -142,6 +147,15 @@ class Recommendations(list[Recommendation]):
         """Redundant or trivially related columns, kept out of the ranking."""
 
         return self.analysis["notes"]
+
+    def correlation_overview(self) -> go.Figure | None:
+        """
+        Heatmap of Spearman correlations between the numeric columns
+        (clustered; context only, never scored). None with fewer than 3.
+        """
+
+        overview = correlation_overview(self.data, self.analysis["profile"])
+        return None if overview is None else render_correlation_overview(overview)
 
     def to_frame(self) -> pd.DataFrame:
         columns = ["rank", "title", "chart", "x", "y", "score", "band", "driver"]

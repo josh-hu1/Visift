@@ -12,6 +12,7 @@ from visift.export import chart_code, html_report
 from visift.feedback import REASONS, default_store, feedback_enabled, make_event
 from visift.insight import plain_english_insight
 from visift.io import MAX_COLUMNS, MAX_UPLOAD_MB, UploadError, load_table
+from visift.overview import correlation_overview
 from visift.pipeline import analyze
 from visift.profiler import profile_dataset
 from visift.scoring.engine import (
@@ -24,6 +25,7 @@ from visift.visualization.renderer import (
     humanize_column_name,
     is_currency_column,
     render_candidate,
+    render_correlation_overview,
     visualization_title,
 )
 
@@ -1741,6 +1743,46 @@ def display_dataset_notes(notes, noted_charts):
         )
 
 
+def display_correlation_overview(df, profile):
+    """
+    Spearman correlations between numeric columns, as a map of the table.
+    Context only: it is not scored and changes no ranking.
+    """
+
+    overview = correlation_overview(df, profile)
+
+    if overview is None:
+        return
+
+    st.markdown("### Correlation overview")
+
+    shown = len(overview["columns"])
+    total = overview["numeric_columns"]
+    st.caption(
+        "Spearman rank correlation between numeric columns, on the rows where "
+        "both are present; columns that move together are placed next to each "
+        "other. This is a map, not a ranking: a strong pair still has to pass "
+        "its chart's significance checks to be recommended."
+        + (
+            f" Showing the {shown} of {total} numeric columns with the strongest "
+            "correlations."
+            if shown < total
+            else ""
+        )
+    )
+
+    fig = render_correlation_overview(overview)
+    # The section heading already names the chart.
+    fig.update_layout(title=None, margin=dict(t=20))
+
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config=plotly_config("Correlation overview"),
+        key="correlation-overview",
+    )
+
+
 def display_dataset_tab(df, profile, source_name, notes=(), noted_charts=()):
     """
     Display dataset metadata and preview.
@@ -1751,6 +1793,8 @@ def display_dataset_tab(df, profile, source_name, notes=(), noted_charts=()):
     st.caption(f"Source: {source_name}")
 
     display_dataset_notes(list(notes), list(noted_charts))
+
+    display_correlation_overview(df, profile)
 
     st.markdown("### Inferred column types")
 
