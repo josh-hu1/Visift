@@ -102,6 +102,7 @@ class AlternativeChart(_AlternativeChartRequired, total=False):
     score: float
     x: str
     y: str
+    aggregation: str
     group: str
 
 
