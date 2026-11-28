@@ -63,10 +63,11 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Dataset notes for redundant columns:** near-duplicates (e.g. `temp` and `atemp`, Spearman 0.99) count as one variable, and charts between trivially related columns are set aside with the statistic that explains why instead of topping the ranking
 - **Target-aware ranking:** optionally pick an outcome column (Visift suggests one, e.g. a binary `churned` or `y`) to get a "Drivers of <target>" section first; on the real-world benchmark this lifts Recall@10 from 50% to 95% with pre-registered targets (an effect-size baseline reaches 75% in the same setting)
 - **Missing-data and sample-size reliability adjustments**
-- **Sample gallery:** Palmer Penguins, Titanic, Bike Sharing, a Bank Marketing sample and synthetic sales load in one click, with their known outcome preselected ([sources and licenses](data/samples/README.md))
+- **Sample gallery:** Palmer Penguins, Titanic, Bike Sharing, a Bank Marketing sample and synthetic sales load in one click, with their known outcome preselected ([sources and licenses](src/visift/samples/README.md))
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
 - **My board:** pin up to 4 charts from any dataset view and compare them side by side on a **My board** tab (pins survive outcome and filter changes), then download the board as one HTML page
 - **Export:** every chart has a **Python code** tab with a short pandas + Plotly snippet that rebuilds its data (checked to match the app's chart data exactly on 98 charts across all samples), a **Download HTML report** button saves a self-contained, offline page of the charts shown, and each chart's camera button downloads a sharp PNG
+- **Command line and notebook API:** `visift analyze data.csv --target y --html report.html`, or `visift.recommend(df, target="y")` in a notebook, with the same ranking, takeaways and report as the app ([Install and Use](#install-and-use))
 - **Feedback:** 👍 / 👎 on every recommendation (with an optional reason after a 👎) is saved to a local SQLite file with the chart, its rank and score components, never any data values; uploaded files are stored as "upload", and their column names are replaced by a token salted per session, so they can't be read back. `python -m evaluation.feedback_report` summarizes approval by chart type and score band. Set `VISIFT_FEEDBACK=off` to turn it off
 
 ---
@@ -339,9 +340,8 @@ Visift/
 ├── pyproject.toml              # package metadata, dependencies, ruff/mypy/pytest config
 ├── requirements.txt            # Streamlit Cloud entry point: -e .[app]
 ├── LICENSE                     # MIT
-├── .github/workflows/ci.yml    # ruff + mypy, pytest on Python 3.10-3.13
+├── .github/workflows/ci.yml    # ruff + mypy, pytest on Python 3.10-3.13, wheel build + install
 ├── synthetic_sales.csv
-├── data/samples/               # one-click sample datasets (sources and licenses in README)
 │
 ├── tests/                      # pytest suite; fixtures/ holds small CSVs
 ├── benchmarks/perf.py          # wall-time benchmark (python -m benchmarks.perf)
@@ -349,6 +349,12 @@ Visift/
 │   └── generate_synthetic_sales.py   # regenerates synthetic_sales.csv
 │
 ├── src/visift/                 # the recommendation engine (installable package)
+│   ├── __init__.py             # recommend(), report(), analyze(), load_sample()
+│   ├── api.py                  # the notebook API
+│   ├── cli.py                  # the visift command (visift analyze ...)
+│   ├── insight.py              # plain-English takeaways
+│   ├── datasets.py             # bundled samples by short name
+│   ├── samples/                # sample datasets (sources and licenses in README)
 │   ├── types.py                # TypedDict records passed through the pipeline
 │   ├── profiler.py
 │   ├── semantic_types.py
@@ -398,6 +404,45 @@ Visift/
 - **scikit-learn**
 - **Plotly**
 - **Streamlit**
+
+---
+
+## Install and Use
+
+Install the package and command line from GitHub (Python 3.10+; not yet on PyPI):
+
+```bash
+pip install "git+https://github.com/josh-hu1/Visift"
+```
+
+**Command line.** Rank the charts in any CSV, TSV, TXT or Excel file:
+
+```bash
+visift analyze sales.csv --target churned --top 10
+visift analyze sales.csv --target churned --html report.html --json recs.json
+visift analyze workbook.xlsx --sheet Data
+visift analyze --sample penguins          # bundled samples: penguins, titanic, bike, bank
+```
+
+It prints a ranked table (score, band, chart, columns and a one-line takeaway; drivers of the outcome are marked `*`), then any Simpson's paradoxes and dataset notes. `--html` writes the same offline report as the app, `--json -` prints machine-readable recommendations with their evidence and score breakdown. Exit codes: 0 ok, 1 the file could not be read (with a plain explanation), 2 usage error.
+
+**Notebook.**
+
+```python
+import pandas as pd
+import visift
+
+df = pd.read_csv("sales.csv")
+recs = visift.recommend(df, target="churned", top=5)
+recs  # ranked table in Jupyter
+recs[0].figure()  # Plotly figure, as in the app
+recs[0].takeaway  # "Average Churned is highest for North and lowest for South."
+print(recs[0].code())  # pandas + Plotly snippet that rebuilds the chart
+recs.paradoxes, recs.notes
+visift.report(df, "report.html", target="churned")
+```
+
+The notebook API and the command line do not need Streamlit.
 
 ---
 

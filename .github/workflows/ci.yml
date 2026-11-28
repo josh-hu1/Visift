@@ -58,3 +58,26 @@ jobs:
               coverage report --format=markdown
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  package:
+    name: Build and install the package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build twine
+          python -m build
+          twine check --strict dist/*
+      - name: Install the wheel in a fresh venv (no repo on the path)
+        run: |
+          python -m venv /tmp/fresh
+          /tmp/fresh/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/fresh/bin/visift --version
+          /tmp/fresh/bin/visift analyze --sample penguins --top 3 --html /tmp/report.html --json /tmp/recs.json
+          /tmp/fresh/bin/python -c "import visift, sys; recs = visift.recommend(visift.load_sample('titanic'), target='survived', top=3); print(recs.to_frame()); assert 'streamlit' not in sys.modules"
+          test -s /tmp/report.html && test -s /tmp/recs.json
