@@ -32,11 +32,19 @@ _DECIMAL_COMMA = re.compile(r"(?:^|;)\s*-?\d+,\d+\s*(?:;|$)", re.MULTILINE)
 class UploadError(ValueError):
     """A problem with an uploaded file, explained for the person uploading it."""
 
-    def __init__(self, message: str, hint: str = "", detail: str = "") -> None:
+    def __init__(
+        self,
+        message: str,
+        hint: str = "",
+        detail: str = "",
+        sheet_names: list[str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.hint = hint
         self.detail = detail
+        # Excel only: every sheet, so the app can offer another one.
+        self.sheet_names = sheet_names or []
 
 
 class LoadedTable(TypedDict):
@@ -132,9 +140,9 @@ def _read_text(data: bytes) -> tuple[pd.DataFrame, list[str]]:
 # --------------------------------------------------
 
 
-def _read_excel(data: bytes, sheet: str | None) -> tuple[pd.DataFrame, list[str], str]:
+def _open_workbook(data: bytes) -> pd.ExcelFile:
     try:
-        workbook = pd.ExcelFile(io.BytesIO(data))
+        return pd.ExcelFile(io.BytesIO(data))
     except ImportError as error:
         raise UploadError(
             "Excel support isn't installed.",
@@ -148,10 +156,14 @@ def _read_excel(data: bytes, sheet: str | None) -> tuple[pd.DataFrame, list[str]
             detail=f"{type(error).__name__}: {error}",
         ) from error
 
-    names = [str(name) for name in workbook.sheet_names]
-    chosen = sheet if sheet in names else names[0]
 
-    return pd.read_excel(workbook, sheet_name=chosen), names, chosen
+def excel_sheet_names(data: bytes) -> list[str]:
+    """Sheet names of an .xlsx upload ([] if it can't be opened)."""
+
+    try:
+        return [str(name) for name in _open_workbook(data).sheet_names]
+    except UploadError:
+        return []
 
 
 # --------------------------------------------------
@@ -160,7 +172,21 @@ def _read_excel(data: bytes, sheet: str | None) -> tuple[pd.DataFrame, list[str]
 
 
 def _clean(df: pd.DataFrame, notices: list[str]) -> pd.DataFrame:
-    headers = [str(column).strip() for column in df.columns]
+    df = df.copy()
+    df.columns = [str(column).strip() for column in df.columns]
+
+    # Drop completely empty columns first, so a trailing empty column with a
+    # blank header is reported once (dropped), not also renamed.
+    # (With no data rows every column is 'empty'; keep them so the error can say
+    # the file has a header but no rows.)
+    keep = [
+        i for i in range(df.shape[1]) if len(df) == 0 or not df.iloc[:, i].isna().all()
+    ]
+    if len(keep) < df.shape[1]:
+        notices.append(f"Dropped {df.shape[1] - len(keep)} completely empty column(s).")
+        df = df.iloc[:, keep]
+
+    headers = list(df.columns)
 
     blank = [
         i for i, h in enumerate(headers) if not h or h.lower().startswith("unnamed:")
@@ -183,13 +209,7 @@ def _clean(df: pd.DataFrame, notices: list[str]) -> pd.DataFrame:
     if renamed:
         notices.append("Renamed duplicate columns: " + ", ".join(renamed) + ".")
 
-    df = df.copy()
     df.columns = headers
-
-    empty_columns = [c for c in df.columns if df[c].isna().all()]
-    if empty_columns:
-        df = df.drop(columns=empty_columns)
-        notices.append(f"Dropped {len(empty_columns)} completely empty column(s).")
 
     before = len(df)
     df = df.dropna(how="all")
@@ -197,6 +217,81 @@ def _clean(df: pd.DataFrame, notices: list[str]) -> pd.DataFrame:
         notices.append(f"Dropped {before - len(df)} completely empty row(s).")
 
     return df.reset_index(drop=True)
+
+
+def _validate(df: pd.DataFrame, *, sheet: str | None, sheet_names: list[str]) -> None:
+    """Raise UploadError unless the cleaned table has >= 2 columns and >= 1 row."""
+
+    where = f"Sheet “{sheet}”" if sheet is not None else "The file"
+
+    if df.shape[1] == 0:
+        raise UploadError(
+            f"{where} is empty.",
+            hint="Pick another sheet."
+            if sheet is not None
+            else "Check that you exported data.",
+            sheet_names=sheet_names,
+        )
+
+    if df.empty:
+        raise UploadError(
+            f"{where} has a header but no data rows.",
+            hint="Check that the export included the data, not just column names.",
+            sheet_names=sheet_names,
+        )
+
+    if df.shape[1] < 2:
+        hint = (
+            "Pick another sheet, or check that the data starts in the first row."
+            if sheet is not None
+            else "Visift compares columns, so it needs at least two. If the file has "
+            "more, its separator may be unusual: use commas, semicolons, tabs or "
+            "pipes."
+        )
+        raise UploadError(
+            "Only one column was found.",
+            hint=hint,
+            detail=f"Columns read: {list(df.columns)}",
+            sheet_names=sheet_names,
+        )
+
+
+def _load_excel(
+    data: bytes, sheet: str | None
+) -> tuple[pd.DataFrame, list[str], list[str], str]:
+    """
+    (clean df, notices, sheet names, chosen sheet). With no sheet requested,
+    opens the first usable sheet; a requested sheet is used as-is.
+    """
+
+    workbook = _open_workbook(data)
+    names = [str(name) for name in workbook.sheet_names]
+
+    def read(name: str) -> tuple[pd.DataFrame, list[str]]:
+        notices: list[str] = []
+        df = _clean(pd.read_excel(workbook, sheet_name=name), notices)
+        _validate(df, sheet=name, sheet_names=names)
+        return df, notices
+
+    if sheet is not None and sheet in names:
+        df, notices = read(sheet)
+        return df, notices, names, sheet
+
+    first_error: UploadError | None = None
+
+    for index, name in enumerate(names):
+        try:
+            df, notices = read(name)
+        except UploadError as error:
+            first_error = first_error or error
+            continue
+
+        if index > 0:
+            notices.insert(0, f"Opened sheet “{name}”; earlier sheets have no table.")
+        return df, notices, names, name
+
+    assert first_error is not None  # a workbook always has at least one sheet
+    raise first_error
 
 
 def load_table(data: bytes, filename: str, sheet: str | None = None) -> LoadedTable:
@@ -223,34 +318,16 @@ def load_table(data: bytes, filename: str, sheet: str | None = None) -> LoadedTa
         )
 
     if name.endswith(EXCEL_SUFFIXES):
-        df, sheet_names, chosen = _read_excel(data, sheet)
-        notices: list[str] = []
+        df, notices, sheet_names, chosen = _load_excel(data, sheet)
     elif name.endswith(TEXT_SUFFIXES) or "." not in name:
         df, notices = _read_text(data)
+        df = _clean(df, notices)
+        _validate(df, sheet=None, sheet_names=[])
     else:
         raise UploadError(
             "Unsupported file type.",
             hint="Upload a .csv, .tsv, .txt or .xlsx file.",
             detail=f"File name: {filename}",
-        )
-
-    df = _clean(df, notices)
-
-    if df.empty:
-        raise UploadError(
-            "The file has a header but no data rows.",
-            hint="Check that the export included the data, not just column names.",
-        )
-
-    if df.shape[1] < 2:
-        raise UploadError(
-            "Only one column was found.",
-            hint=(
-                "Visift compares columns, so it needs at least two. If the file has "
-                "more, its separator may be unusual: use commas, semicolons, tabs or "
-                "pipes."
-            ),
-            detail=f"Columns read: {list(df.columns)}",
         )
 
     if len(df) > MAX_ROWS:
