@@ -4,6 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/)
 
 **Visualization recommendations, ranked by insight.**
 
@@ -13,11 +14,15 @@ Instead of showing every chart that *can* be made, Visift prioritizes the charts
 
 **Results so far:** on a small, pre-registered real-world benchmark (4 public datasets, 20 expected insights), Visift puts 95% of the expected insights in its top 10 when you name the outcome you care about, versus 75% for a baseline that sorts the same charts by plain effect size. Without an outcome it is only slightly ahead of that baseline (50% vs 45% in the top 10). Details in [Evaluation](#evaluation).
 
-[Live Demo](https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/) · [GitHub Repository](https://github.com/josh-hu1/Visift)
+[Live Demo](https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app/) · [Design doc](docs/design.md) · [GitHub Repository](https://github.com/josh-hu1/Visift)
 
 ---
 
 ## Preview
+
+![Visift demo](assets/demo.gif)
+
+25 s tour: Simpson's paradox on Penguins, evidence for the #1 chart, pinning to My board, then Titanic's drivers of survival.
 
 ![Visift opening on Palmer Penguins: a Simpson's paradox chart above the fold](assets/app-preview.png)
 
@@ -308,7 +313,7 @@ A pair is flagged only when the overall and within-group Spearman correlations h
 
 ## Performance
 
-Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac before the box-plot significance gates were added; those gates cost roughly another 25–35% on wide tables (measured back to back). Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
+Wall time for the full pipeline (`analyze()`: profiling, candidates, scoring, redundancy checks, ranking), measured with `python -m benchmarks.perf --real-world --jobs 4 --repeats 2` on an 8-core Apple-silicon Mac before the box-plot significance gates were added; those gates add roughly 5–35% on wide tables, depending on table and machine (measured back to back). Synthetic tables are fixed-seed mixes of numeric, categorical, boolean and date columns.
 
 | Dataset | Columns × rows | Before | After (serial, default) | After (4 warm workers) |
 |---|---|---|---|---|
@@ -482,12 +487,12 @@ Known limitations include:
 
 ## Future Work
 
-Potential extensions include:
+The [design doc](docs/design.md) explains the scoring formula, the statistic behind each chart family, how calibration and the benchmark were run, and the known failure modes. Potential extensions include:
 
 - additional visualization families
 - more robust seasonality detection for irregular time intervals
 - more datasets in the [real-world benchmark](evaluation/real_world/README.md)
-- user feedback signals for recommendation quality
+- learning to rank from the 👍 / 👎 feedback, compared against the hand-calibrated scorer
 - domain-aware semantic inference
 - richer multivariate visualization recommendations
 

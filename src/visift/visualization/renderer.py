@@ -102,13 +102,43 @@ CURRENCY_TERMS = {
 }
 
 
+# A trailing unit token is shown in parentheses: body_mass_g -> "Body Mass (g)".
+# Conservative on purpose: single letters are ambiguous ("x", "h"), except g,
+# and "min" is left out because temp_min / temp_max usually mean minimum.
+UNIT_SUFFIXES = {
+    "mm": "mm",
+    "cm": "cm",
+    "km": "km",
+    "g": "g",
+    "kg": "kg",
+    "mg": "mg",
+    "lb": "lb",
+    "lbs": "lbs",
+    "oz": "oz",
+    "ms": "ms",
+    "sec": "sec",
+    "hr": "hr",
+    "hrs": "hrs",
+    "pct": "%",
+    "usd": "USD",
+    "kwh": "kWh",
+}
+
+
 def humanize_column_name(name: object) -> str:
     """
-    Convert a raw column name into a cleaner
-    human-readable label.
+    Convert a raw column name into a cleaner human-readable label. A trailing
+    unit (from UNIT_SUFFIXES) becomes a parenthesized suffix:
+    bill_depth_mm -> "Bill Depth (mm)", growth_pct -> "Growth (%)".
     """
 
-    return str(name).replace("_", " ").strip().title()
+    words = str(name).replace("_", " ").split()
+    unit = UNIT_SUFFIXES.get(words[-1].lower()) if len(words) >= 2 else None
+
+    if unit is None:
+        return str(name).replace("_", " ").strip().title()
+
+    return f"{' '.join(words[:-1]).title()} ({unit})"
 
 
 def is_currency_column(column_name: object) -> bool:
