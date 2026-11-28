@@ -59,3 +59,84 @@ alternative matches an expectation still counts.
 If a criterion fails, the rule is not adjusted to pass on the same data.
 Any amendment is disclosed with the reason, and the failed version is
 reported too.
+
+---
+
+## Results (added after running; the rule above is unchanged)
+
+Reproduce with `python -m evaluation.binned_rate_calibration` and
+`python -m evaluation.real_world.benchmark --ranker visift`.
+
+### Criterion 1, false positives: **FAILED**
+
+Share of pure-noise binned-rate charts scoring ≥ 50 (500 seeds per cell):
+
+| Base rate | n = 100 | n = 300 | n = 1,000 | n = 5,000 |
+|---|---:|---:|---:|---:|
+| 10% | 0.0% | 0.0% | 0.4% | 0.0% |
+| 30% | 0.8% | **1.2%** | 0.2% | 0.0% |
+| 50% | **1.4%** | **2.0%** | 0.4% | 0.0% |
+
+None scored ≥ 65 (highest 59.8), so that half passes. Three of 12 cells
+exceed the 1% limit, all at n ≤ 300 with balanced outcomes. The same
+binary-rate scorer is used for categorical rate bars today, so this tail is
+likely shared by them with five groups; that was not measured here.
+
+### Criterion 2, power (reported)
+
+Share of planted effects scoring ≥ 50 (100 seeds per cell; base rate 10%):
+
+| Shape, lift | n = 300 | n = 1,000 | n = 5,000 |
+|---|---:|---:|---:|
+| U-shape, +10 pp | 2% | 7% | 0% |
+| U-shape, +20 pp | 16% | 39% | 1% |
+| U-shape, +30 pp | 53% | 91% | 100% |
+| Linear, +10 pp | 3% | 6% | 0% |
+| Linear, +20 pp | 20% | 47% | 38% |
+| Linear, +30 pp | 64% | 99% | 100% |
+
+Small effects rarely reach "Moderate" even with 5,000 rows: the existing
+rate-gap scale (60 pp for most of the absolute signal) treats a 10-point gap
+as weak.
+
+### Criterion 3, real-world benchmark: passed
+
+| | Before (main) | With binned-rate bars |
+|---|---:|---:|
+| No outcome: R@3 / R@5 / R@10, MRR | 15% / 30% / 50%, 0.205 | 15% / 30% / 50%, 0.205 |
+| Outcome: R@3 / R@5 / R@10 | 50% / 70% / 95% | 50% / 70% / **100%** |
+| Outcome: MRR | 0.411 | 0.412 |
+
+Bank Marketing age vs subscription moves from rank 11 to rank 9 with the
+outcome selected, through the binned-rate view ("higher at both ends").
+Titanic age vs survival stays at rank 7.
+
+### Criterion 4, hardened synthetic benchmark: passed
+
+Top-1/3/5 retrieval 100%, null candidates ≥ 50 0%, highest null 43.25,
+all unchanged.
+
+### Disclosed changes made while running
+
+1. **Alternative views now keep their own columns** (`engine._alternative`).
+   Before, a diversified alternative stored only its chart type, so the
+   benchmark read it with the primary chart's x/y. No existing pair of
+   folded charts differs in orientation, so this changed nothing before.
+   The binned-rate bar (x = age) is the first view drawn the other way
+   round from its box plot (x = y). Without the fix, the Bank age insight
+   could not be matched at all. The pre-registration above already assumed
+   alternatives count; this makes the code do that. No score changes.
+2. **The effect-size baseline skips binned-rate bars**, so its committed
+   numbers stay identical (verified: 45% / 75% R@10, MRR 0.190 / 0.352). It
+   was defined before these charts existed, and it already ranks the same
+   pair through the box plot.
+
+### Status
+
+Criterion 1 failed, so by the rule above this is **not proposed for
+merge as is**. Options for the owner:
+(a) drop it;
+(b) accept a 2% noise tail at n ≤ 300 for the R@10 gain;
+(c) a disclosed amendment tested on fresh seeds. An example is applying
+the binary-rate scorer's own ramp with Bonferroni over the bins, or
+requiring n ≥ 500.
