@@ -154,3 +154,33 @@ def test_tab_labels_do_not_change_when_pinning():
     app = _click(app, _pin_buttons(app)[0])
     assert [tab.label for tab in app.tabs] == before
     assert "My board" in before
+
+
+# --------------------------------------------------
+# Feedback thumbs
+# --------------------------------------------------
+
+
+def test_thumbs_vote_writes_one_row(tmp_path, monkeypatch):
+    from visift.feedback import SQLiteFeedbackStore
+
+    database = tmp_path / "votes.sqlite"
+    monkeypatch.setenv("VISIFT_FEEDBACK_DB", str(database))
+
+    app = _run()
+    thumbs = [w for w in app.get("feedback")]
+    assert thumbs, "every recommendation card has thumbs"
+    thumbs[0].set_value(1)
+    app = _run(app)
+
+    (event,) = SQLiteFeedbackStore(database).events()
+    assert event["vote"] == 1 and event["dataset"] == "Palmer Penguins"
+    assert event["target"] == "species" and event["rank"] == 1
+    assert any("Thanks, this helps" in c.value for c in app.caption)
+
+
+def test_feedback_off_shows_no_thumbs(monkeypatch):
+    # Disabled mode hides the thumbs entirely (rather than showing inert ones).
+    monkeypatch.setenv("VISIFT_FEEDBACK", "off")
+    app = _run()
+    assert len(app.get("feedback")) == 0

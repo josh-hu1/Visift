@@ -62,6 +62,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
 - **My board:** pin up to 4 charts from any dataset view and compare them side by side on a **My board** tab (pins survive outcome and filter changes), then download the board as one HTML page
 - **Export:** every chart has a **Python code** tab with a short pandas + Plotly snippet that rebuilds its data (checked to match the app's chart data exactly on 98 charts across all samples), a **Download HTML report** button saves a self-contained, offline page of the charts shown, and each chart's camera button downloads a sharp PNG
+- **Feedback:** 👍 / 👎 on every recommendation (with an optional reason after a 👎) is saved to a local SQLite file with the chart, its rank and score components, never any data values; uploaded files are stored as "upload", and their column names are replaced by a token salted per session, so they can't be read back. `python -m evaluation.feedback_report` summarizes approval by chart type and score band. Set `VISIFT_FEEDBACK=off` to turn it off
 
 ---
 
@@ -354,6 +355,7 @@ Visift/
 │   ├── pipeline.py             # analyze(df, target=None): the whole pipeline in one call
 │   ├── export.py               # chart_code() snippets and html_report()
 │   ├── io.py                   # load_table(): robust CSV/Excel upload loading
+│   ├── feedback.py             # 👍/👎 events and their SQLite store
 │   ├── scoring/
 │   │   ├── engine.py
 │   │   ├── bar.py
@@ -368,6 +370,7 @@ Visift/
 ├── evaluation/
 │   ├── benchmark.py
 │   ├── *_calibration.py
+│   ├── feedback_report.py      # approval by chart type and score band
 │   ├── real_world/
 │   │   ├── benchmark.py
 │   │   ├── download_datasets.py
@@ -441,6 +444,7 @@ mypy                      # type-checks src/visift
 7. Filter by chart type, minimum score, or number of recommendations in the sidebar.
 8. Click **📌 Pin to board** under up to 4 charts to compare them on the **My board** tab; it has its own **Download board as HTML** button.
 9. Save what you found: **Download HTML report** (sidebar) for a one-page, offline report of the charts shown, or hover any chart and click its camera icon for a PNG at 2× resolution.
+10. Rate recommendations with 👍 / 👎 next to **Pin to board**; after a 👎 you can say why (obvious, wrong chart type, misleading, not interesting). Votes help tune the ranking and store no data values (see the **How it works** tab).
 
 ---
 

@@ -25,6 +25,13 @@ def _no_browser_windows(monkeypatch):
     monkeypatch.setattr(pio, "show", lambda *args, **kwargs: None)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_feedback_db(monkeypatch, tmp_path):
+    """Tests never write feedback into the repository's .visift/ folder."""
+
+    monkeypatch.setenv("VISIFT_FEEDBACK_DB", str(tmp_path / "feedback.sqlite"))
+
+
 @pytest.fixture
 def rng():
     return np.random.default_rng(42)

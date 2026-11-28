@@ -41,3 +41,6 @@ evaluation/results/*_calibration_v*/
 
 # Generated binary-rate formula experiment outputs
 evaluation/results/binary_rate_formula_experiment_v1/
+
+# Local feedback database (visift.feedback)
+.visift/
