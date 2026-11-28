@@ -51,12 +51,28 @@ def test_analyze_prints_a_ranked_table(table, capsys):
 
 
 def test_target_marks_drivers_first(table, capsys):
-    assert main(["analyze", str(table), "--target", "churned", "--top", "4"]) == 0
+    assert main(["analyze", str(table), "--target", "churned", "--top", "10"]) == 0
     out = capsys.readouterr().out
     assert "Outcome: churned" in out
     assert "  1*" in out
-    # Takeaways are plain text: currency without a Markdown escape.
-    assert "$5" in out and "\\$" not in out
+    assert "\\$" not in out
+
+
+def test_takeaways_are_plain_text_currency(table):
+    # The app escapes "$" for Markdown itself; takeaways stay plain text.
+    import pandas as pd
+
+    from visift.insight import plain_english_insight
+    from visift.pipeline import analyze
+
+    df = pd.read_csv(table)
+    box = next(
+        c
+        for c in analyze(df, target="churned")["scored"]
+        if c["chart"] == "box" and c.get("y") == "revenue"
+    )
+    takeaway = plain_english_insight(df, box)
+    assert "$" in takeaway and "\\$" not in takeaway
 
 
 def test_unknown_target_is_a_usage_error(table, capsys):

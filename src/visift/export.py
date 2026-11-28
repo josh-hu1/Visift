@@ -252,6 +252,28 @@ def _bar_code(candidate: Mapping[str, Any], df: pd.DataFrame) -> list[str]:
         ]
 
     y = candidate["y"]
+
+    if candidate.get("aggregation") == "binned_rate":
+        return [
+            f"data = df[[{x!r}, {y!r}]].copy()",
+            f"data[{x!r}] = pd.to_numeric(data[{x!r}], errors='coerce')",
+            _numeric_conversion(df[y], y),
+            f"data = data.dropna(subset=[{x!r}, {y!r}])",
+            "# Quintiles of x; each bin labeled by its smallest and largest value",
+            f"data['bin'] = pd.qcut(data[{x!r}], 5, labels=False, duplicates='drop')",
+            f"rates = data.groupby('bin').agg(low=({x!r}, 'min'), "
+            f"high=({x!r}, 'max'), rate=({y!r}, 'mean')).reset_index()",
+            "",
+            "def bound(v):",
+            "    v = float(v)",
+            "    return f'{v:,.0f}' if abs(v) >= 100 or v.is_integer() else f'{v:.3g}'",
+            "",
+            "rates['label'] = [f'{bound(lo)}–{bound(hi)}' "
+            "for lo, hi in zip(rates['low'], rates['high'])]",
+            "fig = px.bar(rates, x='label', y='rate')",
+            "fig.update_xaxes(type='category')",
+        ]
+
     sort = (
         f"sort_values({x!r})"
         if pd.api.types.is_numeric_dtype(df[x].dropna())

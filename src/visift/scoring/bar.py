@@ -4,6 +4,7 @@ from typing import Any
 import pandas as pd
 from scipy.stats import chisquare
 
+from visift.binning import binned_frame
 from visift.scoring.binary_rate import binary_rate_signal_score
 from visift.types import Candidate, DatasetProfile, ScoreResult
 from visift.value_normalization import coerce_numeric_or_boolean
@@ -354,6 +355,53 @@ def score_bar_chart(
                 f"(p={count_signal['p_value']:.3g})."
             ),
             f"Category frequency signal: {signal:.1f}/100.",
+        ]
+
+    # -----------------------------------
+    # Binned-rate bar chart (numeric x in quintiles vs a boolean outcome;
+    # pre-registered in evaluation/binned_rate_preregistration.md)
+    # -----------------------------------
+
+    elif aggregation == "binned_rate":
+        y = candidate["y"]
+
+        semantic_fit = semantic_fit_score("ordinal")
+
+        quality = data_quality_score(df, [x, y])
+
+        binned = binned_frame(df, x, y)
+
+        if binned is None:
+            unique_count = 0
+            readability = 0.0
+            support = 0.0
+            signal = 0.0
+            raw_signal = 0.0
+            counts = pd.Series(dtype=float)
+        else:
+            counts = binned["bin"].value_counts()
+            unique_count = len(counts)
+            readability = category_readability_score(unique_count)
+            support = sample_support_score(counts)
+            binary_rate_details = binary_rate_signal_score(binned, "bin", y)
+            raw_signal = binary_rate_details["effect_signal"]
+            signal = binary_rate_details["signal"]
+
+        final_score, visualization_quality = combine_quality_and_signal(
+            semantic_fit, readability, quality, support, signal
+        )
+
+        reasons = [
+            f"{x} split into {unique_count} quantile bins "
+            f"(semantic fit as ordinal groups: {semantic_fit:.1f}/100).",
+            (
+                f"Average bin size: {counts.mean():.1f} observations."
+                if unique_count
+                else "Too few distinct values for 3 quantile bins."
+            ),
+            f"Data completeness: {quality:.1f}%.",
+            f"Raw rate difference across bins: {raw_signal:.1f}/100.",
+            f"Reliability-adjusted signal: {signal:.1f}/100.",
         ]
 
     # -----------------------------------

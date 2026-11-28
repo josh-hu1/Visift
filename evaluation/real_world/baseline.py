@@ -125,7 +125,14 @@ def baseline_ranking(
     """(candidates, ranked charts with a 0-100 'score' = 100 x effect size)."""
 
     types = {c["name"]: c["semantic_type"] for c in profile["column_profiles"]}
-    candidates = generate_candidates(df, profile, target=target)
+    # Binned-rate bars (Phase 4.2) are left out so the committed baseline is
+    # unchanged: it was defined before they existed, and the same pair is
+    # already ranked through its box plot (correlation ratio).
+    candidates = [
+        candidate
+        for candidate in generate_candidates(df, profile, target=target)
+        if candidate.get("aggregation") != "binned_rate"
+    ]
 
     ranked: list[dict[str, Any]] = []
 
