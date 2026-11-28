@@ -1,7 +1,7 @@
 # Sample datasets
 
 Small copies of public datasets for the Visift app's one-click gallery. They
-are cleaned the same way as the [real-world benchmark](../../evaluation/real_world/README.md),
+are cleaned the same way as the [real-world benchmark](../../../evaluation/real_world/README.md),
 so the app shows what the benchmark measures.
 
 | File | Rows | Source | License |

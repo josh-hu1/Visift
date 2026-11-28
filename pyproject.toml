@@ -29,12 +29,18 @@ dev = [
     "pandas-stubs",
 ]
 
+[project.scripts]
+visift = "visift.cli:main"
+
 [project.urls]
 Homepage = "https://visift-hq3sfksqtjznd4z8cuutv3.streamlit.app"
 Repository = "https://github.com/josh-hu1/Visift"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+visift = ["py.typed", "samples/*.csv", "samples/README.md"]
 
 [tool.ruff]
 line-length = 88
