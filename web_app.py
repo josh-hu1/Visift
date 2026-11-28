@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from visift.export import chart_code, html_report
 from visift.pipeline import analyze
 from visift.profiler import profile_dataset
 from visift.scoring.engine import (
@@ -1086,6 +1087,32 @@ APP_DIR = Path(__file__).resolve().parent
 
 UPLOAD_OPTION = "Upload your own CSV"
 
+
+def plotly_config(title):
+    """
+    Chart toolbar settings. The camera button downloads a 2x PNG named after
+    the chart (rendered in the browser; no server-side image export).
+    """
+
+    slug = "".join(c if c.isalnum() else "-" for c in str(title).lower()).strip("-")
+
+    return {
+        "displaylogo": False,
+        "responsive": True,
+        "toImageButtonOptions": {
+            "format": "png",
+            "filename": slug or "visift-chart",
+            "scale": 2,
+        },
+    }
+
+
+def export_csv_name():
+    """File name the exported code reads (the sample's file or the upload)."""
+
+    return st.session_state.get("export_csv_name", "data.csv")
+
+
 # One-click sample datasets: label -> (file, outcome to preselect, hook, credit).
 SAMPLES = {
     "Palmer Penguins": (
@@ -1292,7 +1319,11 @@ def display_dataset_metrics(
         f"analyzed in {elapsed:.1f} s" if elapsed is not None else None,
     ]
 
-    st.caption(" · ".join(part for part in parts if part))
+    line = " · ".join(part for part in parts if part)
+
+    st.caption(line)
+
+    return line.replace("**", "")
 
 
 def build_column_profile_table(profile):
@@ -1475,9 +1506,7 @@ def display_recommendation(df, candidate, rank):
 
         fig = render_candidate(df, candidate)
 
-        st.plotly_chart(
-            fig, width="stretch", config={"displaylogo": False, "responsive": True}
-        )
+        st.plotly_chart(fig, width="stretch", config=plotly_config(title))
 
         # -----------------------------------
         # Top metrics
@@ -1506,7 +1535,9 @@ def display_recommendation(df, candidate, rank):
         # -----------------------------------
 
         with st.expander("Recommendation details"):
-            evidence_tab, scoring_tab = st.tabs(["Evidence", "Score breakdown"])
+            evidence_tab, scoring_tab, code_tab = st.tabs(
+                ["Evidence", "Score breakdown", "Python code"]
+            )
 
             with evidence_tab:
                 st.markdown("#### Key evidence")
@@ -1536,6 +1567,14 @@ def display_recommendation(df, candidate, rank):
                 st.markdown("#### Component scores")
 
                 display_score_breakdown(candidate)
+
+            with code_tab:
+                st.caption(
+                    "pandas + Plotly code that rebuilds this chart's data "
+                    "(styling left out). Copy it with the button on the code."
+                )
+
+                st.code(chart_code(candidate, export_csv_name(), df), language="python")
 
 
 # ==================================================
@@ -1666,19 +1705,27 @@ def display_paradoxes(df, paradoxes):
 
             st.info(paradox["sentence"], icon="🔀")
 
-            fig = render_candidate(
-                df,
-                {
-                    "chart": "scatter",
-                    "x": paradox["x"],
-                    "y": paradox["y"],
-                    "group": paradox["group"],
-                },
-            )
+            grouped_chart = {
+                "chart": "scatter",
+                "x": paradox["x"],
+                "y": paradox["y"],
+                "group": paradox["group"],
+            }
+
+            fig = render_candidate(df, grouped_chart)
 
             st.plotly_chart(
-                fig, width="stretch", config={"displaylogo": False, "responsive": True}
+                fig,
+                width="stretch",
+                config=plotly_config(
+                    f"{paradox['x']} vs {paradox['y']} by {paradox['group']}"
+                ),
             )
+
+            with st.expander("Python code"):
+                st.code(
+                    chart_code(grouped_chart, export_csv_name(), df), language="python"
+                )
 
             with st.expander("Group-level evidence"):
                 st.dataframe(
@@ -1773,6 +1820,36 @@ def display_recommendations_tab(
     )
 
 
+def filter_recommendations(recommendations, selected_chart_types, minimum_score, top_n):
+    """The recommendations a list shows under the sidebar filters."""
+
+    return [
+        candidate
+        for candidate in recommendations
+        if (
+            candidate["chart"] in selected_chart_types
+            and candidate["score"] >= minimum_score
+        )
+    ][:top_n]
+
+
+def shown_recommendations(
+    recommendations, target, selected_chart_types, minimum_score, top_n
+):
+    """Everything the Recommendations tab shows, in order (drivers first)."""
+
+    if target is None:
+        return filter_recommendations(
+            recommendations, selected_chart_types, minimum_score, top_n
+        )
+
+    drivers, others = split_by_target(recommendations, target)
+
+    return filter_recommendations(
+        drivers, selected_chart_types, minimum_score, top_n
+    ) + filter_recommendations(others, selected_chart_types, minimum_score, top_n)
+
+
 def display_recommendation_list(
     df, recommendations, selected_chart_types, minimum_score, top_n
 ):
@@ -1780,16 +1857,9 @@ def display_recommendation_list(
     Filter and render one ranked list of recommendations.
     """
 
-    filtered = [
-        candidate
-        for candidate in recommendations
-        if (
-            candidate["chart"] in selected_chart_types
-            and candidate["score"] >= minimum_score
-        )
-    ]
-
-    filtered = filtered[:top_n]
+    filtered = filter_recommendations(
+        recommendations, selected_chart_types, minimum_score, top_n
+    )
 
     if not filtered:
         st.warning("No recommendations match the current filters.")
@@ -2021,6 +2091,10 @@ def main():
 
     df, source_name, default_target = load_data()
 
+    st.session_state["export_csv_name"] = (
+        Path(SAMPLES[source_name][0]).name if source_name in SAMPLES else source_name
+    )
+
     # -----------------------------------
     # Dataset validation
     # -----------------------------------
@@ -2075,7 +2149,7 @@ def main():
     # Overview
     # -----------------------------------
 
-    display_dataset_metrics(
+    stats_line = display_dataset_metrics(
         df, profile, candidates, recommendations, elapsed, source_name
     )
 
@@ -2088,6 +2162,32 @@ def main():
     (selected_chart_types, minimum_score, top_n) = recommendation_controls(
         recommendations
     )
+
+    report_recommendations = shown_recommendations(
+        recommendations, target, selected_chart_types, minimum_score, top_n
+    )
+
+    def build_report():
+        # Runs only when the button is clicked.
+        return html_report(
+            df,
+            source_name=source_name,
+            stats_line=stats_line,
+            target=target,
+            paradoxes=paradoxes,
+            recommendations=report_recommendations,
+            notes=notes,
+            insight=plain_english_insight,
+        )
+
+    with st.sidebar:
+        st.download_button(
+            "Download HTML report",
+            data=build_report,
+            file_name=f"visift-report-{export_csv_name().rsplit('.', 1)[0]}.html",
+            mime="text/html",
+            help=("A self-contained page with the charts shown here (works offline)."),
+        )
 
     # -----------------------------------
     # Navigation

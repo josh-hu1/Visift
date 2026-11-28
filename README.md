@@ -60,6 +60,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Missing-data and sample-size reliability adjustments**
 - **Sample gallery:** Palmer Penguins, Titanic, Bike Sharing, a Bank Marketing sample and synthetic sales load in one click, with their known outcome preselected ([sources and licenses](data/samples/README.md))
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
+- **Export:** every chart has a **Python code** tab with a short pandas + Plotly snippet that rebuilds its data (checked to match the app's chart data exactly on 98 charts across all samples), a **Download HTML report** button saves a self-contained, offline page of the charts shown, and each chart's camera button downloads a sharp PNG
 
 ---
 
@@ -338,6 +339,7 @@ Visift/
 │   ├── redundancy.py           # near-duplicate / near-deterministic column pairs
 │   ├── paradox.py              # Simpson's paradox detection
 │   ├── pipeline.py             # analyze(df, target=None): the whole pipeline in one call
+│   ├── export.py               # chart_code() snippets and html_report()
 │   ├── scoring/
 │   │   ├── engine.py
 │   │   ├── bar.py
@@ -419,9 +421,10 @@ mypy                      # type-checks src/visift
 2. Pick another sample from **Choose a dataset** (Titanic, Bike Sharing, Bank Marketing, synthetic sales) or choose **Upload your own CSV**.
 3. Optionally pick the column you want to explain under **Focus on an outcome**. Samples preselect theirs (e.g. `survived` for Titanic); choose **None** to see the general ranking.
 4. Read **Worth a closer look** (Simpson's paradoxes, if any), then the **Drivers of** your outcome and the other recommendations, each with a plain-English takeaway.
-5. Expand **Recommendation details** for statistical evidence and score components.
+5. Expand **Recommendation details** for statistical evidence, score components, and a **Python code** tab you can copy to rebuild the chart in your own notebook.
 6. Check the **Dataset** tab for inferred column types and any dataset notes (redundant columns).
 7. Filter by chart type, minimum score, or number of recommendations in the sidebar.
+8. Save what you found: **Download HTML report** (sidebar) for a one-page, offline report of the charts shown, or hover any chart and click its camera icon for a PNG at 2× resolution.
 
 ---
 
