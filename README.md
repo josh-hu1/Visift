@@ -60,6 +60,7 @@ The result is a short, explainable list of recommended visualizations rather tha
 - **Missing-data and sample-size reliability adjustments**
 - **Sample gallery:** Palmer Penguins, Titanic, Bike Sharing, a Bank Marketing sample and synthetic sales load in one click, with their known outcome preselected ([sources and licenses](data/samples/README.md))
 - **Interactive Streamlit interface** with CSV upload, filtering, score breakdowns, and Plotly charts; the first chart is visible without scrolling on a laptop screen
+- **My board:** pin up to 4 charts from any dataset view and compare them side by side on a **My board** tab (pins survive outcome and filter changes), then download the board as one HTML page
 - **Export:** every chart has a **Python code** tab with a short pandas + Plotly snippet that rebuilds its data (checked to match the app's chart data exactly on 98 charts across all samples), a **Download HTML report** button saves a self-contained, offline page of the charts shown, and each chart's camera button downloads a sharp PNG
 
 ---
@@ -438,7 +439,8 @@ mypy                      # type-checks src/visift
 5. Expand **Recommendation details** for statistical evidence, score components, and a **Python code** tab you can copy to rebuild the chart in your own notebook.
 6. Check the **Dataset** tab for inferred column types and any dataset notes (redundant columns).
 7. Filter by chart type, minimum score, or number of recommendations in the sidebar.
-8. Save what you found: **Download HTML report** (sidebar) for a one-page, offline report of the charts shown, or hover any chart and click its camera icon for a PNG at 2× resolution.
+8. Click **📌 Pin to board** under up to 4 charts to compare them on the **My board** tab; it has its own **Download board as HTML** button.
+9. Save what you found: **Download HTML report** (sidebar) for a one-page, offline report of the charts shown, or hover any chart and click its camera icon for a PNG at 2× resolution.
 
 ---
 

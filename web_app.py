@@ -1554,6 +1554,73 @@ def display_score_breakdown(candidate):
 # ==================================================
 
 
+# ==================================================
+# MY BOARD (pinned charts)
+# ==================================================
+
+MAX_PINS = 4
+
+
+def chart_key(chart):
+    """Stable identity of a chart: type, columns, aggregation, grouping."""
+
+    return "|".join(
+        str(chart.get(part) or "")
+        for part in ("chart", "x", "y", "aggregation", "group")
+    )
+
+
+def board_pins(dataset_key):
+    """
+    Pinned charts for the current dataset (a list of snapshots). Pins
+    survive outcome and filter changes and reset when the dataset changes.
+    """
+
+    board = st.session_state.get("board")
+
+    if board is None or board["dataset"] != dataset_key:
+        board = {"dataset": dataset_key, "pins": []}
+        st.session_state["board"] = board
+
+    return board["pins"]
+
+
+def toggle_pin(dataset_key, snapshot):
+    pins = board_pins(dataset_key)
+    key = chart_key(snapshot["chart"])
+
+    for index, pin in enumerate(pins):
+        if chart_key(pin["chart"]) == key:
+            del pins[index]
+            return
+
+    if len(pins) >= MAX_PINS:
+        st.toast(
+            f"You can pin up to {MAX_PINS} charts. Unpin one on the My board tab "
+            "first.",
+            icon="📌",
+        )
+        return
+
+    pins.append(snapshot)
+
+
+def pin_button(snapshot, context):
+    """Pin/Unpin toggle for one chart (context keeps widget keys unique)."""
+
+    dataset_key = st.session_state.get("export_csv_name", "")
+    key = chart_key(snapshot["chart"])
+    pinned = any(chart_key(pin["chart"]) == key for pin in board_pins(dataset_key))
+
+    st.button(
+        "Unpin from board" if pinned else "📌 Pin to board",
+        key=f"pin::{context}::{key}",
+        on_click=toggle_pin,
+        args=(dataset_key, snapshot),
+        help="Collect up to 4 charts on the My board tab to compare them.",
+    )
+
+
 SEGMENT_COLORS = {
     "semantic_fit": "#2B2F2B",
     "readability": "#363B36",
@@ -1656,6 +1723,8 @@ def display_recommendation(df, candidate, rank):
             )
 
         st.caption(caption)
+
+        pin_button({"kind": "recommendation", "chart": dict(candidate)}, "card")
 
         # -----------------------------------
         # Details
@@ -1849,6 +1918,11 @@ def display_paradoxes(df, paradoxes):
                 ),
             )
 
+            pin_button(
+                {"kind": "paradox", "chart": grouped_chart, "paradox": dict(paradox)},
+                "paradox",
+            )
+
             with st.expander("Python code"):
                 st.code(
                     chart_code(grouped_chart, export_csv_name(), df), language="python"
@@ -1890,6 +1964,90 @@ def display_paradoxes(df, paradoxes):
                 )
 
     st.divider()
+
+
+def display_board_tab(df, source_name, stats_line, target, notes):
+    """
+    'My board': pinned charts side by side, with an HTML download.
+    """
+
+    dataset_key = st.session_state.get("export_csv_name", "")
+    pins = board_pins(dataset_key)
+
+    st.subheader("My board")
+
+    if not pins:
+        st.info(
+            f"Nothing pinned yet. Use **📌 Pin to board** under any chart "
+            f"(recommendations or Worth a closer look) to collect up to "
+            f"{MAX_PINS} charts here and compare them side by side."
+        )
+
+        return
+
+    st.caption(
+        f"{len(pins)} of {MAX_PINS} pins · pins stay while you change the outcome "
+        "or filters, and reset when you switch datasets."
+    )
+
+    columns = st.columns(2)
+
+    for index, pin in enumerate(pins):
+        chart = pin["chart"]
+
+        with columns[index % 2], st.container(border=True):
+            if pin["kind"] == "paradox":
+                title = f"{chart['x']} vs {chart['y']} by {chart['group']}"
+                st.markdown(f"**{title}**  \n:orange-badge[Simpson's paradox]")
+            else:
+                title = visualization_title(chart)
+                st.markdown(f"**{title}** · score {chart['score']:.1f}")
+
+            fig = render_candidate(df, chart)
+
+            # The card already shows the title; in a half-width column the
+            # figure's own title would collide with its legend.
+            fig.update_layout(title_text="", margin={"t": 40})
+
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config=plotly_config(title),
+                key=f"board-chart::{chart_key(chart)}",
+            )
+
+            if pin["kind"] == "paradox":
+                st.caption(pin["paradox"]["sentence"])
+            else:
+                st.caption(score_breakdown(chart)["formula"])
+
+            st.button(
+                "Unpin",
+                key=f"board-unpin::{chart_key(chart)}",
+                on_click=toggle_pin,
+                args=(dataset_key, pin),
+            )
+
+    def build_board_report():
+        return html_report(
+            df,
+            source_name=f"{source_name} (my board)",
+            stats_line=stats_line,
+            target=target,
+            paradoxes=[pin["paradox"] for pin in pins if pin["kind"] == "paradox"],
+            recommendations=[
+                pin["chart"] for pin in pins if pin["kind"] == "recommendation"
+            ],
+            notes=notes,
+            insight=plain_english_insight,
+        )
+
+    st.download_button(
+        "Download board as HTML",
+        data=build_board_report,
+        file_name=f"visift-board-{dataset_key.rsplit('.', 1)[0]}.html",
+        mime="text/html",
+    )
 
 
 def display_recommendations_tab(
@@ -2320,8 +2478,10 @@ def main():
     # Navigation
     # -----------------------------------
 
-    (recommendations_tab, dataset_tab, method_tab) = st.tabs(
-        ["Recommendations", "Dataset", "How it works"]
+    board_label = f"My board ({len(board_pins(export_csv_name()))})"
+
+    (recommendations_tab, board_tab, dataset_tab, method_tab) = st.tabs(
+        ["Recommendations", board_label, "Dataset", "How it works"]
     )
 
     with recommendations_tab:
@@ -2335,6 +2495,9 @@ def main():
             target=target,
             paradoxes=paradoxes,
         )
+
+    with board_tab:
+        display_board_tab(df, source_name, stats_line, target, notes)
 
     with dataset_tab:
         display_dataset_tab(df, profile, source_name, notes, noted_charts)
